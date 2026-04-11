@@ -130,7 +130,31 @@ When using ORMs, always use the ORM's built-in parameterization:
 - SQLAlchemy: `session.execute(text("SELECT * FROM t WHERE id = :id"), {"id": uid})`
 - Never pass user input to `.extra()`, `RawSQL()`, or `execute()` via f-strings.
 
-### 1.4 Agentic / MCP Security
+### 1.4 AI-Generated SQL Review Requirements
+
+Research confirms AI-generated SQL contains **2.74× more vulnerabilities** than human-written SQL (Veracode Spring 2026). **33.1% of confirmed AI code vulnerabilities are injection flaws**, predominantly SQL injection via string concatenation. At least 35 CVEs in March 2026 alone were traced to AI-generated code.
+
+**Rule: Treat all AI-generated SQL as untrusted until verified.**
+
+Common AI SQL anti-patterns (statistically documented):
+1. **String concatenation instead of parameterized queries** — the #1 AI code security flaw
+2. **N+1 query patterns** — the #1 AI-generated performance anti-pattern (loops instead of JOINs)
+3. **DISTINCT to mask broken JOINs** — AI hides duplicate rows instead of fixing cardinality
+4. **Correlated subqueries where window functions should be used** — AI defaults to patterns from older training data
+5. **Missing NULL handling** — AI rarely adds COALESCE or IS NULL checks
+6. **SELECT * in production queries** — AI defaults to convenience over correctness
+7. **"Vibe coding" risk** — deploying AI-generated SQL without security review is now a recognized enterprise risk category (CSA 2025)
+
+**Blind/time-based SQL injection** is the dominant attack vector in 2025-2026. These attacks produce no error messages — only timing differences. Parameterized queries prevent all classes of SQLi including blind and time-based variants. The absence of SQL error messages does NOT indicate safety.
+
+When reviewing AI-generated SQL, always verify:
+- [ ] All queries use parameterized statements (no string concatenation)
+- [ ] JOINs are correct (no DISTINCT masking duplicates)
+- [ ] No N+1 patterns (single JOIN or subquery, not application loops)
+- [ ] NULL handling is explicit (COALESCE documented)
+- [ ] No SELECT * on production tables
+
+### 1.5 Agentic / MCP Security
 
 When connected to a database via MCP or an agent pipeline:
 
@@ -157,7 +181,7 @@ ALTER USER ai_agent_ro SET statement_timeout = '30s';
 ALTER USER ai_agent_ro SET work_mem = '64MB';
 ```
 
-### 1.5 Human Review Requirements
+### 1.6 Human Review Requirements
 
 Always label the following with `-- [REQUIRES HUMAN REVIEW]`:
 
@@ -340,6 +364,26 @@ Always confirm the target database before generating SQL. If unknown, generate A
 | Division by zero | Raises error | Returns NULL | Raises error | Raises error |
 | NULL sort default | LAST in ASC | FIRST in ASC | FIRST in ASC | LAST in ASC |
 
+### PostgreSQL 18 (Released September 2025)
+
+Key features affecting SQL generation:
+- **Asynchronous I/O subsystem** — up to 3× improvement on sequential scans, bitmap heap scans, and VACUUM
+- **Skip scan** — multicolumn B-tree indexes usable in more query shapes; optimizer can skip leading columns
+- **`uuidv7()`** — built-in timestamp-ordered UUID generation; prefer over `gen_random_uuid()` when time-sortable IDs are needed
+- **Virtual generated columns** — computed on read, now the default for generated columns (no storage cost)
+- **`RETURNING` with `OLD` and `NEW`** — INSERT/UPDATE/DELETE/MERGE can return both old and new row values
+- **Temporal constraints** — PRIMARY KEY, UNIQUE, and FOREIGN KEY now support temporal semantics
+- **OAuth authentication** — broadens auth options beyond password-based
+
+### MySQL Version Landscape (2025-2026)
+
+- **MySQL 8.4 LTS** — the stable enterprise choice; long-term support
+- **MySQL 9.x innovation track** — quarterly releases (9.0 through 9.5 as of October 2025)
+- **MySQL 9.0+: `VECTOR` data type** — native vector storage for AI/embedding workloads (alongside pgvector for PostgreSQL)
+- **JSON Duality Views** — expose relational data as JSON documents with full CRUD via `CREATE JSON DUALITY VIEW`
+- **JavaScript stored programs** (Enterprise Edition) — JS interop with SQL via `CREATE LIBRARY`
+- When generating MySQL, confirm whether the target is **8.4 LTS** or **9.x** — feature availability differs significantly
+
 ### T-SQL Specific Rules (SQL Server)
 
 - Never use `NOLOCK` without explaining dirty-read risk in a comment
@@ -348,6 +392,19 @@ Always confirm the target database before generating SQL. If unknown, generate A
 - `DATETIME` has millisecond precision; use `DATETIME2` for microsecond
 - `SET NOCOUNT ON` at the top of every stored procedure
 - Use `TRY...CATCH` blocks, not bare `RAISERROR`
+
+### SQL Server 2025 (GA)
+
+Key changes affecting SQL generation:
+- **Native `VECTOR` type + vector search** — built into T-SQL, no extension needed; competitive with pgvector
+- **RegEx support built into T-SQL** — a major historical gap now closed
+- **Native JSON (up to 2 GB/row)** with JSON path indexes
+- **Optimized locking** — TID locking and lock-after-qualification replace painful lock escalation tuning
+- **TLS 1.3 enforced by default** on new installs; `Encrypt=True` is now mandatory — always include in connection strings
+- **REST API calls from T-SQL** via `sp_invoke_external_rest_endpoint` (e.g., call AI services from SQL)
+- **ZSTD backup compression** — better than LZ4/zlib for large backups
+- **Microsoft Fabric Mirroring** — OLTP → Fabric in near real-time (replaces manual ETL for reporting)
+- **Change Event Streaming** built in — alternative to CDC/Debezium for SQL Server workloads
 
 ### Oracle Specific Rules
 
@@ -526,6 +583,12 @@ LIMIT 10;                             -- ASSUMPTION: "top" = top 10
 - Hybrid OLTP/OLAP: CockroachDB, TiDB
 - Time-series: TimescaleDB, Apache Druid
 - Modern PostgreSQL features, extensions (pg_stat_statements, pgvector, PostGIS)
+- **Native vector search** — now available in PostgreSQL (pgvector), MySQL 9.0+ (VECTOR type), and SQL Server 2025 (native VECTOR); consider which platform fits the AI/embedding workload
+- **Snowflake `AI_COMPLETE()`** (GA Nov 2025) — call LLMs directly from SQL; Hugging Face model import (Preview)
+- **Snowflake Iceberg write support** for externally managed tables — bidirectional with Databricks Unity Catalog and Microsoft Fabric
+- **BigQuery Advanced Runtime** (GA late 2025) — faster query execution and improved slot usage; now the default for all projects
+- **BigQuery dataset undelete** (GA) — recover deleted datasets within time travel window
+- **Apache Iceberg** is increasingly the unifying open table format across Snowflake, BigQuery, Databricks, and Delta Lake
 
 ### Advanced Query Techniques
 - Complex window functions and analytical queries
@@ -570,8 +633,10 @@ LIMIT 10;                             -- ASSUMPTION: "top" = top 10
 ### Integration and Data Movement
 - ETL/ELT design: push-down optimization, incremental loads
 - Change Data Capture (CDC) with Debezium, AWS DMS
+- **SQL Server 2025 alternatives:** Microsoft Fabric Mirroring (near real-time OLTP → analytics) and built-in Change Event Streaming
 - Cross-database federation and polyglot persistence
 - Data lake / lakehouse integration (Delta Lake, Apache Iceberg)
+- **Apache Iceberg** as cross-platform table format: Snowflake, BigQuery, Databricks, and Spark all support read/write on Iceberg tables
 
 ---
 
@@ -625,6 +690,13 @@ Performance:
   □ No functions on indexed columns in WHERE?
   □ No correlated subqueries (use JOIN / window function instead)?
   □ Index recommendation provided where relevant?
+
+AI-Generated SQL (apply when reviewing AI output):
+  □ Parameterization verified independently (no string concatenation)?
+  □ No N+1 query patterns (single JOIN, not application loop)?
+  □ No DISTINCT masking broken JOINs?
+  □ NULL handling explicit and documented?
+  □ No SELECT * on production tables?
 ```
 
 ### Blocked Patterns — Never Generate Without Explicit Multi-Step Confirmation
@@ -638,3 +710,31 @@ UPDATE table SET ...        -- 🔴 BLOCKED (no WHERE)
 SELECT * FROM large_table   -- 🟠 Warn + add LIMIT
 f"SELECT ... {user_input}"  -- 🔴 BLOCKED (SQL injection)
 ```
+
+---
+
+## Sources & References
+
+- [PostgreSQL 18 Release Notes](https://www.postgresql.org/docs/release/18.0/)
+- [What's New in SQL Server 2025 — Microsoft Learn](https://learn.microsoft.com/en-us/sql/sql-server/what-s-new-in-sql-server-2025)
+- [MySQL 9.x Release Notes](https://dev.mysql.com/doc/relnotes/mysql/9.5/en/)
+- [Snowflake Feature Updates 2025](https://docs.snowflake.com/en/release-notes/new-features-2025)
+- [BigQuery Release Notes — Google Cloud](https://docs.google.com/bigquery/docs/release-notes)
+- [Veracode Spring 2026 GenAI Code Security Update](https://www.veracode.com/blog/spring-2026-genai-code-security/)
+- [Understanding Security Risks in AI-Generated Code — Cloud Security Alliance (July 2025)](https://cloudsecurityalliance.org/blog/2025/07/09/understanding-security-risks-in-ai-generated-code)
+- [SQL Injection Testing in 2026 — Penligent](https://www.penligent.ai/hackinglabs/how-to-test-for-sql-injection-in-2026-practical-sqli-workflow-for-engineers/)
+- [9 Best Practices for Database Change Security — Liquibase 2026](https://www.liquibase.com/blog/security-best-practices-for-database-change-9-ways-to-protect-your-data-and-close-critical-gaps)
+- [OWASP SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)
+
+Last updated: 2026-04-11
+
+<!-- Changelog:
+  2026-04-11: Added Section 1.4 (AI-Generated SQL Review Requirements) with vulnerability statistics, blind SQLi note, and review checklist.
+              Added PostgreSQL 18 section (AIO, skip scan, uuidv7, virtual generated columns, temporal constraints, RETURNING OLD/NEW, OAuth).
+              Added MySQL version landscape (8.4 LTS vs 9.x, VECTOR type, JSON Duality Views).
+              Added SQL Server 2025 section (native VECTOR, RegEx, TLS 1.3 default, optimized locking, Fabric Mirroring, ZSTD compression).
+              Updated Modern Database Systems with native vector search across PG/MySQL/MSSQL, Snowflake AI_COMPLETE(), BigQuery Advanced Runtime, Iceberg unification.
+              Updated Integration and Data Movement with Fabric Mirroring and Iceberg cross-platform support.
+              Added AI-Generated SQL checklist items to Part 8.
+              Added Sources & References section.
+-->
