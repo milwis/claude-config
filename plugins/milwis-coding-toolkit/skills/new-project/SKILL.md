@@ -45,25 +45,20 @@ If user has a plan document — READ IT FIRST. Extract: stack, architecture, mod
 - [ ] `.gitignore` comprehensive for the stack (see checklist below)
 - [ ] `.gitkeep` in directories that must exist but start empty (logs/, docs/plans/)
 
-### 1b. Marketplace plugins — MANDATORY FIRST STEP
+### 1b. Marketplace plugin — verify it's current
 
-**CRITICAL:** Before any other Claude Code configuration, install the marketplace and plugins.
-They contain the most up-to-date agents, skills, and rules.
+Since you're running this skill from the marketplace, it's already installed.
+Just verify it's up to date:
 
+```
+/plugin marketplace update
+```
+
+**If running this skill NOT from the marketplace** (e.g., copied locally), the user must first:
 ```
 /plugin marketplace add milwis/claude-config
 /plugin install milwis-coding-toolkit@milwis-marketplace
 ```
-
-**If the agent cannot execute these commands** (they are interactive CLI commands), inform the user:
-
-> **ACTION REQUIRED:** Before I continue, please run these two commands manually in Claude Code:
-> 1. `/plugin marketplace add milwis/claude-config`
-> 2. `/plugin install milwis-coding-toolkit@milwis-marketplace`
->
-> These install the marketplace and coding toolkit plugins which contain up-to-date agents, skills, and rules. This must be done BEFORE we set up the rest of the project configuration.
-
-Wait for user confirmation before proceeding to Phase 2.
 
 ### .gitignore must cover
 - Language artifacts (__pycache__, node_modules/, .class, dist/)
