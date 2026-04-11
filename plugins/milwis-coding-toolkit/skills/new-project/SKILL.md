@@ -108,8 +108,62 @@ Marketplace provides standard agents. Add project-specific ones when needed:
 | `backend-security-coder` | When project has API/auth/user data |
 | `database-optimizer` | When project has database |
 | `sql-pro` | When project has SQL database |
-| Language-specific pro | Create via `/lang-guidelines` skill for the primary language |
+| Language-specific pro | Create via `/milwis-coding-toolkit:lang-guidelines` skill for the primary language |
 | `mobile-pwa-developer` | When project has PWA/mobile |
+
+### MANDATORY: Agent Routing Table in CLAUDE.md
+
+**This is CRITICAL.** Without an explicit routing table in CLAUDE.md, Claude will NOT
+use the specialized agents — it will write code directly, bypassing all the quality
+guidelines, AI error prevention rules, and security practices in the agents.
+
+The CLAUDE.md MUST contain an agent routing section. Generate it based on the project's
+tech stack discovered in Step 0.
+
+**Template to include in CLAUDE.md:**
+
+```markdown
+## Agent routing (marketplace: milwis-coding-toolkit)
+
+| Files / Context | Agent | Invocation |
+|-----------------|-------|------------|
+| {backend_paths} | `{language}-pro` | ALWAYS for writing/reviewing {language} code |
+| {frontend_paths} | `javascript-pro` | ALWAYS for JS/TS code |
+| {sql_paths}, DB queries | `sql-pro` | ALWAYS for SQL queries and schema |
+| Security, API keys, auth | `backend-security-coder` | ALWAYS for security-related code |
+| Before every commit | `code-reviewer` | MANDATORY — never skip |
+| Bugs, errors, failures | `debugger` | Start from logs, then code |
+| Database performance | `database-optimizer` | For slow queries, indexing |
+| Tests | `test-automator` | For test creation and strategy |
+| Refactoring | `refactoring-specialist` | For code cleanup |
+| PWA / mobile | `mobile-pwa-developer` | Only if project has PWA |
+
+**Workflow:** `/milwis-coding-toolkit:brainstorming` → `/milwis-coding-toolkit:writingplans` → `/milwis-coding-toolkit:executingplans` → `code-reviewer` → commit
+```
+
+**Rules for generating the routing table:**
+
+1. Replace `{backend_paths}` with actual project paths (e.g., `src/**/*.py`, `app/**/*.php`)
+2. Replace `{language}-pro` with the actual language agent (e.g., `python-pro`, `php-pro`)
+3. If project uses multiple backend languages, add a row for each
+4. If project has no frontend, remove the `javascript-pro` row
+5. If project has no database, remove `sql-pro` and `database-optimizer` rows
+6. If project has no PWA, remove `mobile-pwa-developer` row
+7. Add domain-specific agents if created (e.g., `skryba` for documentation)
+
+**IMPORTANT — Non-negotiable rules to add to CLAUDE.md alongside the routing table:**
+
+```markdown
+## Non-negotiable rules
+
+- ALWAYS use the agent specified in the routing table — NEVER write code directly when an agent exists for that file type
+- ALWAYS run `code-reviewer` agent before committing
+- ALWAYS start debugging with `debugger` agent (logs first, then code)
+- Use `Decimal` for money — NEVER float
+- Secrets in `.env` only — NEVER in code or logs
+- Parameterized SQL only — NEVER string formatting
+- Type hints on EVERY function
+```
 
 ### Rules — create per stack layer
 
@@ -501,6 +555,15 @@ make test          # All pass, zero failures
 - [ ] `CLAUDE.md` under 60 lines
 - [ ] `docs/architecture.md` matches actual directory structure
 - [ ] `docs/logging-system.md` matches actual log file layout
+
+### Agent routing audit (CRITICAL)
+- [ ] `CLAUDE.md` contains "## Agent routing" section with a table
+- [ ] Every tech stack layer has a matching agent row (backend → language-pro, SQL → sql-pro, etc.)
+- [ ] `code-reviewer` row exists with "MANDATORY — never skip"
+- [ ] `debugger` row exists with "Start from logs"
+- [ ] Non-negotiable rules section exists with "ALWAYS use the agent specified in the routing table"
+- [ ] Workflow line exists: brainstorming → writingplans → executingplans → code-reviewer → commit
+- [ ] Agent names match what marketplace actually provides (verify with: ls of plugin agents)
 
 **All checks pass?** → **"Foundation complete. Ready to write business logic."**
 
