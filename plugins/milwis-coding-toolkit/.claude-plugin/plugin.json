@@ -1,0 +1,8 @@
+{
+  "name": "milwis-coding-toolkit",
+  "description": "Language-specific coding expert agents that prevent common AI code generation errors, plus the /lang-guidelines skill to create and update them. Includes agents for Python, JavaScript, SQL, PHP, and more.",
+  "version": "1.0.0",
+  "author": {
+    "name": "milwis"
+  }
+}
