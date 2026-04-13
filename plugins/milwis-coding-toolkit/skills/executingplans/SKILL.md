@@ -137,7 +137,9 @@ npm run test:js:run 2>&1 | tail -20
 # 3. If task has acceptance criteria — verify each one
 ```
 
-**If verification fails → invoke Stop-the-Line (Rule 1).**
+**If verification fails → invoke Stop-the-Line (Rule 1), then invoke `systematic-debugging` skill for root-cause analysis before any fix attempt.**
+
+**Before marking ANY task `completed` in TodoWrite → invoke `verification-before-completion` skill.** No exceptions. The todo list is a commitment, and marking it complete without evidence is lying.
 
 **Why:** Catching a break at Task 3 costs 5 minutes. Catching it at Task 10 costs an hour of untangling.
 
@@ -287,9 +289,17 @@ Tasks 4 and 5 have no dependencies:
 - **Execute ALL tasks from start to finish**
 - **Select appropriate agent for each task**
 - Follow plan steps exactly
-- **Stop-the-Line when anything breaks** — don't push forward on broken foundation
+- **Stop-the-Line when anything breaks** → invoke `systematic-debugging` before fixing
 - **Scope Discipline** — only change what the task says to change
 - **Incremental Verification** — test after every task, not just at the end
+- **Never mark a task `completed` without invoking `verification-before-completion`**
+- **New code for each task** follows `test-driven-development` (failing test first)
 - Prefer parallel execution when tasks are independent
 - **Todo list with [AGENT: name] labels is your memory after compaction**
+
+## Companion Skills (always in scope during execution)
+
+- **`verification-before-completion`** — gate before every "done / passing / fixed" claim and before marking any todo complete.
+- **`systematic-debugging`** — mandatory when Stop-the-Line fires; prevents symptom-patching.
+- **`test-driven-development`** — mandatory for any new production code written during execution.
 - After compaction, READ the todo list first to know which agents to use

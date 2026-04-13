@@ -54,7 +54,11 @@ Plans are bite-sized tasks ordered by risk. DRY. YAGNI. TDD. Frequent commits.
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **For Claude:** REQUIRED SUB-SKILLS during execution:
+> - `executingplans` — drives the task-by-task execution loop
+> - `test-driven-development` — for every production code change in every task
+> - `systematic-debugging` — when anything breaks (Stop-the-Line)
+> - `verification-before-completion` — before marking any task complete or claiming anything is done
 
 **Goal:** [One sentence describing what this builds]
 
@@ -177,6 +181,14 @@ git commit -m "feat(moduł): opis po polsku"
 - Exact commands with expected output
 - DRY, YAGNI, TDD, frequent commits
 - **Vertical slices, not horizontal layers**
+
+## Companion skills the plan relies on
+
+The plan's execution loop leans on three discipline skills from this toolkit. The plan should *not* re-explain them — just reference them in the header and assume they're active:
+
+- **`test-driven-development`** — every task follows red → verify red → green → verify green → refactor. The "Step 1: Write the failing test" in the per-task template is a RED step.
+- **`systematic-debugging`** — when a task fails, the Stop-the-Line rule delegates to this skill before any fix attempt. Plans don't need to write debug steps — the skill provides them.
+- **`verification-before-completion`** — applied before each acceptance-criterion checkmark and before marking the task complete.
 - **Risk-first ordering**
 - **Max 5 files per task**
 - **Max 3 acceptance criteria per task**
