@@ -22,43 +22,83 @@ Load plan, review critically, execute ALL tasks from start to finish using speci
 1. Read plan file
 2. Review critically — identify any questions or concerns
 3. **Analyze each task** — determine which agent/skill is best suited
-4. If concerns: Raise them with your human partner before starting
-5. If no concerns: Create TodoWrite with agent assignments and proceed
+4. **Analyze dependencies** between tasks (see Step 1.2)
+5. If concerns: Raise them with your human partner before starting
+6. If no concerns: Create TodoWrite with agent assignments AND parallel groups, then proceed
 
-### Step 1.1: Create Todo List WITH Agent Assignments (CRITICAL)
+### Step 1.2: Dependency Analysis — Identify Parallel Groups (CRITICAL)
 
-**After analyzing the plan, ALWAYS create a TodoWrite with agent labels in each todo item.**
+**Before writing the todo list, map task dependencies to find work that can run in parallel.**
+
+Vertical-slice plans (from `writing-plans`) are often naturally parallelizable — each slice is a self-contained feature touching different files/endpoints/UI areas. Do NOT waste this by running everything sequentially.
+
+**A task can run in parallel with another ONLY if ALL of these hold:**
+1. **Disjoint files** — the two tasks never write to the same file (same directory is fine, same file is not)
+2. **No data dependency** — neither task consumes a symbol, type, column, route, or return value produced by the other
+3. **No side-effect coupling** — neither depends on DB state, filesystem state, or config written by the other
+4. **Independent verification** — each task's tests/checks do not depend on the other having completed
+
+If ANY of the four fails → the tasks are sequential.
+
+**Tasks that MUST stay sequential (examples):**
+- Migration adds column → later task queries that column
+- Task A defines a JS function → Task B imports it
+- Two tasks both edit `routes.php`, `config.php`, translation files, or the same controller
+- Task uses fixtures/seeds created by an earlier task
+- Git commits (always one-at-a-time)
+- Final `code-reviewer` and `test-automator` passes (run after everything else)
+
+**When in doubt → sequential.** A wrongly-parallelized pair of agents can silently clobber each other's file writes, which is strictly worse than slow sequential execution. Parallelization is an optimization, not a requirement.
+
+**Assign a "group" number to every task:**
+- Group 1 = the first batch that can run (possibly a single foundation task)
+- Group 2 = tasks that depend only on Group 1 completing
+- …and so on
+- Within the same group, tasks run **in parallel**. Between groups, sequential.
+
+### Step 1.3: Create Todo List WITH Agents AND Parallel Groups (CRITICAL)
+
+**After analyzing the plan and dependencies, ALWAYS create a TodoWrite with BOTH agent labels AND group labels in each todo item.**
 
 This is critical because after context window compaction you lose earlier reasoning.
-The todo list is the ONLY thing that persists — so it must contain all routing info.
+The todo list is the ONLY thing that persists — it must contain all routing AND dependency info.
 
 **Format each todo item as:**
 ```
-Task N: <description> [AGENT: <agent-name>]
+[GROUP N|PARALLEL|SEQ] Task K: <description> [AGENT: <agent-name>]
 ```
+- `PARALLEL` = one of several siblings in its group, dispatched together
+- `SEQ` = the only task in its group (runs alone)
 
-**Example:**
+**Example (vertical-slice plan with parallel middle):**
 ```javascript
 TodoWrite([
-  { content: "Task 1: CSS - klasa .screen-footer-actions [DIRECT]", status: "pending" },
-  { content: "Tasks 2-5: HTML - poprawki ekranów [DIRECT]", status: "pending" },
-  { content: "Tasks 6-10: JS app.js - logika tworzenia zlecenia [AGENT: javascript-pro]", status: "pending" },
-  { content: "Tasks 11-12: PHP - walidacja kontrolera [AGENT: php-pro]", status: "pending" },
-  { content: "Task 13: JS desktop - usunięcie walidacji [AGENT: javascript-pro]", status: "pending" },
-  { content: "VERIFY: php -l + testy po każdym tasku [DIRECT]", status: "pending" },
-  { content: "Weryfikacja kodu [AGENT: code-reviewer]", status: "pending" },
-  { content: "Testy automatyczne [AGENT: test-automator]", status: "pending" },
-  { content: "Commit zmian [DIRECT]", status: "pending" }
+  // Group 1: foundation — must land first (schema everyone else depends on)
+  { content: "[GROUP 1|SEQ] Task 1: Migration — add status column [AGENT: sql-pro]", status: "pending" },
+
+  // Group 2: three independent vertical slices — RUN IN PARALLEL
+  { content: "[GROUP 2|PARALLEL] Task 2: Feature A endpoint + JS [AGENT: php-pro]", status: "pending" },
+  { content: "[GROUP 2|PARALLEL] Task 3: Feature B endpoint + JS [AGENT: php-pro]", status: "pending" },
+  { content: "[GROUP 2|PARALLEL] Task 4: Feature C JS module [AGENT: javascript-pro]", status: "pending" },
+
+  // Group 3: UI polish — depends on Group 2 handlers existing
+  { content: "[GROUP 3|SEQ] Task 5: CSS + HTML polish [DIRECT]", status: "pending" },
+
+  // Group 4: verification (always last, always sequential)
+  { content: "[GROUP 4|SEQ] VERIFY: linters + tests po całości [DIRECT]", status: "pending" },
+  { content: "[GROUP 4|SEQ] Code review [AGENT: code-reviewer]", status: "pending" },
+  { content: "[GROUP 4|SEQ] Testy automatyczne [AGENT: test-automator]", status: "pending" },
+  { content: "[GROUP 4|SEQ] Commit [DIRECT]", status: "pending" }
 ])
 ```
 
 **Rules:**
-- Group related tasks that use the same agent (e.g., "Tasks 7-11")
+- Every task has BOTH a `[GROUP N|...]` prefix AND an `[AGENT: ...]` or `[DIRECT]` suffix
 - Simple CSS/HTML edits → `[DIRECT]` (no agent needed)
 - Complex JS logic → `[AGENT: javascript-pro]`
 - PHP controllers/services → `[AGENT: php-pro]`
-- Always include code-reviewer and test-automator at the end
-- This list survives compaction — the agent labels tell future-you what to do
+- `code-reviewer` and `test-automator` always land in the final group, sequential
+- This list survives compaction — the labels tell future-you what to dispatch and in what order
 
 ### Step 1.5: Read Target Files BEFORE Modification (CRITICAL)
 
@@ -74,20 +114,35 @@ TodoWrite([
 
 ---
 
-### Step 2: Execute ALL Tasks
+### Step 2: Execute ALL Tasks — Group by Group
 
-**Execute every task from the plan sequentially:**
+**Walk through the todo list in group order. Within each group, parallelize.**
 
-For each task:
-1. Mark as in_progress
-2. **Determine task type** (see Agent Selection below)
-3. **Invoke appropriate agent** using Agent tool with `subagent_type`
-4. Follow each step exactly (plan has bite-sized steps)
-5. **Incremental Verification** (see below)
-6. Mark as completed
-7. **Continue to next task immediately**
+```
+For each group G (Group 1, Group 2, …):
 
-**Run independent tasks in parallel when possible.**
+  If G contains ONE task (SEQ):
+    1. Mark task in_progress
+    2. Invoke the appropriate Agent with subagent_type (or do it DIRECT)
+    3. Incremental Verification (Rule 3) — run checks for THIS task
+    4. verification-before-completion → mark completed
+    5. Advance to next group
+
+  If G contains MULTIPLE tasks (PARALLEL):
+    1. Mark ALL tasks in the group in_progress
+    2. Send a SINGLE assistant message containing N Agent tool calls —
+       one per task — so the harness dispatches them concurrently
+    3. Wait for ALL agents to return before touching the todo list
+    4. Run Incremental Verification on each task (Rule 3)
+    5. If ANY failed → Stop-the-Line (Rule 1) for that task;
+       do NOT start the next group until all are green
+    6. verification-before-completion → mark all completed
+    7. Advance to next group
+```
+
+**Why batches, not one-at-a-time:** groups encode dependency. Running every task sequentially throws away the parallelism your dependency analysis in Step 1.2 already proved is safe. Running everything in parallel ignores real dependencies. Batches give you both.
+
+**Inside each agent prompt**, follow the plan steps exactly (plans have bite-sized steps) and always Read the target files first (Step 1.5).
 
 ---
 
@@ -245,17 +300,55 @@ Task mentions "review", "check" (at end) → code-reviewer
 
 ---
 
-## Parallel Agent Execution
+## Parallel Agent Execution — Full Playbook
 
-**When tasks are independent, run agents in parallel:**
+Parallel execution is not a "nice to have" — it is the default for any group with multiple independent tasks. A correctly-grouped plan cuts wall-clock time dramatically with zero risk of conflicts.
+
+### How to dispatch a parallel group
+
+Send ONE assistant message containing multiple `Agent` tool calls — one per task in the group. The harness runs them concurrently. **Do not** dispatch them in separate messages one after another; that serializes them.
 
 ```
-Tasks 4 and 5 have no dependencies:
-- Task 4: Create JS service (javascript-pro)
-- Task 5: Add SQL indexes (database-optimizer)
-
-→ Invoke both agents simultaneously using multiple Agent tool calls in single message
+[Single assistant message:]
+Agent(subagent_type="php-pro",        prompt="Task 2: Feature A — <fully self-contained prompt>")
+Agent(subagent_type="php-pro",        prompt="Task 3: Feature B — <fully self-contained prompt>")
+Agent(subagent_type="javascript-pro", prompt="Task 4: Feature C — <fully self-contained prompt>")
 ```
+
+### Each parallel agent prompt MUST be self-contained
+
+The agent cannot see the conversation — write the prompt as if briefing a new colleague:
+- Exact files to create / modify (with paths)
+- The relevant slice of the plan (copy the task block verbatim)
+- Acceptance criteria for THAT task only
+- Explicit "do NOT touch file X" if there's any risk of overlap
+- Tell it to Read target files before editing
+
+### Heavier parallelization: Agent Teams
+
+For very large plans (e.g. >4 independent slices, or multi-day work), consider `TeamCreate` to spin up a persistent team of specialized agents that share a worktree. A transient parallel group of `Agent` calls is simpler and enough for most plans — reach for teams only when the parallel batch would otherwise be very wide or long-running.
+
+### When NOT to parallelize — safety checklist
+
+Run the tasks **sequentially** (one group each) whenever any of these applies:
+
+1. **Same-file writes.** Two agents editing `UserController.php` will clobber each other. Sequential, even if the edits look "different enough."
+2. **Shared config/translation/routes files.** `routes.php`, `.env`, i18n JSON, `composer.json`, `package.json` — treat as single-writer.
+3. **Data dependency.** Task B uses a function, column, route, or type that Task A creates → A must finish and be visible before B starts.
+4. **Schema/migration dependency.** Any task that queries a new column must wait for the migration task.
+5. **Shared fixtures or DB seeds.** Tests that rely on the same fixture row cannot run safely in parallel if the fixture is created inside one of the tasks.
+6. **Verification coupling.** Task B's tests assume Task A's side effects. If you can't verify B without A being done, they belong in the same sequential chain (or the same task).
+7. **Git operations.** `git add` / `git commit` / `git push` are always sequential. One commit at a time.
+8. **Final review and test passes.** `code-reviewer` and `test-automator` look at the whole change — they run last, after every other group is green.
+9. **You are unsure.** Default to sequential. The cost of a false parallelization (silent overwrite) is much higher than the cost of a slower run.
+
+### Recovery: one task in a parallel group fails
+
+1. Stop-the-Line fires for that task only — do NOT continue to the next group
+2. Other agents in the same group may still complete — let them finish and verify independently
+3. Invoke `systematic-debugging` for the failed task
+4. Fix, re-verify, mark completed
+5. Only then advance to the next group
 
 ---
 
@@ -286,7 +379,9 @@ Tasks 4 and 5 have no dependencies:
 ## Remember
 
 - Review plan critically first
-- **Execute ALL tasks from start to finish**
+- **Do dependency analysis (Step 1.2) BEFORE touching code — find parallel groups**
+- **Execute ALL tasks from start to finish, group by group**
+- **Within a group, dispatch parallel agents in a SINGLE message** — never serialize what can run concurrently
 - **Select appropriate agent for each task**
 - Follow plan steps exactly
 - **Stop-the-Line when anything breaks** → invoke `systematic-debugging` before fixing
@@ -294,8 +389,8 @@ Tasks 4 and 5 have no dependencies:
 - **Incremental Verification** — test after every task, not just at the end
 - **Never mark a task `completed` without invoking `verification-before-completion`**
 - **New code for each task** follows `test-driven-development` (failing test first)
-- Prefer parallel execution when tasks are independent
-- **Todo list with [AGENT: name] labels is your memory after compaction**
+- **When unsure about parallelism → sequential.** A false-parallel pair of agents can clobber files silently.
+- **Todo list with `[GROUP N|PARALLEL|SEQ]` + `[AGENT: name]` labels is your memory after compaction**
 
 ## Companion Skills (always in scope during execution)
 
