@@ -1,75 +1,50 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code. Creates comprehensive implementation plans with read-only analysis, vertical slicing, and acceptance criteria.
+description: Use when you have a spec for a multi-step task. Creates implementation plans with vertical slicing, risk-first ordering, and acceptance criteria — describes intent, not inline code.
 ---
 
 # Writing Plans
 
-## Overview
+**Core:** Plans describe WHAT and WHY clearly enough for a subagent to execute, WITHOUT the plan spelling out every line of code. Bite-sized tasks ordered by risk. Vertical slicing. DRY. YAGNI.
 
-Write implementation plans assuming the engineer has zero context for our codebase.
-Document everything: which files to touch, code, testing, how to verify.
-Plans are bite-sized tasks ordered by risk. DRY. YAGNI. TDD. Frequent commits.
-
-**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+**Announce at start:** "I'm using the writing-plans skill."
 
 **Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
 
 ---
 
-## Step 0: Read-Only Analysis (BEFORE writing the plan)
+## Step 0: Read-Only Analysis (before writing the plan)
 
-**Do NOT write ANY plan content until you complete this step.**
+Do not write plan content until you complete this.
 
-1. **Read the flow docs** for the affected module:
-   - `docs/dokumentacja programu/flows/{moduł}.md`
-   - Understand: UI → JS → API → PHP → DB flow
+1. **Read flow docs** for the affected module (`docs/dokumentacja programu/flows/{moduł}.md` if it exists)
+2. **Read files** that will be modified. Note patterns: naming, error handling, imports, formatting
+3. **Check DB schema** for affected tables (grep for CREATE/ALTER or inspect DB)
+4. **Map dependencies** — which JS calls which endpoint, which controllers use which services
+5. **Identify risks** — missing `updated_at`, missing `$allowedResources`, cross-file JS without `window.`, missing `views`/`group_views` entries
+6. **Write findings summary** (2-3 sentences) at the top of the plan
 
-2. **Read the files** that will be modified:
-   - Grep for existing functions/methods that do similar things
-   - Note patterns: naming, error handling, imports, formatting
-   - Check DB schema: `grep -rn "CREATE TABLE\|ALTER TABLE" sql/` or check in DB
-
-3. **Map dependencies** between components:
-   - Which JS modules call which API endpoints?
-   - Which controllers use which services/repositories?
-   - Which tables are related via foreign keys?
-
-4. **Identify risks** — what's most likely to go wrong:
-   - New table without `updated_at`? → ChangesTracker won't work
-   - New endpoint without `$allowedResources`? → 403 for everyone
-   - Cross-file JS function without `window.`? → Bundle crash
-   - Missing entry in `views`/`group_views` tables? → Dynamic nav broken
-
-5. **Write findings summary** at the top of the plan (2-3 sentences).
-
-**Why this matters:** Plans based on imagination cause rework. Plans based on reading code work the first time.
+Plans based on reading code work first time. Plans based on imagination cause rework.
 
 ---
 
-## Plan Document Header
-
-**Every plan MUST start with:**
+## Plan Header
 
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILLS during execution:
-> - `executingplans` — drives the task-by-task execution loop
-> - `test-driven-development` — for every production code change in every task
-> - `systematic-debugging` — when anything breaks (Stop-the-Line)
-> - `verification-before-completion` — before marking any task complete or claiming anything is done
+> **For Claude:** execute with the `executing-plans` skill.
 
-**Goal:** [One sentence describing what this builds]
+**Goal:** [one sentence describing what this builds]
 
-**Architecture:** [2-3 sentences about approach — based on Step 0 findings]
+**Architecture:** [2-3 sentences from Step 0 findings]
 
-**Tech Stack:** [Key technologies/libraries]
+**Tech Stack:** [key technologies]
 
 **Findings from code analysis:**
-- [Key finding 1 from Step 0]
-- [Key finding 2 from Step 0]
-- [Risk or gotcha identified]
+- [finding 1]
+- [finding 2]
+- [risk/gotcha identified]
 
 ---
 ```
@@ -78,187 +53,99 @@ Plans are bite-sized tasks ordered by risk. DRY. YAGNI. TDD. Frequent commits.
 
 ## Task Structure
 
-### Vertical Slicing — MANDATORY
+### Vertical slicing — mandatory
 
-**Each task = one complete vertical slice (DB → PHP → JS → UI → test).**
+Each task = one complete vertical slice (DB → PHP → JS → UI → test). Not horizontal layers.
 
 ```
-❌ WRONG (horizontal layers):
-  Task 1: All PHP controllers
-  Task 2: All JS modules
-  Task 3: All tests
-
-✅ RIGHT (vertical slices):
-  Task 1: Feature A — endpoint + controller + JS handler + test
-  Task 2: Feature B — endpoint + controller + JS handler + test
-  Task 3: Feature C — endpoint + controller + JS handler + test
+❌ WRONG:         ✅ RIGHT:
+Task 1: all PHP   Task 1: Feature A — endpoint + JS + test
+Task 2: all JS    Task 2: Feature B — endpoint + JS + test
+Task 3: all tests Task 3: Feature C — endpoint + JS + test
 ```
 
-**Why:** Each completed task delivers a testable piece. If Task 2 fails, Task 1 still works.
+Each vertical slice delivers a testable piece. If Task 2 fails, Task 1 still works.
 
-### Risk-First Ordering
+### Risk-first ordering
 
-**Order tasks by risk, not by layer or convenience:**
+1. **First:** most uncertain / risky (new schema, unfamiliar API, complex logic)
+2. **Middle:** medium-risk (standard CRUD, known patterns)
+3. **Last:** low-risk (CSS, copy, config)
 
-1. **FIRST:** Most uncertain/risky tasks (new DB schema, unfamiliar API, complex logic)
-2. **MIDDLE:** Medium-risk tasks (standard CRUD, known patterns)
-3. **LAST:** Low-risk tasks (CSS, copy changes, config)
+Find timeline-breaking issues in Task 1, not Task 8.
 
-**Why:** If something is going to blow up the timeline, find out in Task 1 — not Task 8.
+### Task sizing
 
-### Task Sizing
+| Size | Files | Lines | Rule |
+|------|-------|-------|------|
+| Small | 1-2 | <50 | obvious, single step |
+| Medium | 3-5 | 50-150 | multiple steps, clear path |
+| Large | >5 | >150 | **split further** |
 
-| Size | Files | Lines changed | Guide |
-|------|-------|---------------|-------|
-| **Small** | 1-2 | <50 | Single step, obvious |
-| **Medium** | 3-5 | 50-150 | Multiple steps, clear path |
-| **Large** | >5 | >150 | **MUST be broken down further** |
+**Max 5 files per task. Max 3 acceptance criteria per task.**
 
-**Max 5 files per task.** Tasks touching >5 files = split them.
+---
 
-### Per-Task Template
+## Per-Task Template
 
 ```markdown
 ### Task N: [Feature/Component Name]
 
 **Acceptance Criteria** (max 3, testable):
-- [ ] [Specific, verifiable outcome 1]
-- [ ] [Specific, verifiable outcome 2]
-- [ ] [Specific, verifiable outcome 3]
+- [ ] [specific, verifiable outcome 1]
+- [ ] [specific, verifiable outcome 2]
+- [ ] [specific, verifiable outcome 3]
 
 **Files:**
 - Create: `exact/path/to/file.php`
 - Modify: `exact/path/to/existing.php` (function `methodName` around line ~123)
-- Test: `tests/exact/path/to/test.php`
+- Test: `tests/exact/path/test.php`
 
-**Step 1: Write the failing test**
+**Intent:**
+[1-2 sentences: what behavior this task should produce. Not the code — the behavior.]
 
-```php
-// test code here
+**Approach:**
+- Follow existing pattern in [reference file]
+- Match naming convention from [similar function]
+- Key constraint: [e.g., must preserve backward compatibility, must use existing validation helper]
+
+**Verification:**
+- Failing test for [specific behavior] → passes after implementation
+- [other acceptance criterion checks]
+
+**Commit message:** `feat(moduł): opis po polsku`
 ```
 
-**Step 2: Run test to verify it fails**
+**DO NOT put full implementation code in the plan.** The agent (`php-pro`, `sql-pro`, etc.) generates code following its own rules during execution. Plans describe intent; agents implement.
 
-Run: `vendor/bin/phpunit tests/path/test.php --filter test_name`
-Expected: FAIL with "method not defined"
+The only reason to include code in the plan is a very specific, non-obvious pattern — and even then, reference by file path rather than inline.
 
-**Step 3: Write minimal implementation**
-
-```php
-// implementation code here
-```
-
-**Step 4: Run test to verify it passes**
-
-Run: `vendor/bin/phpunit tests/path/test.php --filter test_name`
-Expected: PASS
-
-**Step 5: Commit**
-
-```bash
-git add tests/path/test.php src/path/file.php
-git commit -m "feat(moduł): opis po polsku"
-```
-```
+**Why this matters for token efficiency:** inline code in the plan means you pay to generate the same code twice (in the plan, then in execution). Describing intent means the code exists only once — in the final implementation.
 
 ---
 
-## Bite-Sized Task Granularity
+## Red Flags — Plan Needs Rework
 
-**Each step is one action (2-5 minutes):**
-- "Write the failing test" — step
-- "Run it to make sure it fails" — step
-- "Implement the minimal code to make the test pass" — step
-- "Run the tests and make sure they pass" — step
-- "Commit" — step
-
----
-
-## Remember
-
-- Exact file paths always (with approximate line numbers for modifications)
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- DRY, YAGNI, TDD, frequent commits
-- **Vertical slices, not horizontal layers**
-
-## Companion skills the plan relies on
-
-The plan's execution loop leans on three discipline skills from this toolkit. The plan should *not* re-explain them — just reference them in the header and assume they're active:
-
-- **`test-driven-development`** — every task follows red → verify red → green → verify green → refactor. The "Step 1: Write the failing test" in the per-task template is a RED step.
-- **`systematic-debugging`** — when a task fails, the Stop-the-Line rule delegates to this skill before any fix attempt. Plans don't need to write debug steps — the skill provides them.
-- **`verification-before-completion`** — applied before each acceptance-criterion checkmark and before marking the task complete.
-- **Risk-first ordering**
-- **Max 5 files per task**
-- **Max 3 acceptance criteria per task**
-- **ZAWSZE kończ plan taskiem testowym** (sekcja poniżej)
-
----
-
-## MANDATORY: Final Testing Task
-
-**Every plan MUST end with a comprehensive testing task:**
-
-```markdown
-### Task [FINAL]: Kompleksowe testy automatyczne
-
-**Cel:** Dogłębna weryfikacja całej implementacji przed zakończeniem prac.
-
-**Testy do przeprowadzenia:**
-
-#### 1. Testy poprawności kodu
-- Statyczna analiza kodu (linting, type checking)
-- Sprawdzenie czy nie ma błędów składniowych
-- Weryfikacja importów i zależności
-
-#### 2. Testy poprawności logiki działania
-- Unit testy dla każdej nowej funkcji/metody
-- Testy edge cases (wartości graniczne, puste dane, null/undefined)
-- Testy błędnych danych wejściowych
-- Testy integracyjne łączące komponenty
-
-#### 3. Testy sensu biznesowego
-- Scenariusze użycia z perspektywy użytkownika końcowego
-- Weryfikacja czy wynik odpowiada oczekiwaniom biznesowym
-- Sprawdzenie czy nie złamano istniejącej funkcjonalności (regression)
-
-#### 4. Testy zgodności z intencją użytkownika
-- Porównanie wyniku z oryginalnym opisem zadania
-- Weryfikacja czy wszystkie wymagania zostały spełnione
-- Test "czy użytkownik będzie zadowolony z tego rozwiązania?"
-
-**Kryteria akceptacji:**
-- [ ] Wszystkie testy jednostkowe przechodzą
-- [ ] Brak regresji w istniejących testach
-- [ ] Kod przechodzi statyczną analizę
-- [ ] Scenariusze biznesowe działają poprawnie
-- [ ] Rozwiązanie realizuje cel użytkownika
-```
-
-**WAŻNE:** Ten task jest OBOWIĄZKOWY i MUSI być ostatnim zadaniem w każdym planie.
-
----
-
-## Red Flags — Plan wymaga przeróbki
-
-- Task bez acceptance criteria → dodaj zanim przejdziesz dalej
-- Task modyfikujący >5 plików → rozbij
-- Wszystkie PHP tasks, potem wszystkie JS tasks → przemodeluj na vertical slices
-- Łatwe tasks pierwsze, ryzykowne ostatnie → odwróć kolejność
-- Plan zakłada strukturę pliku bez jej sprawdzenia → wróć do Step 0
-- Brak final testing task → dodaj
+- Task without acceptance criteria → add before moving on
+- Task modifying >5 files → split
+- Horizontal layers (all PHP, then all JS) → remodel as vertical slices
+- Easy tasks first, risky last → reverse the order
+- Plan assumes file structure without checking → back to Step 0
+- Plan contains full implementation code blocks → rewrite to describe intent
 
 ---
 
 ## Execution Handoff
 
-After saving the plan, offer execution choice:
+After saving the plan:
 
-**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
+**"Plan saved to `docs/plans/<filename>.md`. Ready to execute with the `executing-plans` skill?"**
 
-**1. Subagent-Driven (this session)** — I dispatch fresh subagent per task, review between tasks, fast iteration
+---
 
-**2. Parallel Session (separate)** — Open new session with executing-plans, batch execution with checkpoints
+## Companion Skills (active during execution, not pre-loaded)
 
-**Which approach?"**
+- `executing-plans` — drives the execution loop
+- `test-driven-development` — for new production code (failing test first)
+- `systematic-debugging` — when anything breaks during execution
+- `verification-before-completion` — the verification gate (at group boundaries)

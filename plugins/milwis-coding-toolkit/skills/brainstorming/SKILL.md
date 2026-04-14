@@ -1,117 +1,106 @@
 ---
 name: brainstorming
-description: "Use before new features, new modules, or changes touching 3+ modules. NOT for bugfixes, typos, config tweaks, or simple field additions. Scales: LIGHT (2-3 questions, quick decision) for medium changes, FULL (3-phase design session) for new features/integrations."
+description: "Use before new features, modules, or changes touching 3+ modules. NOT for bugfixes, typos, config tweaks. Scales: LIGHT (2-3 questions) for medium changes, FULL (3-phase session) for new features."
 ---
 
-# Brainstorming Ideas Into Designs
+# Brainstorming
 
-## Overview
-
-Help turn ideas into fully formed designs through collaborative dialogue.
-This skill scales with task complexity — from a quick sanity check to a full design session.
+Turn ideas into designs through collaborative dialogue. Scales with complexity.
 
 **Announce at start:** "I'm using the brainstorming skill."
 
-## Step 0: Determine Complexity Tier
+---
 
-**Before anything else, assess the task:**
+## Step 0: Determine Complexity Tier
 
 | Tier | When | Process | Time |
 |------|------|---------|------|
-| **SKIP** | Bugfix, typo, column add, copy change, config tweak | Go straight to implementation — brainstorming adds no value | 0 min |
-| **LIGHT** | Modify existing feature, add field with logic, change workflow step, new endpoint for existing entity | Quick validation (Phase 2 only) — 2-3 questions, one recommendation, proceed | 5 min |
-| **FULL** | New module/entity, new integration, cross-module feature, architectural change, >3 modules touched | Full 3-phase process | 15-30 min |
+| **SKIP** | Bugfix, typo, column add, copy change, config tweak | Straight to implementation | 0 |
+| **LIGHT** | Modify existing feature, add field with logic, new endpoint for existing entity | 2-3 focused questions → recommendation | 5 min |
+| **FULL** | New module, new integration, cross-module feature, architectural change, >3 modules | 3-phase process | 15-30 min |
 
-**If unsure → start LIGHT, escalate to FULL if complexity emerges.**
+**Unsure → start LIGHT, escalate to FULL if complexity emerges.**
 
 ---
 
-## LIGHT Process (medium changes)
+## LIGHT Process
 
-1. Check current project state (files, docs, recent commits)
+1. Check current project state (files, recent commits)
 2. Ask 2-3 focused questions (one at a time, prefer multiple choice)
-3. Propose your recommended approach with brief reasoning
-4. If user agrees → proceed to implementation planning
-5. Save decision as comment in the plan, not a separate doc
+3. Propose recommended approach with brief reasoning
+4. User agrees → proceed to writing-plans
+5. Save decision as comment in the plan
 
 ---
 
-## FULL Process (new features, integrations, architectural changes)
+## FULL Process
 
-### Phase 1: DIVERGE — Explore the problem space
+### Phase 1: DIVERGE — Explore
 
-**Reframe the problem:**
-- Restate as "How Might We..." question (forces user-centric thinking)
-- Example: "Dodaj moduł winiet" → "HMW: Jak możemy śledzić winiety pojazdów tak, żeby kierowcy i dyspozytor wiedzieli co wygasa?"
+Reframe as "How Might We...":
+- "Dodaj moduł winiet" → "HMW: jak śledzić winiety tak, żeby kierowcy i dyspozytor wiedzieli co wygasa?"
 
-**Ask sharpening questions (one at a time, prefer multiple choice):**
-- Who uses this? What's their workflow today?
-- What does success look like? How will we know it works?
-- What constraints exist? (tech, time, data, permissions)
+Sharpening questions (one at a time, prefer multiple choice):
+- Who uses this? Workflow today?
+- What does success look like?
+- What constraints? (tech, time, data, permissions)
 
-**Generate 3-5 approach variants** using different lenses:
-- **Inversion:** What if we solved the opposite problem?
-- **Simplification:** What's the absolute minimum that delivers value?
-- **Constraint removal:** If we had no tech constraints, what would we build?
-- **Existing pattern:** What similar thing already exists in the codebase?
+Generate 3-5 approach variants using different lenses:
+- **Inversion:** opposite problem?
+- **Simplification:** minimum that delivers value?
+- **Constraint removal:** if no tech constraints?
+- **Existing pattern:** what similar thing already exists in codebase?
 
 ### Phase 2: CONVERGE — Pick a direction
 
-**Cluster approaches into 2-3 directions.** For each, evaluate:
+Cluster into 2-3 directions. For each, evaluate:
 
 | Kryterium | Pytanie |
-|-----------|---------|
-| **Wartość dla użytkownika** | Czy rozwiązuje realny problem? Jak często będzie używane? |
-| **Wykonalność** | Ile plików? Ile czasu? Jakie zależności? |
-| **Spójność** | Czy pasuje do istniejących wzorców w codebase? |
+|---|---|
+| Wartość | Realny problem? Jak często używane? |
+| Wykonalność | Ile plików? Czas? Zależności? |
+| Spójność | Pasuje do istniejących wzorców? |
 
-**Surface hidden assumptions:**
-- "Zakładamy że tabela X ma kolumnę Y" → sprawdź
-- "Zakładamy że użytkownik ma uprawnienia Z" → sprawdź
-- Dla każdego założenia: jak je zweryfikować?
+Surface hidden assumptions — for each: how to verify?
 
 **Lead with your recommendation** and explain why.
 
-### Phase 3: SHIP — Document the decision
+### Phase 3: SHIP — Document
 
-Present design in sections of 200-300 words, checking after each section.
-Cover: architecture, components, data flow, error handling, testing.
+Present design in sections of 200-300 words, check after each.
 
-**Produce a one-pager with:**
-1. **Problem** — co rozwiązujemy i dla kogo
-2. **Kierunek** — wybrany approach i dlaczego
-3. **Założenia** — lista z testami walidacyjnymi
-4. **Scope MVP** — co WCHODZI do pierwszej wersji
-5. **"Not Doing" list** — co JAWNIE pomijamy (zapobiega scope creep)
-6. **Ryzyka** — co może pójść nie tak
+One-pager contents:
+1. **Problem** — what and for whom
+2. **Kierunek** — chosen approach and why
+3. **Założenia** — list with validation tests
+4. **Scope MVP** — what's IN
+5. **"Not Doing" list** — what's explicitly OUT (prevents scope creep; most valuable part)
+6. **Ryzyka** — what could go wrong
 
 ---
 
 ## After the Design
 
-**Documentation:**
-- Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
-- Commit the design document to git
-
-**Implementation (if continuing):**
-- Ask: "Ready to set up for implementation?"
-- Use writingplans skill to create detailed implementation plan
+- Write validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
+- Ask: "Ready to create implementation plan with writing-plans?"
 
 ---
 
 ## Key Principles
 
 - **One question at a time** — don't overwhelm
-- **Multiple choice preferred** — easier to answer than open-ended
-- **YAGNI ruthlessly** — remove unnecessary features, especially from MVP
-- **"Not Doing" list is mandatory for FULL** — the most valuable part of a design
-- **Existing pattern first** — always check what's already in the codebase before inventing
-- **Incremental validation** — present design in sections, validate each
+- **Multiple choice preferred** — easier to answer
+- **YAGNI ruthlessly** — especially from MVP
+- **"Not Doing" list mandatory for FULL**
+- **Existing pattern first** — grep before inventing
+- **Incremental validation** — sections, not whole design at once
 
-## Red Flags — Stop and Reassess
+---
+
+## Red Flags
 
 - Building something that exists (grep first!)
-- Design requires >20 files changed → break into phases
-- No clear user for the feature → who asked for this?
-- "Nice to have" items creeping into MVP → move to "Not Doing"
+- Design requires >20 files → break into phases
+- No clear user → who asked for this?
+- "Nice to have" creeping into MVP → move to "Not Doing"
 - Assumptions about DB schema without checking → verify first
