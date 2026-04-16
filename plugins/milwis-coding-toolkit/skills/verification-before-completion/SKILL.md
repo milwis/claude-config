@@ -42,6 +42,7 @@ Before any statement implying success:
 - "Should work now", "Probably fine", "Looks correct"
 - Polish: "gotowe", "działa", "naprawione", "przechodzi", "powinno działać"
 - Emojis that imply done (✅)
+- Factual assertions about codebase: "system has statuses X, Y", "workflow is A → B → C", "table has columns..."
 - Paraphrases count. Synonyms count. Spirit over letter.
 
 ---
@@ -57,6 +58,7 @@ Before any statement implying success:
 | Regression test works | Red → revert fix → red → restore fix → green |
 | Requirements met | Line-by-line checklist vs. spec |
 | Subagent completed | `git diff` / `git status` shows expected changes |
+| Codebase fact stated | Grep/Read output confirming the fact exists |
 
 ---
 

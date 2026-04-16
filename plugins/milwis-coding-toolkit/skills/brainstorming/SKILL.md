@@ -25,7 +25,10 @@ Turn ideas into designs through collaborative dialogue. Scales with complexity.
 
 ## LIGHT Process
 
-1. Check current project state (files, recent commits)
+1. **Explore current state** — dispatch Explore agent with a prompt that:
+   - Lists specific facts to find (e.g. "list all order statuses defined in code", not "explore the invoice flow")
+   - Requires file:line references for every fact reported
+   - Ends with: "Report ONLY what you found in code. Do not infer, assume, or add probable values."
 2. Ask 2-3 focused questions (one at a time, prefer multiple choice)
 3. Propose recommended approach with brief reasoning
 4. User agrees → proceed to writing-plans
@@ -36,6 +39,8 @@ Turn ideas into designs through collaborative dialogue. Scales with complexity.
 ## FULL Process
 
 ### Phase 1: DIVERGE — Explore
+
+**First:** dispatch Explore agent (same rules as LIGHT step 1 — specific questions, file:line refs required, no inference).
 
 Reframe as "How Might We...":
 - "Dodaj moduł winiet" → "HMW: jak śledzić winiety tak, żeby kierowcy i dyspozytor wiedzieli co wygasa?"
@@ -92,6 +97,7 @@ One-pager contents:
 - **Multiple choice preferred** — easier to answer
 - **YAGNI ruthlessly** — especially from MVP
 - **"Not Doing" list mandatory for FULL**
+- **Verify before asserting** — NEVER present codebase facts (statuses, enums, schemas, workflows) without grep/read first. Guessing = confabulation.
 - **Existing pattern first** — grep before inventing
 - **Incremental validation** — sections, not whole design at once
 
@@ -103,4 +109,4 @@ One-pager contents:
 - Design requires >20 files → break into phases
 - No clear user → who asked for this?
 - "Nice to have" creeping into MVP → move to "Not Doing"
-- Assumptions about DB schema without checking → verify first
+- Presenting codebase facts (statuses, fields, enums) without grep/read → confabulation risk
