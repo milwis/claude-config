@@ -135,11 +135,70 @@ The only reason to include code in the plan is a very specific, non-obvious patt
 
 ---
 
+## Step N: Self-Audit & Refinement (mandatory before handoff)
+
+**Do not present the plan to the user until this step is complete.** An un-audited plan typically contains 10–20 gaps that the user would otherwise catch manually. Find and fix them first.
+
+### Pass 1 — General audit (main agent)
+
+Re-read the entire saved plan as if you were a reviewer seeing it for the first time. Hunt for:
+
+- **Gaps:** missing tasks, untouched dependencies, assumed-but-unverified file locations, missing migrations, missing rollback, missing seed/fixture updates
+- **Security / vulnerabilities:** auth/authz gaps, input validation, SQL injection, XSS, CSRF, secrets in code/logs, unsafe defaults, missing rate limits
+- **Correctness risks:** race conditions, N+1 queries, missing indexes, broken invariants, silent failures, error paths without handling
+- **Acceptance criteria quality:** vague/non-testable criteria, missing negative cases, missing edge cases (empty, null, large, concurrent)
+- **Ordering / scoping:** risky task placed late, vertical slicing violated, task exceeds 5 files, dependencies between tasks not reflected in order
+- **Operational:** logging, migrations reversible, feature flags, backward compatibility, data migration for existing rows
+- **DRY/YAGNI:** duplicated work across tasks, speculative features, premature abstractions
+
+Write findings as a checklist. Do not stop at the first few — aim to match the 10–20 issues a fresh reviewer would find.
+
+### Pass 2 — Language-specialist audits (parallel)
+
+Identify which languages/technologies the plan touches. For each, spawn the matching specialist agent **in parallel** (single message, multiple `Agent` calls) to audit only their relevant sections:
+
+| Technology in plan | Agent |
+|---|---|
+| PHP (Laravel/Symfony/plain) | `milwis-coding-toolkit:php-pro` |
+| JavaScript / TypeScript / Node | `milwis-coding-toolkit:javascript-pro` |
+| Python | `milwis-coding-toolkit:python-pro` |
+| SQL / schema / queries | `milwis-coding-toolkit:sql-pro` |
+| PWA / mobile / service workers | `milwis-coding-toolkit:mobile-pwa-developer` |
+| Auth / API security / input validation | `milwis-coding-toolkit:backend-security-coder` |
+| Database performance / indexing | `milwis-coding-toolkit:database-optimizer` |
+| Tests / testability of the plan | `milwis-coding-toolkit:test-automator` |
+
+**Prompt each specialist** with:
+- Absolute path to the plan file
+- Exact section/task numbers to audit (not the whole plan)
+- Instruction: *"Read-only review. Do not edit the plan. Return a numbered list of concrete issues: gaps, vulnerabilities, anti-patterns, missing edge cases, risky patterns specific to [language]. No generic advice — each item must reference a specific task or file in the plan."*
+
+Example: a plan with PHP backend + JS frontend + MySQL schema → spawn `php-pro` (PHP tasks), `javascript-pro` (JS tasks), `sql-pro` (schema/queries) in one parallel batch.
+
+### Pass 3 — Consolidate & fix
+
+1. Merge Pass 1 + Pass 2 findings. Deduplicate.
+2. Edit the plan file directly to address every valid finding. For each fix: adjust the task, add an acceptance criterion, split a task, reorder, or add a new task.
+3. Discard findings that are out of scope — but note *why* in the plan's Findings section so the user sees the decision.
+4. If Pass 3 caused material structural changes (new tasks, re-ordering, new risks), run Pass 1 again on the changed sections only.
+
+### Pass 4 — Report to user
+
+Only now announce the plan as ready. Include a one-paragraph audit summary:
+
+- How many issues were found across general + specialist audits
+- Which specialists were consulted
+- Which findings were fixed vs. deliberately deferred (with reason)
+
+If zero issues were found, state it explicitly — that is unusual and worth flagging so the user can sanity-check.
+
+---
+
 ## Execution Handoff
 
-After saving the plan:
+After the self-audit is complete and the plan is clean:
 
-**"Plan saved to `docs/plans/<filename>.md`. Ready to execute with the `executing-plans` skill?"**
+**"Plan saved to `docs/plans/<filename>.md`. Audited by [list specialists]; [N] issues found and resolved. Ready to execute with the `executing-plans` skill?"**
 
 ---
 
