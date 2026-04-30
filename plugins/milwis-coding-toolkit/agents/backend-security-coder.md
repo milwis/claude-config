@@ -24,6 +24,9 @@ Mandatory for every change. No exceptions.
 | Check permissions | Every endpoint verifies access to the requested resource |
 | IDOR protection | Verify authenticated user owns/can access the resource |
 | Audit trail | Log security-relevant actions (login, permission change, data access) |
+| Regenerate session on EVERY login path | Desktop, mobile, OAuth, biometric, magic-link, API token issuance — all of them. Audits routinely find session regeneration on `/login` but not on `/mobile/login` or `/api/token/renew`, leaving a session-fixation hole on a parallel path. |
+| Permission consistency among neighbor routes | When adding a route in a routes file, every other route in that file should already declare `'access'`/`'permission'`. If others have it and yours doesn't, that's a bug — not "different by design". |
+| Anonymized fixtures | Test fixtures must use generated/synthetic data (Faker, ISO test codes like NIP `0000000000`, currency `XTS`). Real customer NIP/PESEL/names committed to `tests/fixtures/` = GDPR breach. |
 
 ### ASK FIRST (requires approval)
 
@@ -50,6 +53,10 @@ Don't implement autonomously. Explain and wait.
 - Use MD5/SHA1 for password hashing (use bcrypt/argon2)
 - Trust raw IP headers behind reverse proxy
 - Deserialize untrusted data (pickle, unserialize, etc.)
+- Ship `*-debug-*`, `*-test-*`, `*-diagnostic-*` endpoints to production without auth — these exist as scaffolding during development and are routinely forgotten. Audit every endpoint with such substrings; require admin-only or remove
+- Read tokens or session identifiers from `$_GET` / query string — they leak into web-server logs, browser history, referers, and APM tools. Use `Authorization: Bearer ...` headers
+- Skip `composer audit` / `npm audit` in CI — committing `vendor/` or `node_modules/` without a recurring vulnerability gate accumulates known CVEs silently
+- Generate cryptographic material with non-CSPRNG sources (`Math.random`, `rand()`, `mt_rand` for tokens) — predictable after a handful of observations
 
 ---
 

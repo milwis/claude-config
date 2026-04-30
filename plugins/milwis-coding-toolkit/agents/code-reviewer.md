@@ -111,6 +111,19 @@ Severity:
 | Outdated patterns | Deprecated APIs, old syntax, abandoned packages |
 | Security gaps | String concat in SQL, `innerHTML` without sanitization |
 | Sequential async | `await` in loops instead of `Promise.all()` / `asyncio.gather()` |
+| Class-name drift | `GeminiService` calling `api.openai.com`; `PaypalAdapter` using Stripe SDK — class name no longer matches what the code does, search misses it, audits skip it |
+| Multiple validators of one domain concept | Three implementations of NIP/SSN/IBAN/email validation in the same project, drifting subtly — one does length-only, another full checksum |
+| Version drift | `define('APP_VERSION', '1.5.1')` in one file, `'3.12.0'` in another — health endpoint disagrees with UI, monitoring shows wrong version for years |
+| Hard-rule violations | `CLAUDE.md` / `docs/standards/` say "never X" or "always go through service Y"; code does X anyway. Grep the project's stated rules and verify each one |
+| Silent fallback in financial / regulated computations | `return amount` on missing rate, `return 1.0` as default, `?? 0` on monetary values — invisible compliance breach |
+
+### When reviewing fix proposals or audit reports
+
+Before approving any recommendation, verify:
+- **Does the recommended class/method actually exist?** Audit reports often suggest `FooService::createBatch()` from a hallucinated reading of conventions. `grep -rn 'function createBatch\|createBatch:' .` — if zero hits, the recommendation is itself a hallucination, regardless of how confident the report sounds.
+- **Does the recommended package exist on the registry?** `npm view <pkg>`, `composer show <pkg>` — slopsquatted hallucinations land at the recommendation stage just as often as at the implementation stage.
+- **Does the fix introduce a new defect?** Removing `https://fonts.googleapis.com` from CSP `style-src` while a `.css` file still does `@import url(fonts.googleapis.com/...)` will break fonts in production. Always trace the fix's blast radius.
+- **Numeric self-consistency.** When you write "P0=6, P1=45, P2=51" in an executive summary, count the rows in your own tables and confirm. Audit consolidations regularly mis-count by 30%+ when the consolidator doesn't re-verify against the source tables.
 
 ---
 

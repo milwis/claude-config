@@ -70,6 +70,17 @@ Expert test automation engineer focused on robust, maintainable testing ecosyste
 7. **Fast.** Unit tests < 10ms each; integration < 1s each.
 8. **Deterministic.** No flakes. If flaky, fix or quarantine.
 
+## Test Anti-Patterns Common in AI-Generated Suites
+
+These patterns *look* like tests, pass CI, and provide no protection. Audits regularly find dozens per project.
+
+- **Reflection-only tests.** Asserting `method_exists`, `getParameters()`, `getReturnType()` proves the symbol is in the file. It does not prove the symbol behaves correctly. If the only assertions in a test class come from `\ReflectionMethod` / `\ReflectionClass`, it's not a test — delete or replace with behavioral assertions.
+- **`assertTrue(true)` / `expect(true).toBe(true)`.** A test with a tautology as its only assertion always passes. Quarantine on detection. Same applies to `expect(result).toBeDefined()` when `result` is an object literal constructed inline.
+- **Hardcoded environment.** `192.168.3.2`, `localhost:5432`, absolute paths to `/home/dev/`. CI cannot reach these — the test silently `markTestSkipped()`s or fails-and-is-ignored. Use environment variables with `markTestSkipped()` ONLY when the dependency is explicitly absent.
+- **Real subprocess + polling sleep.** A test that `proc_open()`s a real script and then `sleep(60)` waiting for a side effect is flaky by construction. Mock the subprocess, or use a short `usleep` loop with a tight ceiling (< 5s) and a fake clock.
+- **Tests that mock the subject.** If you mock the class under test, you're testing the mock. Mock collaborators (DB, HTTP, clock), never the unit being verified.
+- **Tests written *after* the implementation.** Mocks return exactly what the implementation produces; assertions mirror the implementation's return shape; no red phase exists in git history. These tests confirm the code matches itself, not the spec.
+
 ---
 
 ## Test Data Management
@@ -80,6 +91,15 @@ Expert test automation engineer focused on robust, maintainable testing ecosyste
 - **Seed data separate** from test data — never depend on prod-like seeds
 - **No shared state** between tests — each test creates its own data
 - **Anonymized data** for tests touching real production data
+
+### Production data in fixtures = compliance breach
+
+`tests/fixtures/customers_snapshot.json` containing real names/emails/NIPs/PESELs of actual customers, committed to a public or shared repository, is a GDPR/CCPA/HIPAA incident — even if the fixture was "anonymized" by removing surnames. Detection patterns:
+- Files in `tests/fixtures/`, `tests/snapshots/`, `tests/data/` larger than a few KB
+- JSON/SQL containing `@company.com` emails, formatted national IDs, real phone numbers
+- Snapshots produced by `--update-snapshots` against a real DB
+
+Replace with: Faker generators (`fake()->name()`, `fake()->safeEmail()`), known-test identifiers reserved by standards (currency `XTS` per ISO 4217, NIP `0000000000`, IBAN test ranges), or a deterministic factory with a fixed seed.
 
 ---
 
@@ -115,6 +135,9 @@ Expert test automation engineer focused on robust, maintainable testing ecosyste
 - Dynamic test selection — only run tests affected by changed files
 - Cache dependencies between runs
 - Artifacts for failed tests (screenshots, logs, HAR files)
+- **Coverage with a threshold.** `--coverage` without `--coverage-min=X` is decoration. Pick a number (typically 60–80% lines for legacy, 80%+ for greenfield), fail the build below it.
+- **No `continue-on-error: true`** on lint/typecheck/audit steps in CI — that turns a quality gate into a notification. Either the gate is enforced or it shouldn't be in the pipeline.
+- **Vulnerability scan as a CI gate.** `composer audit`, `npm audit --audit-level=high`, `pip-audit`, container scans — all should fail the build on a HIGH/CRITICAL finding, not warn.
 
 ---
 

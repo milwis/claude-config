@@ -121,7 +121,57 @@ ALTER USER ai_agent_ro SET statement_timeout = '30s';
 ALTER USER ai_agent_ro SET work_mem = '64MB';
 ```
 
-### 1.5 Human Review Requirements
+### 1.5 Immutability of Finalized Records
+
+For records committed to an external regulated system (e-invoicing, accounting, payment processor, government ledger), every UPDATE on the persisted payload must guard against post-finalization mutation:
+
+```sql
+-- ❌ Mutates the audit trail even after the document was submitted — corrupts compliance trail
+UPDATE documents SET external_payload = ?, updated_at = NOW() WHERE id = ?;
+
+-- ✅ Guard + caller checks affected rows
+UPDATE documents
+SET external_payload = ?, updated_at = NOW()
+WHERE id = ?
+  AND submitted_at IS NULL
+  AND external_id IS NULL;
+-- caller: if rowCount === 0 → throw BusinessRuleException
+```
+
+Pattern applies to any field set after external commit: `*_sent`, `*_locked`, `*_finalized`, `*_exported`, `external_id IS NOT NULL`. Missing guard on financial/regulated data = automatic P0 — both a correctness defect and a legal/audit-trail defect.
+
+### 1.6 Domain Service First
+
+Before generating direct UPDATE/INSERT on inventory, accounting, payments, or other regulated domain tables, check whether the project documents a canonical service for that domain (typically in `CLAUDE.md` or `docs/standards/`):
+
+```sql
+-- ❌ Direct UPDATE bypasses batch tracking, audit log, valuation
+UPDATE stock_items SET quantity = quantity - ? WHERE id = ?;
+
+-- ✅ Service exists for a reason — call it from application code
+-- $stockService->issue($itemId, $qty, $sourceId);
+```
+
+Direct SQL on `stock_*`, `invoices`, `payments`, `accounting_*`, `audit_log` when a `*Service`/`*Repository` is the documented entry point = P0 architectural violation. The service maintains invariants (batch records, audit entries, valuations) that loose SQL silently breaks.
+
+### 1.7 Runtime DDL Forbidden
+
+```sql
+-- ❌ Inside a controller's save() or hot path
+CREATE TABLE IF NOT EXISTS vehicles (...);
+ALTER TABLE orders ADD COLUMN status VARCHAR(20);
+
+-- ❌ String-concatenated DDL in PHP/Python/Node app code
+$pdo->exec("ALTER TABLE {$table} ADD COLUMN {$col} INT");
+```
+
+Schema lives in versioned migrations (Liquibase, Flyway, Atlas, `sql/migrations/`). Runtime DDL in application code:
+- bypasses migration history → next deploy is non-deterministic
+- pre-checks + audit on every request even when `IF NOT EXISTS` is a no-op
+- string concatenation = SQL injection through column/table names
+P1 minimum. P0 if the DDL accepts user-controlled identifiers.
+
+### 1.8 Human Review Requirements
 
 Label with `-- [REQUIRES HUMAN REVIEW]`:
 - Any DDL on production tables
@@ -314,6 +364,23 @@ SELECT name FROM (
 **Large IN list:** use temp table or CTE instead of `IN (1, 2, ... 10000)`.
 
 **Implicit type conversion:** `WHERE order_number = 12345` on VARCHAR column forces cast, kills index. Match column type.
+
+**Generated column drift:** Schema declares a generated column (e.g. `effective_date GENERATED ALWAYS AS COALESCE(invoice_date, issue_date)`) but the application keeps inlining the same `COALESCE()` in queries — the generated column is dead weight, can't be indexed by the optimizer, and the two definitions drift over time. Either use the column everywhere or drop it from the schema.
+
+**Partition strategy for retention DELETE:** Append-only tables with periodic `DELETE FROM tab WHERE created_at < NOW() - INTERVAL N DAY` block INSERTs through row locks once the table grows past ~10M rows. Use partitioning by date range — DROP PARTITION is metadata-only and instant, DELETE is row-by-row. Always paired with `audit_log`, `events`, `streaming_*`, telemetry, sessions.
+
+### UNIQUE on business identifiers
+
+Document numbers, supplier-document pairs, payment references — any value the business treats as unique should be enforced at the DB level, not by application checks alone:
+
+```sql
+-- ✅ Enforce in schema, not just in app code
+ALTER TABLE invoices         ADD CONSTRAINT uq_invoices_number          UNIQUE (invoice_number);
+ALTER TABLE purchase_invoices ADD CONSTRAINT uq_purchase_invoices_supplier UNIQUE (supplier_id, invoice_number);
+ALTER TABLE payments         ADD CONSTRAINT uq_payments_reference        UNIQUE (reference);
+```
+
+Pre-deploy: `SELECT col, COUNT(*) FROM table GROUP BY col HAVING COUNT(*)>1` — if the dry-run returns rows, STOP. The migration cannot proceed without first reconciling the duplicates.
 
 ### Index Strategy
 

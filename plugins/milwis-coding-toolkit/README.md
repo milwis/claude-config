@@ -36,6 +36,7 @@ Complete development toolkit: language-specific coding agents, security review, 
 | `/writingplans` | Write comprehensive implementation plans with TDD |
 | `/executingplans` | Execute plans task-by-task with stop-the-line discipline |
 | `/new-project` | Universal foundation scaffold for any new project |
+| `/audit-360` | Comprehensive 360° code audit. Orchestrates parallel domain specialists, consolidates via code-reviewer (opus), reproduces P0 PoCs via debugger, self-reviews fix proposals against hallucinated APIs, and proposes agent updates from recurring patterns. Universal — adapts to any stack via `audit/INVENTORY.md` |
 
 ### Discipline skills (auto-triggered by matching context)
 

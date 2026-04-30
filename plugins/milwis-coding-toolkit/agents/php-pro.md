@@ -94,6 +94,47 @@ die()/exit() for error handling (use exceptions)
 // First statement after <?php, every file, no exceptions:
 declare(strict_types=1);
 ```
+Apply to ALL PHP files, not just `src/` — `cron/`, `scripts/`, `tests/` too. Production audits routinely show 100% coverage in `src/` and 25–30% in `cron/scripts/` of the same codebase. The risk profile is identical.
+
+### Finalized Records — never UPDATE without WHERE-guard
+For records committed to an external system (e-invoicing, accounting, payment processor, regulator), every UPDATE on the persisted payload must guard against post-finalization mutation:
+```php
+// ❌ Mutates the audit trail even after the document was submitted
+$pdo->prepare('UPDATE documents SET external_payload = ? WHERE id = ?')
+    ->execute([$payload, $documentId]);
+
+// ✅ Guard + rowCount check
+$stmt = $pdo->prepare('
+    UPDATE documents SET external_payload = ?, updated_at = NOW()
+    WHERE id = ?
+      AND submitted_at IS NULL
+      AND external_id IS NULL
+');
+$stmt->execute([$payload, $documentId]);
+if ($stmt->rowCount() === 0) {
+    throw new BusinessRuleException("Document {$documentId} already finalized — refusing to mutate persisted payload");
+}
+```
+The pattern applies to any field set after external commit: `*_sent`, `*_locked`, `*_finalized`, `*_exported`, `external_id IS NOT NULL`, `submitted_at IS NOT NULL`. Missing guard on financial/regulated data = automatic P0.
+
+### Predictable PKs — never time-based
+```php
+// ❌ time() * 1000 + random_int(0, 999)  // race + INT32 overflow ~2032 + collisions at 1000 inserts/s
+// ❌ uniqid()                              // millisecond resolution, not unique under load
+// ✅ AUTO_INCREMENT (default for sequential IDs)
+// ✅ bin2hex(random_bytes(16))             // 128-bit unpredictable
+// ✅ Symfony\Component\Uid\Uuid::v7()      // sortable, time-prefixed, collision-free
+```
+
+### Runtime DDL — never in application code
+```php
+// ❌ Hot path runs DDL on every request (and silently bypasses sql/migrations/)
+public function save(): void {
+    $this->pdo->exec("CREATE TABLE IF NOT EXISTS vehicles (...)");
+    // ...
+}
+```
+Schema changes belong only in versioned migrations. `CREATE TABLE`, `ALTER TABLE`, dynamic column introspection in controllers/services = automatic P1 — even if `IF NOT EXISTS` makes it a no-op, MySQL still re-parses and audits on every call.
 
 ### Hardcoded Secrets — never
 ```php
@@ -119,6 +160,58 @@ if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
     http_response_code(403); exit;
 }
 ```
+
+---
+
+## Domain Boundaries
+
+When a project documents canonical services as the only authorized path (commonly stated in `CLAUDE.md` or `docs/standards/`), respect those boundaries — they exist because the inventory/accounting/payment ledger requires invariants that loose SQL cannot maintain.
+
+### Inventory / accounting / payments — through service only
+```php
+// ❌ Direct UPDATE bypasses batch tracking, audit log, valuation
+$db->execute('UPDATE stock_items SET quantity = ? WHERE id = ?', [$qty, $id]);
+
+// ✅ Delegate to canonical service that maintains the invariants
+$this->stockService->issue($itemId, $qty, $sourceId);
+```
+Skip the service → no batch tracking, no audit log, silent valuation drift. Direct SQL on regulated tables (`stock_*`, `invoices`, `payments`, `accounting_*`) when a `*Service` exists for them = P0 architectural violation.
+
+### Cross-resource consistency — file + DB / multi-table
+```php
+// ❌ Crash between save() and markAsExported() = orphan file + replay = duplicate in accounting
+$filename = $accountingExport->save($payload, $document);
+$this->markAsExported($documentId);
+
+// ✅ Idempotent UPDATE first, file second, cleanup on failure
+$pdo->beginTransaction();
+try {
+    $this->markAsExported($documentId);   // idempotency check inside (rowCount === 0 → already exported)
+    $filename = $accountingExport->save($payload, $document);
+    $pdo->commit();
+} catch (\Throwable $e) {
+    $pdo->rollBack();
+    if (isset($filename)) @unlink($filename);
+    throw;
+}
+```
+
+### No-fallback policy on financial / regulated computations
+```php
+// ❌ Silent 1:1 fallback — missing rate becomes invisible loss in analytics
+function convertToPLN(float $amount, string $currency): float {
+    return $amount * ($rates[$currency] ?? 1.0);
+}
+
+// ✅ Throw or null — caller decides visibility
+function convertToPLN(float $amount, string $currency): ?float {
+    if (!isset($rates[$currency])) {
+        throw new RateUnavailableException($currency, $date);
+    }
+    return $amount * $rates[$currency];
+}
+```
+Hard rule for monetary, regulatory, audited, and KPI computations. A missing data point silently becoming `1.0` is an invisible compliance breach — the analytics dashboard shows wrong totals, decisions are made on falsified data, and nobody knows for months.
 
 ---
 
@@ -158,6 +251,8 @@ if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
 - `#[\Override]` on overridden methods
 - `json_validate()` (PHP 8.3) before `json_decode`
 - Typed class constants (PHP 8.3)
+- `(int) $pdo->lastInsertId()` always — return type is `string|false`; mixing types under `strict_types` crashes at the next int-typed call site
+- `catch (\Throwable)` instead of `catch (\Exception)` in batch loops — `\Exception` misses `Error`, `TypeError`, `ParseError`, leading to silent corruption mid-batch when one row throws and the loop continues
 
 ---
 
@@ -446,6 +541,22 @@ it('returns 403 when editing another user post', function () {
         ->assertStatus(403);
 });
 ```
+
+---
+
+## Codebase Hygiene
+
+### Class name = current implementation
+Renaming is cheap. Letting `GeminiService` call `api.openai.com` for two years is expensive: code search misses it, audits skip it, contributors waste hours mapping the call. When you swap a provider's URL/key/model, rename the class in the same commit (with `class_alias` for one release if external callers exist).
+
+### One source of truth for `APP_VERSION`
+Define in exactly one place — typically `php/config/Version.php` with a typed constant. Other entry points (`api.php`, `index.php`, health endpoints) read from there. Multiple `define('APP_VERSION', ...)` calls drift silently — production audits regularly find two-year gaps between `api.php` and `index.php`.
+
+### Files >1500 LOC degrade AI edits
+PHP file >1500 LOC: AI edits in the second half lose track of constraints declared in the first. >2000 LOC: AI starts contradicting earlier sections in the same file. Split before adding the next feature. Audit thresholds: 1500 LOC = REQUIRED to split, 2500 LOC = CRITICAL.
+
+### One validator per domain concept
+Three implementations of NIP/REGON/PESEL/email validation in the same project = guaranteed drift. One does length-only, another full checksum, the third is subtly off. Single `App\Helpers\NipValidator::isValid()` (or equivalent value object) — every other path calls it.
 
 ---
 

@@ -119,6 +119,28 @@ for author in Author.objects.prefetch_related('books'):
 - **Event-driven** — invalidate on write via pub/sub
 - **Versioning** — include version in cache key
 
+### Negative cache TTL — recovery-aware
+
+Caching "no value" (404 from upstream, missing rate, unknown record) needs a different TTL than positive results. The classic mistake is a single hardcoded constant:
+
+```php
+// ❌ 24h for everything — Friday-evening outage blocks recovery until Saturday evening
+const NEGATIVE_CACHE_TTL_SECONDS = 86400;
+```
+
+Layer the TTL by likelihood the answer changes:
+- **Short** (≤ 2h) for fresh data points where upstream is genuinely intermittent (recent dates, live FX rates, new IDs that may appear).
+- **Long** (24h+) for structurally absent data (historical gaps, holidays, retired records).
+
+Always pair negative-cache writes with `Logger::warning(...)` and a metric (active negative entries, by source). Without observability you cannot tell a 5-minute outage from a 5-day outage. Consider clean-on-prefetch as an alternative — start each scheduled prefetch by deleting recent negative entries.
+
+### Hit-ratio metrics
+
+If you cannot tell whether the cache is helping, you cannot tune it. Minimum viable instrumentation:
+- `nbp_cache hit=N miss=N negative=N` log line per service call (aggregable in any log pipeline)
+- or table `cache_stats(date, key_class, hits, misses, negatives)` updated atomically
+Prefetch / cron scripts MUST log the resulting hit ratio for the period they cover. Plans that say "expected to reduce X warnings" are unverifiable without this.
+
 ---
 
 ## Scaling & Partitioning
@@ -176,6 +198,28 @@ Avoid blocking operations on large tables (PostgreSQL `ALTER TABLE ... ADD COLUM
 - **Connection lifecycle** — timeout on idle, max age, recycle on failure
 - **Transaction scope** — short transactions, never span user-facing request latency
 - **Isolation level** — default READ COMMITTED is usually right; justify anything else
+
+### Persistent connections — default OFF for web
+
+`PDO::ATTR_PERSISTENT => true` (or equivalent in other drivers) keeps connections alive between PHP requests. It saves the TCP/auth handshake but leaks state — open transactions, session variables, prepared statement cache, temporary tables — to the *next* request, which may belong to a different user. The next request inherits whatever the previous request left behind.
+
+Enable persistent connections only when (a) connection setup is a measured bottleneck, AND (b) the app explicitly resets all per-session state on connection acquisition (`SET SESSION ...`, `ROLLBACK`, `DEALLOCATE PREPARE *`). Default for web/PHP-FPM/CGI: **off**. Default for long-lived Node.js / Go services with explicit pooling: app-managed pool, not driver-level persistence.
+
+### Concurrent cron / batch protection
+
+Long-running scheduled scripts (prefetch jobs, batch imports, retention cleanups) must be guarded against overlap from manual triggers, scheduler drift, or operator retries. Without a lock, two instances run in parallel — duplicate HTTP to upstreams, racing UPDATEs, exhausted circuit breakers.
+
+```php
+$lock = fopen(sys_get_temp_dir() . '/script_name.lock', 'c');
+if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
+    Logger::warning('SCRIPT_NAME', 'Skipped — another instance is running');
+    exit(0);
+}
+register_shutdown_function(fn() => flock($lock, LOCK_UN));
+set_time_limit(300);  // hard ceiling for the whole script
+```
+
+Same pattern in any language: `flock` (POSIX), `LockFile` in .NET, `filelock` in Python, file-based or Redis-based mutex. Pair with a max wall-clock limit so a stuck process eventually releases.
 
 ---
 

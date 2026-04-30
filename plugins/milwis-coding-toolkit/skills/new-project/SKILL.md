@@ -270,46 +270,18 @@ logs/
 ## Phase 7: Exception Hierarchy
 
 ### Deliverables
-- [ ] Base exception class
-- [ ] Mid-level groups: ExternalServiceError, ValidationError, SecurityError, DomainError
+- [ ] Base exception class with typed context
+- [ ] Mid-level groups: `ExternalServiceError`, `ValidationError`, `SecurityError`, `DomainError`
 - [ ] Leaf exceptions with typed context
-- [ ] Tests for hierarchy
+- [ ] Tests for hierarchy (each leaf catchable by its mid-level + base)
 
-### Pattern
+### Pattern (high level)
 
-```
-ProjectBaseError
-├── ExternalServiceError   # outside our control
-│   ├── ConnectionError
-│   ├── APIError
-│   └── RateLimitError
-├── ValidationError        # bad input/config
-│   ├── InvalidConfigError
-│   └── MissingFieldError
-├── SecurityError          # auth/authz failures
-│   ├── AuthenticationError
-│   └── AuthorizationError
-└── DomainError            # business logic violations
-```
+A four-branch hierarchy: external service errors (retry-eligible), validation errors (return 400), security errors (return 401/403 + alert), domain errors (business rule violations). Every exception carries a context dictionary so logs and error responses can extract structured data.
 
-### Exceptions carry context
+For the full type tree, language-specific implementations (Python, TypeScript, PHP), and use-site examples, see **`references/exception-hierarchy.md`**. Read it on demand when implementing this phase.
 
-```python
-class ProjectBaseError(Exception):
-    def __init__(self, message: str = "", **kwargs):
-        self._context = kwargs
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        ctx_str = " | ".join(f"{k}={v}" for k, v in kwargs.items())
-        full_message = f"{message} [{ctx_str}]" if message and kwargs else message or ctx_str
-        super().__init__(full_message)
-
-    @property
-    def context(self) -> dict:
-        return dict(self._context)
-```
-
-Enables: `logger.error("Failed", **exc.context, exc_info=True)`
+The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)` — you log structured data, not strings.
 
 ---
 
@@ -447,54 +419,20 @@ services:
 
 ## Phase 13: Foundation Verification Audit
 
-MANDATORY before "foundation complete."
+MANDATORY before declaring "foundation complete." Read **`references/verification-audit.md`** for the full checklist (code quality, structure, security, logging, resilience, documentation, agent routing, optional domain safety). Run every checkbox; if any fails, return to that phase before adding business logic.
 
-### Code quality
+The five red lines that always block:
+
 ```bash
-make lint          # Zero errors
-make type-check    # Zero errors
-make test          # All pass
+make lint && make type-check && make test    # all green
 ```
-
-### Structure
-- [ ] Every module has `__init__.py` / equivalent
-- [ ] Every external service has interface/ABC + mock
-- [ ] Every config value from `.env` or config file (no hardcoded)
-- [ ] No `print()` anywhere
-
-### Security
-- [ ] `.env` in `.gitignore` (verify with `git status`)
-- [ ] `.env.example` with all variables
-- [ ] Startup rejects default/empty credentials
-- [ ] Pre-commit hook catches secrets
-- [ ] Auth middleware on all endpoints except health/login
-
-### Logging
-- [ ] `logs/` structure matches `docs/logging-system.md`
-- [ ] JSON in files, human-readable in console
-- [ ] `system/errors.log` exists
-- [ ] Correlation context works
-
-### Resilience
-- [ ] Retry decorator tested
-- [ ] Shutdown handler tested
-- [ ] Config validation rejects invalid files
-
-### Documentation
-- [ ] `CLAUDE.md` under 60 lines
-- [ ] `docs/architecture.md` matches actual structure
-- [ ] `docs/logging-system.md` matches actual logs
-
-### Agent routing (CRITICAL)
-- [ ] `CLAUDE.md` has "## Agent routing" section with table
-- [ ] Every tech layer has an agent row
-- [ ] `code-reviewer` row with "MANDATORY"
-- [ ] `debugger` row with "Start from logs"
-- [ ] Non-negotiable rules section present
-- [ ] Workflow line: `brainstorming → writing-plans → executing-plans → code-reviewer → commit`
-- [ ] Agent names match marketplace
+- [ ] `.env` in `.gitignore`, `.env.example` complete
+- [ ] Auth + rate limiting active; startup rejects default credentials
+- [ ] Logging + correlation context active; no raw `print` / `console.log`
+- [ ] `CLAUDE.md` has the agent routing table with names matching the marketplace
 
 **All checks pass?** → "Foundation complete. Ready to write business logic."
+**Any fail?** → Return to that phase. Don't write business logic on a broken foundation.
 
 ---
 

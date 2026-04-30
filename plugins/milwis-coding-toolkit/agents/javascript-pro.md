@@ -34,7 +34,39 @@ element.innerHTML = str               // XSS — use DOMPurify.sanitize() or tex
 document.write()                      // XSS
 dangerouslySetInnerHTML without DOMPurify  // XSS
 exec(userInput)                       // Command injection — use execFile with args array
+Math.random()  for passwords/tokens/IDs/secrets  // PRNG, predictable after ~5 observations
+                                                // → crypto.getRandomValues() / crypto.randomUUID()
+return amount  in convertX/rateY/convertToPLN    // silent 1:1 fallback hides missing rates;
+                                                // throw or return null instead
 ```
+
+### Crypto-grade randomness
+`Math.random()` is a PRNG (V8 xorshift128+) — state can be reconstructed from ~5 observations using public Z3-based predictors. Never use it for any value that must be unguessable: passwords, tokens, IDs, CSRF, session keys, nonces, password reset codes.
+```typescript
+// ❌ Math.random().toString(36).slice(-8)   // ~41 bits, predictable
+// ✅
+const bytes = new Uint8Array(12);
+crypto.getRandomValues(bytes);
+const password = Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+// ✅ For IDs:
+const id = crypto.randomUUID();
+```
+
+### No silent fallback in financial/rate conversions
+```typescript
+// ❌ Caller has no signal that the conversion failed
+function convertToPLN(amount: number, currency: string): number {
+  return rates[currency] ? amount * rates[currency] : amount;
+}
+
+// ✅ Throw or null — caller decides UX (skip row, badge "incomplete data", etc.)
+function convertToPLN(amount: number, currency: string): number | null {
+  const rate = rates[currency];
+  if (!rate) return null;
+  return amount * rate;
+}
+```
+Hard rule for any monetary, regulatory, KPI, or audited computation. A 1:1 fallback in `convertToPLN` shows EUR revenue as 80% lower than reality on the management dashboard, indefinitely.
 
 ### Secrets
 - Never hardcode API keys, passwords, tokens
@@ -45,6 +77,12 @@ exec(userInput)                       // Command injection — use execFile with
 - `helmet` for headers
 - Strict CSP with nonces, not `'unsafe-inline'`
 - Restrict CORS — never `origin: '*'` with `credentials: true`
+
+### Project-level supply policies (CDN, vendoring)
+Read the project's stated policy before adding `<script src="https://...">` or imports from external hosts. If `CLAUDE.md`, security docs, or CSP say "no CDN at runtime", then libraries live in `vendor/js/` (or equivalent) and CSP must not whitelist hosts that are no longer used. Three patterns to flag:
+- `<script src="https://unpkg.com/...">` while policy says "no CDN" — P1.
+- CSP `script-src` whitelisting `https://cdn.jsdelivr.net/...` for a library that's actually loaded locally — P2 dead whitelist.
+- `@import url('https://fonts.googleapis.com/...')` inside a `.css` shipped to clients — same supply-chain surface as a CDN script.
 
 ---
 
@@ -87,6 +125,23 @@ Never read-await-write a shared variable: `total += await getCount()` is a data 
 - Remove ALL event listeners in cleanup (or use `{ signal }` option)
 - Disconnect observers (`IntersectionObserver`, `MutationObserver`, `ResizeObserver`)
 - `WeakMap` / `WeakRef` for caches of object references
+
+Audit your codebase for the `addEventListener` / `removeEventListener` ratio. Anything below 1:1 is a leak. Production codebases routinely show 8:1 (333 add / 43 remove) — every modal, every view switch, every navigation accumulates listeners on the same DOM nodes. Either pair each `addEventListener` with explicit cleanup, or pass `{ signal: controller.signal }` and abort on unmount.
+
+### Concurrent fetch dedup
+Click-spammable UI ("Refresh", "Load more") without dedup = N parallel requests, last-write-wins overwrites freshest data:
+```typescript
+const inflight = new Map<string, Promise<Rate>>();
+
+async function fetchRate(currency: string): Promise<Rate> {
+  const existing = inflight.get(currency);
+  if (existing) return existing;
+
+  const promise = doFetch(currency).finally(() => inflight.delete(currency));
+  inflight.set(currency, promise);
+  return promise;
+}
+```
 
 ---
 
