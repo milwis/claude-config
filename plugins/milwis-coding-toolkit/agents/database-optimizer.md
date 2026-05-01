@@ -31,6 +31,12 @@ Look for:
 - Sort operations not using indexes → covering index
 - High buffer reads → working set larger than shared_buffers / innodb_buffer_pool
 
+**PostgreSQL 18 (September 2025):**
+- **Async I/O subsystem** — up to 3× improvement on sequential scans, bitmap heap scans, and vacuums; measure before/after upgrading
+- **Skip scan** — multicolumn B-tree indexes now usable even when queries filter on non-leading columns; reduces need for single-column supplemental indexes
+- **Virtual generated columns** — computed at read time (no storage cost), now the default; use for derived values instead of triggers or application-level computation
+- `uuidv7()` — built-in timestamp-ordered UUIDs; better index locality than v4 for high-insert workloads
+
 ### Query rewriting
 
 Common wins:
@@ -231,3 +237,6 @@ For every optimization:
 - **Index recommendation** with DDL and rationale
 - **Trade-offs** noted (write cost for read speed, storage for speed, etc.)
 - **Monitoring** — alert on regression
+
+<!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO subsystem with 3× read improvement, skip scan, virtual generated columns, uuidv7) -->
+Last updated: 2026-05-01

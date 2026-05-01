@@ -121,7 +121,7 @@ Don't implement autonomously. Explain and wait.
 | Vulnerability | Where to look | Prevention |
 |---|---|---|
 | SQL Injection | Any query with dynamic values | Parameterized always |
-| XSS | Any DOM insertion / HTML rendering | Escape output, CSP headers |
+| XSS | Any DOM insertion / HTML rendering | Escape output, CSP headers (2.74× more common in AI code) |
 | IDOR | Endpoints taking ID parameter | Verify ownership/access |
 | Mass Assignment | Controllers accepting JSON/form input | Whitelist allowed fields |
 | Broken Auth | Endpoints without permission check | Auth middleware at router level |
@@ -151,3 +151,28 @@ Don't implement autonomously. Explain and wait.
 ### Recommendations
 - [Optional improvements for future]
 ```
+
+---
+
+## AI & Agentic Security (OWASP 2025-2026)
+
+AI-generated code introduces OWASP Top 10 vulnerabilities in ~45% of samples (Veracode 2026). AI-assisted developers produce commits at 3-4× the rate but introduce security findings at 10× the rate.
+
+### Supply chain: slopsquatting
+AI hallucinates package names ~20% of the time. Attackers register the hallucinated names as malicious packages. Before installing any AI-suggested package: `npm view <pkg>` / `composer show <pkg>` — 404 means hallucinated, do not install.
+
+### Agentic application risks (OWASP Top 10 for Agentic Applications 2026)
+When reviewing or building AI agent systems:
+- **Prompt injection** — user inputs that alter agent behavior; validate and sanitize all inputs to LLM-backed endpoints
+- **Excessive agency** — agents with more permissions than needed; enforce least privilege on every tool/API the agent can call
+- **System prompt leakage** — internal prompts containing credentials or operational logic exposed to users
+- **Insecure output handling** — agent output rendered without sanitization (same XSS/injection surface as any user input)
+
+### MCP (Model Context Protocol) security
+OWASP MCP Top 10 applies when exposing tools via MCP:
+- Treat DB connections from AI agents as read-only by default
+- Log every agent-generated query with session ID and risk tier
+- Enforce statement timeouts and resource limits on agent DB users
+
+<!-- Updated: 2026-05-01 — Added AI & Agentic Security section (OWASP Agentic 2026, slopsquatting, MCP security, updated vulnerability stats to Veracode 2026) -->
+Last updated: 2026-05-01

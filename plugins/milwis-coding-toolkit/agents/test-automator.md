@@ -31,9 +31,9 @@ Expert test automation engineer focused on robust, maintainable testing ecosyste
 ## Frameworks
 
 **JavaScript/TypeScript:**
-- **Vitest** — fast, ESM-native, Vite-compatible (preferred)
-- **Jest** — mature, wide ecosystem
-- **Playwright** — cross-browser e2e, also API testing
+- **Vitest 4+** — fast (3-5× faster than Jest), ESM-native, stable browser mode with Playwright integration, built-in visual regression testing (preferred)
+- **Jest 30** — mature, wide ecosystem
+- **Playwright** — cross-browser e2e, API testing, and component testing in real browsers (Chromium, Firefox, WebKit)
 - **fast-check** — property-based testing
 - **@testing-library** — UI component tests
 
@@ -182,3 +182,6 @@ Before marking test work complete:
 - [ ] Coverage report attached
 - [ ] Test file naming consistent with conventions
 - [ ] No test depends on execution order
+
+<!-- Updated: 2026-05-01 — Updated Vitest to 4+ (stable browser mode, visual regression), Jest to 30, Playwright component testing -->
+Last updated: 2026-05-01

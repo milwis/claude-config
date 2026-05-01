@@ -202,10 +202,10 @@ Contents:
 
 | Service | When | Image |
 |---|---|---|
-| PostgreSQL | SQL DB | `postgres:16` or `timescale/timescaledb:latest-pg16` |
+| PostgreSQL | SQL DB | `postgres:18` or `timescale/timescaledb:latest-pg18` (PG 18: async I/O, skip scan, uuidv7, virtual generated columns) |
 | Redis | Cache/sessions | `redis:7-alpine` |
-| MongoDB | Documents | `mongo:7` |
-| RabbitMQ | Queue | `rabbitmq:3-management-alpine` |
+| MongoDB | Documents | `mongo:8` |
+| RabbitMQ | Queue | `rabbitmq:4-management-alpine` |
 | Elasticsearch | Search/logs | `elasticsearch:8` |
 
 Always: env vars from `.env`, named volumes, health checks, memory limits.
@@ -386,7 +386,7 @@ make docker-down   # Stop infrastructure
 ```yaml
 services:
   postgres:
-    image: postgres:16
+    image: postgres:18
     env: { POSTGRES_PASSWORD: test }
     options: --health-cmd "pg_isready" --health-interval 10s
   redis:
@@ -471,3 +471,6 @@ Total: ~3-4 hours for a complete foundation.
 9. Skipping startup validation → crash mid-work instead of refusing to start
 10. Skipping Docker → "works on my machine" syndrome
 11. Skipping domain safety → general security isn't enough for financial/medical
+
+<!-- Updated: 2026-05-01 — Updated Docker images (postgres:18, mongo:8, rabbitmq:4), added PG 18 feature notes -->
+Last updated: 2026-05-01
