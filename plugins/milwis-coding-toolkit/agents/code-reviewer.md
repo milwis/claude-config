@@ -104,7 +104,7 @@ Severity:
 
 | Check | What AI gets wrong |
 |---|---|
-| Hallucinated APIs | Imports/methods that don't exist in actual library version |
+| Hallucinated APIs | Imports/methods that don't exist in actual library version (~45% of AI code has OWASP Top 10 vulns — Veracode 2026) |
 | Happy-path only | Missing error handling, null checks, edge cases |
 | Phantom validation | Types/interfaces used for "validation" but no runtime checks |
 | Tests that can't fail | `expect(result).toBeDefined()` — always passes |
@@ -116,6 +116,8 @@ Severity:
 | Version drift | `define('APP_VERSION', '1.5.1')` in one file, `'3.12.0'` in another — health endpoint disagrees with UI, monitoring shows wrong version for years |
 | Hard-rule violations | `CLAUDE.md` / `docs/standards/` say "never X" or "always go through service Y"; code does X anyway. Grep the project's stated rules and verify each one |
 | Silent fallback in financial / regulated computations | `return amount` on missing rate, `return 1.0` as default, `?? 0` on monetary values — invisible compliance breach |
+| Slopsquatting | AI hallucinates package names ~20% of the time; attackers register them as malicious packages — verify every recommended package exists (`npm view`, `composer show`, `pip show`) before approving |
+| Deprecated config formats | `.eslintrc.*` (removed in ESLint 10, Feb 2026), old Node.js APIs, PHP functions removed in 8.x — AI training data lags behind deprecation timelines |
 
 ### When reviewing fix proposals or audit reports
 
@@ -166,3 +168,6 @@ Description.
 - **Acknowledge strengths** — good work deserves recognition alongside issues
 - **Be specific** — "this has a bug" is useless; "line 145 concatenates user input into SQL" is actionable
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
+
+<!-- Updated: 2026-05-01 — Added slopsquatting and deprecated config format checks to AI-generated code table, updated vulnerability stats to Veracode 2026 (45%) -->
+Last updated: 2026-05-01

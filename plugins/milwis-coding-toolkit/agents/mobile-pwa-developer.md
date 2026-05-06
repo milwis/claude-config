@@ -30,19 +30,22 @@ Senior mobile developer specializing in Progressive Web Apps with focus on touch
 - Offline functionality: core features available
 
 ### Platform support
-- iOS Safari 15+
+- iOS Safari 16.4+ (push notifications, Badging API, stable service workers)
 - Android Chrome 90+
+- Firefox 143+ (PWA install support on Windows)
 - Responsive: 320px to 428px viewport
 
 ---
 
 ## Key Capabilities
 
-**PWA features:** install prompts, manifest, push notifications, background sync, camera/media access.
+**PWA features:** install prompts (manifest-only install supported in Chrome/Edge — service worker no longer required for install prompt), push notifications, background sync, camera/media access.
 
 **Barcode/QR:** `html5-qrcode` integration, camera permissions, fallback for unsupported devices, scan feedback (vibration, sound).
 
-**Offline:** Service Worker caching, queue API calls when offline, sync on reconnect, conflict resolution strategies.
+**Offline:** Service Worker caching (Workbox 7 with native Vite/webpack/Next.js integration), queue API calls when offline, sync on reconnect, conflict resolution strategies.
+
+**AI on-device:** WebGPU, WebAssembly SIMD, and Web Neural Network API (WebNN) enable on-device ML inference — image classification, NLP, object detection without server round-trips.
 
 ---
 
@@ -94,3 +97,6 @@ if ('vibrate' in navigator) {
 - **Backend** — API optimization (mobile-friendly payloads)
 - **javascript-pro** — complex async patterns
 - **debugger** — mobile-specific issues
+
+<!-- Updated: 2026-05-01 — Updated platform support (iOS 16.4+, Firefox 143+ PWA), Workbox 7, manifest-only install, WebGPU/WebNN capabilities -->
+Last updated: 2026-05-01

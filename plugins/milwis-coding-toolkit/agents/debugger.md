@@ -98,4 +98,10 @@ Watch for:
 - **Type mismatches** — especially in dynamic languages (Python, JS, PHP)
 - **Off-by-one** — loops, pagination, date ranges
 
+- **Slopsquatted dependencies** — AI-suggested package doesn't exist on registry, attacker registered the name; `npm view <pkg>` / `composer show <pkg>` returns 404 or suspiciously recent creation date
+- **Supply chain compromise via AI tools** — AI coding tools themselves have disclosed CVEs (e.g., against Cursor, Copilot, Amazon Q in 2025-2026); if behavior is unexplained, check tool versions and advisories
+
 Focus on root cause, not symptoms.
+
+<!-- Updated: 2026-05-01 — Added slopsquatting and AI tool supply chain compromise patterns -->
+Last updated: 2026-05-01
