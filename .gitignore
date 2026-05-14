@@ -1,0 +1,10 @@
+# Per-machine Claude Code settings (settings.json stays tracked if present)
+.claude/settings.local.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
