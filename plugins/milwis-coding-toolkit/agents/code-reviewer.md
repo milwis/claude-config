@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Structured 5-axis code review with severity labels. Reviews tests first, then implementation across correctness, readability, architecture, security, and performance. Use PROACTIVELY before every commit.
+description: Structured 6-axis code review with severity labels. Reviews tests first, then implementation across correctness, readability, architecture, security, performance, and test-production contract. Use PROACTIVELY before every commit.
 model: opus
 ---
 
@@ -34,7 +34,7 @@ These checks come *before* the 5-axis review.
 - Assertions check specific values (not `.toBeDefined()`)?
 - **No tests → CRITICAL**
 
-### 3. Review implementation — 5 axes
+### 3. Review implementation — 6 axes
 
 **A. Correctness**
 - Fulfills specification/intent?
@@ -72,6 +72,17 @@ These checks come *before* the 5-axis review.
 - Sync ops that should be async?
 - Large data sets loaded entirely into memory?
 - Unnecessary I/O in hot paths?
+
+**F. Test-Production Contract**
+Any production-code change must be mirrored in `tests/` — orphan tests passing CI against deleted/renamed code give false confidence and rot the suite.
+
+- **DELETE** of a function/class/config key/cron daemon/route → run `scripts/check_orphan_tests.sh <symbol>` (or `grep -rn '<symbol>' tests/`). If hits remain → CRITICAL: tests reference a symbol that no longer exists.
+- **RENAME** of a public method/class → `grep -rn 'OldName' tests/` — every stale reference is a test that no longer exercises real code.
+- **Signature change** (new required arg, removed arg, changed return type) → `grep -rn 'methodName(' tests/` — any callsite still using the old shape is a broken test.
+- **Exception behavior change** (added/removed/changed throw) → `grep -rn 'expectException\|assertThrows\|toThrow\|@throws' tests/` for the affected class.
+- **New behavior** → corresponding test? (See axis A — "no tests → CRITICAL".)
+
+Recurring incidents: PR #155, 2026-05-15 `ksef_daemon` deletion left 7 orphan test files referencing the removed daemon — full PHPUnit run was green because the orphan tests early-returned on missing class.
 
 ### 4. Categorize and report
 
@@ -169,5 +180,6 @@ Description.
 - **Be specific** — "this has a bug" is useless; "line 145 concatenates user input into SQL" is actionable
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
+<!-- Updated: 2026-05-15 — Added 6th review axis: Test-Production Contract (orphan tests after DELETE/RENAME/signature change). Driven by PR #155 + 2026-05-15 ksef_daemon incident (7 orphan tests) -->
 <!-- Updated: 2026-05-01 — Added slopsquatting and deprecated config format checks to AI-generated code table, updated vulnerability stats to Veracode 2026 (45%) -->
-Last updated: 2026-05-01
+Last updated: 2026-05-15

@@ -237,6 +237,38 @@ npm view <package-name> time.created  # suspiciously recent? investigate
 
 ---
 
+## Vite / Bundler Scope Isolation
+
+Modern bundlers (Vite, esbuild, Rollup) treat each file as a module — top-level declarations are NOT global. A function defined in `a.js` is invisible to `b.js` unless explicitly exported or attached to `window`. Pre-commit checklist for JS that runs in browser bundles:
+
+- [ ] **Cross-file usage:** function defined in file A, called in file B → `window.X = X` in file A (or use ESM `export`/`import` if the project supports it)
+- [ ] **New `window.X`:** MUST be added to `eslint.config.js` `globals` block. Verify with `scripts/sync_eslint_globals.sh` (or `grep "window\." src/ | sort -u` vs the globals list)
+- [ ] **Implicit globals:** `X = {…}` without `let`/`const`/`var`/`window.` → use `window.X = …` explicitly. Implicit globals work in a `<script>` tag concatenated by hand, but become `ReferenceError` in a Vite bundle (each file is wrapped in a closure)
+
+## Catch Binding (ES2019, Node 17+)
+
+`catch` may omit its binding when the error is unused. Rules:
+
+- `catch (e)` with `e` **used** in body → keep `(e)`
+- `catch (e)` with `e` **unused** → drop to bare `catch`
+
+**CRITICAL — never bulk regex/sed `catch (e) {` → `catch {`.** Sed cannot inspect the body to know whether `e` is referenced. A blind global replace will produce `ReferenceError` at runtime everywhere `e` was used. Use `eslint --fix` with `no-unused-vars` (catch option) — it's AST-aware and only strips the binding when truly unused.
+
+Incident 2026-05-15: a sed-based bulk strip destroyed 13 files in one commit.
+
+## `hasOwnProperty`
+
+```javascript
+// ✅ always
+Object.prototype.hasOwnProperty.call(obj, key)
+// ✅ alternative
+key in obj
+// ❌ never
+obj.hasOwnProperty(key)  // obj may shadow hasOwnProperty (Object.create(null), parsed JSON, user input)
+```
+
+---
+
 ## Testing
 
 **Edge cases routinely missed by AI:**
@@ -295,5 +327,6 @@ Every code response:
 
 Support Node.js LTS (v22+; built-in WebSocket client, stable watch mode, native `.ts` execution, HTTP/3 QUIC support) and modern browsers (ES2022+). Default TypeScript strict mode. When in doubt about security, choose the more restrictive option.
 
+<!-- Updated: 2026-05-15 — Added Vite/bundler scope isolation checklist (window.X, eslint globals sync, implicit globals), ES2019 catch binding rule with explicit ban on sed/regex bulk transforms (incident 2026-05-15), Object.prototype.hasOwnProperty.call rule -->
 <!-- Updated: 2026-05-01 — Updated Node.js LTS to v22+, added TS 5.8 features (erasableSyntaxOnly, rewriteRelativeImportExtensions), ESLint 10 flat config mandatory, Vitest 4 stable browser mode, updated AI vulnerability stats to Veracode 2026 -->
-Last updated: 2026-05-01
+Last updated: 2026-05-15

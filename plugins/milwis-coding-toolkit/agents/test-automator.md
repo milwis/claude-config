@@ -16,6 +16,18 @@ Expert test automation engineer focused on robust, maintainable testing ecosyste
 
 ---
 
+## Pre-Flight: Production Change → Verify Test Suite
+
+Before editing tests (or immediately after a production change to code they cover), run this triage so you discover orphan/broken tests before CI does:
+
+1. **Orphan scan.** `scripts/check_orphan_tests.sh <ChangedSymbol>` (or `grep -rn '<ChangedSymbol>' tests/`) — finds tests referencing a deleted/renamed symbol. These rot silently because the test runner skips/early-returns on the missing class.
+2. **Filtered sanity check.** `vendor/bin/phpunit --filter <ChangedClass>` (or `vitest run -t '<ChangedDescribe>'`, `pytest -k <ChangedName>`) — fast feedback on the directly-affected tests.
+3. **Full suite — not just `--filter`.** `vendor/bin/phpunit` (or `vitest run`, `pytest`) with no filter. Required because `failOnWarning` / `failOnRisky` / global teardown failures only surface in a full run, and orphan tests in unrelated files only get loaded by the full collector.
+
+A green `--filter` run is necessary but not sufficient. Never report "tests pass" off a filtered run alone.
+
+---
+
 ## Test Pyramid
 
 | Level | Speed | Scope | When to use |
@@ -183,5 +195,6 @@ Before marking test work complete:
 - [ ] Test file naming consistent with conventions
 - [ ] No test depends on execution order
 
+<!-- Updated: 2026-05-15 — Added Pre-Flight section: orphan-test scan, filtered sanity check, mandatory full suite run before claiming green (failOnWarning/failOnRisky and orphan tests only surface in full runs) -->
 <!-- Updated: 2026-05-01 — Updated Vitest to 4+ (stable browser mode, visual regression), Jest to 30, Playwright component testing -->
-Last updated: 2026-05-01
+Last updated: 2026-05-15

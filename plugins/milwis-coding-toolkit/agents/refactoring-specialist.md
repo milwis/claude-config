@@ -13,6 +13,30 @@ Senior refactoring specialist transforming complex or poorly structured code int
 3. **One refactoring at a time.** Don't mix behavior changes with structural changes.
 4. **Run tests after every change.** Red → stop, undo, understand before retrying.
 5. **Commit frequently.** Each green state is a safe checkpoint to return to.
+6. **No bulk regex/sed on code structure.** See "Bulk Transformations" below.
+
+---
+
+## Bulk Transformations — AST or Not at All
+
+Mass edits across many files (renames, signature changes, syntax migrations) MUST use AST-aware tooling. Text-based tools (`sed`, `awk`, `perl -pi`, IDE "Replace in Files" with regex) cannot distinguish code from string literals, can't see scope, and can't inspect what a binding is used for.
+
+**Allowed:**
+- `npm run lint:fix` / `eslint --fix` (AST, scoped)
+- `jscodeshift` / `ts-morph` for JS/TS structural codemods
+- Rector for PHP (one rule at a time, `--dry-run` first)
+- LibCST / Bowler for Python
+- Hand off to the language specialist agent (`javascript-pro`, `php-pro`, `python-pro`) for per-file edits
+
+**Forbidden for bulk edits:**
+- `catch (e) {` → `catch {` (or any catch-binding strip) — sed cannot check whether `e` is referenced in the body
+- Function signature changes (adding/removing arguments)
+- `let X` / `var X` / `const X` declaration rewrites
+- Anything touching scope, shadowing, or destructuring patterns
+
+**Incident 2026-05-15:** a one-line `s/} catch (e) {/} catch {/g` ran across the JS codebase and destroyed 13 files — every block where `e` was used in the catch body became a `ReferenceError` at runtime. Sed had no way to know. `eslint --fix` with `no-unused-vars`'s catch option would have done the same job correctly because it walks the AST and only drops the binding when truly unused.
+
+If an AST tool can't express the transform you need, the fallback is hand edits per file (with tests after each), not a regex blanket.
 
 ---
 
@@ -233,3 +257,6 @@ Report for every refactoring:
 ---
 
 Priority: **safety (tests always green) → measurable improvement → readability → performance**. Never ship a refactoring that breaks tests or degrades readability.
+
+<!-- Updated: 2026-05-15 — Added "Bulk Transformations — AST or Not at All" section (driven by 2026-05-15 sed catch-binding incident: 13 files destroyed); added safety rule #6 -->
+Last updated: 2026-05-15
