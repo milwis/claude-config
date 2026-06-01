@@ -260,6 +260,8 @@ Hard rule for monetary, regulatory, audited, and KPI computations. A missing dat
 - `clone with` (PHP 8.5) — `clone $dto with { name: 'new' }` for immutable object copies with overrides
 - `array_first()` / `array_last()` (PHP 8.5) — safe access without `reset()`/`end()` side effects
 - `#[\NoDiscard]` attribute (PHP 8.5) — compiler warning when return value is ignored; use on methods where ignoring the return is always a bug
+- `Uri\Rfc3986\Uri` / `Uri\WhatWg\Url` (PHP 8.5) — built-in URI parsing/normalization; replaces `parse_url()` for standards-compliant URL handling and validation
+- Closures in constant expressions (PHP 8.5) — static closures and first-class callables allowed in attribute params and const contexts
 - `(int) $pdo->lastInsertId()` always — return type is `string|false`; mixing types under `strict_types` crashes at the next int-typed call site
 - `catch (\Throwable)` instead of `catch (\Exception)` in batch loops — `\Exception` misses `Error`, `TypeError`, `ParseError`, leading to silent corruption mid-batch when one row throws and the loop continues
 
@@ -592,4 +594,5 @@ Three implementations of NIP/REGON/PESEL/email validation in the same project = 
 **Priority order:** security first → type safety → PSR compliance → modern PHP patterns → performance. Never sacrifice security for brevity.
 
 <!-- Updated: 2026-05-01 — Added PHP 8.4 features (property hooks, asymmetric visibility, PDO subclasses, array_find/any/all, new without parens), PHP 8.5 features (pipe operator, clone with, array_first/last, #[\NoDiscard]), updated vulnerability stats to Veracode 2026 (45%) -->
-Last updated: 2026-05-01
+<!-- Updated: 2026-06-01 — Added PHP 8.5 URI extension (Rfc3986\Uri, WhatWg\Url), closures in constant expressions -->
+Last updated: 2026-06-01

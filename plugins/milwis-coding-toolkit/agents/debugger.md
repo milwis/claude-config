@@ -100,8 +100,13 @@ Watch for:
 
 - **Slopsquatted dependencies** — AI-suggested package doesn't exist on registry, attacker registered the name; `npm view <pkg>` / `composer show <pkg>` returns 404 or suspiciously recent creation date
 - **Supply chain compromise via AI tools** — AI coding tools themselves have disclosed CVEs (e.g., against Cursor, Copilot, Amazon Q in 2025-2026); if behavior is unexplained, check tool versions and advisories
+- **Hallucinated APIs** — AI calls non-existent methods or uses deprecated API signatures; verify every unfamiliar API call against official docs before debugging deeper
+- **Incomplete context conflicts** — AI doesn't see the full codebase; generated code may conflict with existing conventions, naming, or state management; 43% of AI code changes need production debugging (Lightrun 2026)
+- **Performance anti-patterns** — AI generates functionally correct but algorithmically slow code (O(n²) where O(n) exists, full table scans, unnecessary serialization); always profile, not just test for correctness
+- **Semantic errors** — >60% of AI code faults are semantic (wrong variable, off-by-one, boundary mishandling); these pass type checks and linters — only caught by assertion-rich tests
 
 Focus on root cause, not symptoms.
 
 <!-- Updated: 2026-05-01 — Added slopsquatting and AI tool supply chain compromise patterns -->
-Last updated: 2026-05-01
+<!-- Updated: 2026-06-01 — Added hallucinated APIs, incomplete-context conflicts, performance anti-patterns, semantic error dominance (>60% of AI faults) with 2026 stats -->
+Last updated: 2026-06-01
