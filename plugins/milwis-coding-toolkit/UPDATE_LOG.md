@@ -1,6 +1,54 @@
 # Update Log
 
-## Latest Run: 2026-05-15 — Post-Audit Incident Updates
+## Latest Run: 2026-06-01
+
+### Updated
+- **python-pro.md**: Added Python 3.14 stable features — PEP 649 (deferred annotation evaluation), PEP 734 (multiple interpreters), PEP 758 (except without parens), PEP 779 (free-threaded Python officially supported), PEP 784 (compression.zstd), uuid7(), JIT compiler. Added 2026 CVEs: CVE-2026-3298 (asyncio buffer overflow), CVE-2026-4519 (webbrowser.open() injection), CVE-2026-0672 (cookies bypass). Added remote debugging security note. Updated description to 3.14+/3.15.
+- **backend-security-coder.md**: Added OWASP Top 10 2026 new categories — A03 Software Supply Chain Failures and Mishandled Exceptions. Updated SSRF entry to note merger into Broken Access Control A01. Updated AI vulnerability stats: 92% of AI codebases have critical vuln (Sherlock Forensics 2026), 35 CVEs/month attributed to AI-generated code.
+- **debugger.md**: Added 4 new AI-generated bug patterns — hallucinated APIs, incomplete-context conflicts (43% need production debugging per Lightrun 2026), performance anti-patterns, semantic error dominance (>60% of AI faults).
+- **php-pro.md**: Added PHP 8.5 URI extension (Uri\Rfc3986\Uri, Uri\WhatWg\Url replacing parse_url()), closures in constant expressions.
+
+### Skipped (up to date)
+- **code-reviewer.md**: Last updated 2026-05-15 (17 days)
+- **javascript-pro.md**: Last updated 2026-05-15 (17 days)
+- **refactoring-specialist.md**: Last updated 2026-05-15 (17 days)
+- **test-automator.md**: Last updated 2026-05-15 (17 days)
+- **database-optimizer.md**: Last updated 2026-05-01 (31 days) — PG 18.4 point release is maintenance/security only, no new optimization patterns
+- **mobile-pwa-developer.md**: Last updated 2026-05-01 (31 days) — no new PWA APIs or browser features since May update
+- **sql-pro.md**: Last updated 2026-05-01 (31 days) — PG 18 and MySQL 9 features already comprehensive, no new dialect features
+- **new-project/SKILL.md**: Last updated 2026-05-01 (31 days) — process skill with current tech references, no significant changes needed
+
+### Skipped (methodology/stable)
+- brainstorming/SKILL.md
+- writingplans/SKILL.md
+- executingplans/SKILL.md
+- systematic-debugging/SKILL.md
+- test-driven-development/SKILL.md
+- verification-before-completion/SKILL.md
+
+### Skipped (template/orchestration)
+- lang-guidelines/SKILL.md (meta-skill for generating agents)
+- audit-360/SKILL.md (orchestration process)
+
+### Deferred to next run
+- None — all 8 evolving files were processed
+
+### Issues
+- None
+
+### Next run priorities
+- database-optimizer.md (will be 61 days by next run)
+- mobile-pwa-developer.md (will be 61 days by next run)
+- sql-pro.md (will be 61 days by next run)
+- new-project/SKILL.md (will be 61 days by next run)
+- code-reviewer.md (will be 47 days by next run)
+- javascript-pro.md (will be 47 days by next run)
+- refactoring-specialist.md (will be 47 days by next run)
+- test-automator.md (will be 47 days by next run)
+
+---
+
+## Run: 2026-05-15 — Post-Audit Incident Updates
 
 Driven by 2026-05-15 incident (bulk `sed` on `catch (e) {` destroyed 13 JS files) and PR #155 / `ksef_daemon` orphan-test incident (7 tests passing CI against deleted code).
 

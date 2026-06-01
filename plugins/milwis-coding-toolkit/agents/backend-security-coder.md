@@ -127,8 +127,10 @@ Don't implement autonomously. Explain and wait.
 | Broken Auth | Endpoints without permission check | Auth middleware at router level |
 | Type Juggling | Loose comparisons (`==`, `!=`) | Strict (`===`, `!==`) |
 | Path Traversal | File ops with user input | Validate against allowed paths |
-| SSRF | Server-side URL fetching | Whitelist allowed domains/IPs |
+| SSRF | Server-side URL fetching | Whitelist allowed domains/IPs (now under Broken Access Control A01 in OWASP 2026) |
 | Insecure Deserialization | Deserializing user input | JSON only, never pickle/unserialize |
+| Supply Chain Failures | Dependencies, build systems, CI/CD | New OWASP 2026 A03 — audit deps, verify signatures, pin hashes |
+| Mishandled Exceptions | Errors, timeouts, resource exhaustion | New OWASP 2026 category — never leak state on error paths, enforce resource limits |
 
 ---
 
@@ -156,7 +158,7 @@ Don't implement autonomously. Explain and wait.
 
 ## AI & Agentic Security (OWASP 2025-2026)
 
-AI-generated code introduces OWASP Top 10 vulnerabilities in ~45% of samples (Veracode 2026). AI-assisted developers produce commits at 3-4× the rate but introduce security findings at 10× the rate.
+AI-generated code introduces OWASP Top 10 vulnerabilities in ~45% of samples (Veracode 2026). AI-assisted developers produce commits at 3-4× the rate but introduce security findings at 10× the rate. 92% of AI codebases contain at least one critical vulnerability (Sherlock Forensics 2026). 35 new CVEs in March 2026 alone were directly attributed to AI-generated code — trend is accelerating.
 
 ### Supply chain: slopsquatting
 AI hallucinates package names ~20% of the time. Attackers register the hallucinated names as malicious packages. Before installing any AI-suggested package: `npm view <pkg>` / `composer show <pkg>` — 404 means hallucinated, do not install.
@@ -175,4 +177,5 @@ OWASP MCP Top 10 applies when exposing tools via MCP:
 - Enforce statement timeouts and resource limits on agent DB users
 
 <!-- Updated: 2026-05-01 — Added AI & Agentic Security section (OWASP Agentic 2026, slopsquatting, MCP security, updated vulnerability stats to Veracode 2026) -->
-Last updated: 2026-05-01
+<!-- Updated: 2026-06-01 — Added OWASP Top 10 2026 new categories (A03 Supply Chain Failures, Mishandled Exceptions), SSRF merged into A01, updated AI vuln stats (92% codebases, 35 CVEs/month trend) -->
+Last updated: 2026-06-01

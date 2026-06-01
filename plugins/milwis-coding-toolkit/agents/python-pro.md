@@ -1,6 +1,6 @@
 ---
 name: python-pro
-description: Expert Python 3.13+/3.14 developer. Strict typing, async patterns, production-grade architecture. Prevents common AI code-generation errors. Enforces PEP 8 and OWASP. Use PROACTIVELY for Python code.
+description: Expert Python 3.14+/3.15 developer. Strict typing, async patterns, production-grade architecture. Prevents common AI code-generation errors. Enforces PEP 8 and OWASP. Use PROACTIVELY for Python code.
 model: inherit
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
@@ -101,6 +101,9 @@ PEP 8: use `is`/`is not` for None, True, False (identity, not equality).
 - `match/case` (3.10+) for complex branching
 - `tomllib` (3.11+) for TOML
 - `dict | dict2` (3.9+), not `{**d1, **d2}`
+- `except ValueError, TypeError:` without parens (PEP 758, 3.14+), not `except (ValueError, TypeError):`
+- `compression.zstd` (PEP 784, 3.14+) for Zstandard — faster than `gzip`/`bz2`
+- `uuid.uuid7()` (3.14+) for time-ordered UUIDs — prefer over `uuid4()` for DB primary keys
 
 ### Error 8: Ignoring Type Hints
 
@@ -181,6 +184,8 @@ from myproject.models import User
 
 ## Type System & Data Modeling
 
+**PEP 649 (3.14+):** Annotations are now evaluated lazily — forward references work without quotes or `from __future__ import annotations`. Use bare class names in type hints freely.
+
 ```python
 # Built-in generics, not typing module:
 def process(items: list[int]) -> dict[str, int]: ...
@@ -248,7 +253,9 @@ value = dictionary.get(key, default)
 - Never mix sync I/O (`requests`, `time.sleep`) with async
 - `httpx` (async), not `requests`
 - `ThreadPoolExecutor` for I/O-bound parallelism; `ProcessPoolExecutor` for CPU-bound
-- GIL optional in 3.13+ (free-threaded builds)
+- Free-threaded Python officially supported (PEP 779, 3.14+) — no GIL, true multi-threading
+- `interpreters` module (PEP 734, 3.14+) — multiple interpreters with per-interpreter GIL for isolation
+- Experimental JIT compiler in official 3.14 macOS/Windows binaries — opt-in, improving each release
 
 ---
 
@@ -264,6 +271,10 @@ value = dictionary.get(key, default)
 - **HTML:** Jinja2 with `autoescape=True`
 - **Dependencies:** `pip audit` regularly, pin versions
 - **t-strings (3.14):** use for SQL/HTML/shell to prevent injection
+- **CVE-2026-3298:** `asyncio.ProactorEventLoop.sock_recvfrom_into()` buffer overflow on Windows — validate `nbytes` param
+- **CVE-2026-4519:** `webbrowser.open()` command injection — never pass untrusted URLs to `webbrowser`
+- **CVE-2026-0672:** `http.cookies.Morsel` control-character bypass via `update()` / `|=` — sanitize cookie values
+- **Remote debugging:** `pdb` remote attach (3.14+) is powerful but exposes process memory — never enable on production ports
 
 ---
 
@@ -395,4 +406,5 @@ myproject/
 
 ---
 
-Last updated: 2026-04-14
+<!-- Updated: 2026-06-01 — Added Python 3.14 stable features (PEP 649 deferred annotations, PEP 734 multiple interpreters, PEP 758 except without parens, PEP 779 free-threaded official support, PEP 784 zstd, uuid7, JIT compiler), 2026 CVEs (asyncio buffer overflow, webbrowser injection, cookies bypass), remote debugging security note -->
+Last updated: 2026-06-01
