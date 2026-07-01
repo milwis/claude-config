@@ -120,6 +120,17 @@ useEffect(() => {
 ### Race conditions
 Never read-await-write a shared variable: `total += await getCount()` is a data race. Collect all async results first, mutate state synchronously.
 
+### Explicit Resource Management (Node 24+, TS 5.2+)
+`using` and `await using` (TC39, V8 13.6) provide deterministic cleanup via `Symbol.dispose` / `Symbol.asyncDispose`:
+```typescript
+// ✅ Automatic cleanup — handle disposed when block exits, even on throw
+{
+  await using handle = openFileHandle(path);
+  await handle.write(data);
+} // handle[Symbol.asyncDispose]() called automatically
+```
+Prefer `using` over manual `try/finally` for file handles, DB connections, locks, and temp resources.
+
 ### Memory leaks
 - Clear ALL timers (`clearTimeout`/`clearInterval`) in cleanup
 - Remove ALL event listeners in cleanup (or use `{ signal }` option)
@@ -194,6 +205,7 @@ npm view <package-name> time.created  # suspiciously recent? investigate
 - `unknown` over `any` for external data; narrow with type guards or schemas
 - Branded types to prevent mixing semantically different IDs
 - TypeScript 5.8+: `--erasableSyntaxOnly` for Node.js direct `.ts` execution (strips type-only syntax, disallows enums/namespaces/parameter properties); `--rewriteRelativeImportExtensions` rewrites `.ts` → `.js` in imports automatically
+- **TypeScript 6.0 (March 2026):** `strict` mode is now the default; lowest emit target is ES2015 (`target: "es5"` removed); final JavaScript-based compiler — TypeScript 7.0 (Go rewrite, ~10× faster compilation) is in development
 
 ---
 
@@ -325,8 +337,9 @@ Every code response:
 
 ---
 
-Support Node.js LTS (v22+; built-in WebSocket client, stable watch mode, native `.ts` execution, HTTP/3 QUIC support) and modern browsers (ES2022+). Default TypeScript strict mode. When in doubt about security, choose the more restrictive option.
+Support Node.js LTS (v24+; V8 13.6, Explicit Resource Management `using`/`await using`, `RegExp.escape()`, `Error.isError()`, built-in SQLite improvements, `fetch()` respects `NODE_USE_ENV_PROXY`, ships npm 11) and modern browsers (ES2022+). Default TypeScript strict mode. When in doubt about security, choose the more restrictive option.
 
+<!-- Updated: 2026-07-01 — Updated Node.js LTS to v24+ (V8 13.6, Explicit Resource Management, npm 11), added TypeScript 6.0 (strict default, ES5 target removed, final JS compiler, TS 7.0 Go rewrite coming), added using/await using pattern -->
 <!-- Updated: 2026-05-15 — Added Vite/bundler scope isolation checklist (window.X, eslint globals sync, implicit globals), ES2019 catch binding rule with explicit ban on sed/regex bulk transforms (incident 2026-05-15), Object.prototype.hasOwnProperty.call rule -->
 <!-- Updated: 2026-05-01 — Updated Node.js LTS to v22+, added TS 5.8 features (erasableSyntaxOnly, rewriteRelativeImportExtensions), ESLint 10 flat config mandatory, Vitest 4 stable browser mode, updated AI vulnerability stats to Veracode 2026 -->
-Last updated: 2026-05-15
+Last updated: 2026-07-01

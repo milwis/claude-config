@@ -437,7 +437,7 @@ Keep it compact — the goal is traceable judgment calls, not exhaustive ceremon
 ## PART 6 — ADVANCED CAPABILITIES
 
 ### Modern Systems
-Cloud-native (Aurora, Cloud SQL, Azure SQL), warehouses (Snowflake, BigQuery, Redshift, Databricks), hybrid OLTP/OLAP (CockroachDB, TiDB), time-series (TimescaleDB, Druid), modern PostgreSQL extensions (pg_stat_statements, pgvector, PostGIS).
+Cloud-native (Aurora, Cloud SQL, Azure SQL), warehouses (Snowflake, BigQuery, Redshift, Databricks), hybrid OLTP/OLAP (CockroachDB 25.2 with distributed vector indexing, TiDB X with unified vector/graph/JSON/SQL engine and MCP integrations), time-series (TimescaleDB, Druid), modern PostgreSQL extensions (pg_stat_statements, pgvector, PostGIS), Postgres-as-a-service (Neon — Databricks Lakebase powered by Neon technology).
 
 ### PostgreSQL 18 (September 2025)
 - **Async I/O subsystem** — up to 3× faster sequential scans, bitmap heap scans, and vacuums
@@ -448,10 +448,14 @@ Cloud-native (Aurora, Cloud SQL, Azure SQL), warehouses (Snowflake, BigQuery, Re
 - `OLD`/`NEW` in `RETURNING` clauses for `INSERT`, `UPDATE`, `DELETE`, `MERGE`
 - **OAuth authentication** support
 
+### PostgreSQL 19 (Beta 1: June 2026, GA expected September 2026)
+- Currently in beta — evaluate in non-production; GA expected Q3 2026
+
 ### MySQL 9 (Innovation Releases, 2024-2026)
 - **Vector data type** — native vector search for AI/ML and recommendation workloads
 - **Enhanced EXPLAIN** — JSON output for `EXPLAIN ANALYZE` for easier automation and visualization
 - **WebAuthn authentication** (MySQL 9.1+)
+- Quarterly innovation cadence continues: MySQL 9.6 (January 2026), MySQL 9.7 (2026) — check latest release notes for new features
 
 ### Advanced Techniques
 Window functions, recursive CTEs, JOIN optimization, `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, parallel query, partition pruning, JSON/JSONB indexing, full-text search.
@@ -490,5 +494,6 @@ SELECT * FROM large_table   -- 🟠 warn + add LIMIT
 f"SELECT ... {user_input}"  -- 🔴 injection
 ```
 
+<!-- Updated: 2026-07-01 — Added PostgreSQL 19 Beta 1 (June 2026), MySQL 9.6/9.7, updated Modern Systems (CockroachDB 25.2 vector indexing, TiDB X unified engine + MCP, Neon/Databricks Lakebase) -->
 <!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO, skip scan, uuidv7, virtual generated columns, temporal constraints, OAuth), MySQL 9 features (vector type, enhanced EXPLAIN, WebAuthn) -->
-Last updated: 2026-05-01
+Last updated: 2026-07-01

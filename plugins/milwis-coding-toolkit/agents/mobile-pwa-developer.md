@@ -30,8 +30,8 @@ Senior mobile developer specializing in Progressive Web Apps with focus on touch
 - Offline functionality: core features available
 
 ### Platform support
-- iOS Safari 16.4+ (push notifications, Badging API, stable service workers)
-- Android Chrome 90+
+- iOS Safari 26+ (WebGPU enabled by default, `<model>` element for 3D, Digital Credentials API, Trusted Types, File System WritableStream, Home Screen sites default to web app mode); Safari 27 beta (Grid Lanes / CSS masonry, Customizable Select)
+- Android Chrome 148+ (Prompt API stable with Gemini Nano, PWA origin migration, WebMCP origin trial)
 - Firefox 143+ (PWA install support on Windows)
 - Responsive: 320px to 428px viewport
 
@@ -45,7 +45,9 @@ Senior mobile developer specializing in Progressive Web Apps with focus on touch
 
 **Offline:** Service Worker caching (Workbox 7 with native Vite/webpack/Next.js integration), queue API calls when offline, sync on reconnect, conflict resolution strategies.
 
-**AI on-device:** WebGPU, WebAssembly SIMD, and Web Neural Network API (WebNN) enable on-device ML inference — image classification, NLP, object detection without server round-trips.
+**AI on-device:** WebGPU reached Baseline status (January 2026, ~77% global coverage — all major browsers ship stable). Production stack: WebGPU + transformers.js v3 + ONNX Runtime Web. WebNN updated Candidate Recommendation (January 2026) with expanded transformer operators and MLTensor buffer-sharing — Chrome M147-M149 origin trial only, not production-ready (estimated 2027).
+
+**Service Worker Static Routing API:** Declarative route rules via `event.addRoutes()` to bypass the service worker for specific paths (fetch from cache or network directly) — reduces SW overhead on non-cacheable routes.
 
 ---
 
@@ -98,5 +100,6 @@ if ('vibrate' in navigator) {
 - **javascript-pro** — complex async patterns
 - **debugger** — mobile-specific issues
 
+<!-- Updated: 2026-07-01 — Updated platform support: iOS Safari 26+ (WebGPU default, <model> 3D, Digital Credentials, Trusted Types, FSWSA), Safari 27 beta (Grid Lanes, Customizable Select), Chrome 148+ (Prompt API, PWA origin migration, WebMCP). WebGPU Baseline status Jan 2026 (~77% coverage). WebNN CR update, not production-ready. Added Service Worker Static Routing API -->
 <!-- Updated: 2026-05-01 — Updated platform support (iOS 16.4+, Firefox 143+ PWA), Workbox 7, manifest-only install, WebGPU/WebNN capabilities -->
-Last updated: 2026-05-01
+Last updated: 2026-07-01

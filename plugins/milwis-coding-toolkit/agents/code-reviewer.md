@@ -115,7 +115,7 @@ Severity:
 
 | Check | What AI gets wrong |
 |---|---|
-| Hallucinated APIs | Imports/methods that don't exist in actual library version (~45% of AI code has OWASP Top 10 vulns — Veracode 2026) |
+| Hallucinated APIs | Imports/methods that don't exist in actual library version (~45% of AI code has OWASP Top 10 vulns — Veracode 2026; AI code 1.88× more likely to introduce vulnerabilities — ProjectDiscovery 2026) |
 | Happy-path only | Missing error handling, null checks, edge cases |
 | Phantom validation | Types/interfaces used for "validation" but no runtime checks |
 | Tests that can't fail | `expect(result).toBeDefined()` — always passes |
@@ -127,8 +127,9 @@ Severity:
 | Version drift | `define('APP_VERSION', '1.5.1')` in one file, `'3.12.0'` in another — health endpoint disagrees with UI, monitoring shows wrong version for years |
 | Hard-rule violations | `CLAUDE.md` / `docs/standards/` say "never X" or "always go through service Y"; code does X anyway. Grep the project's stated rules and verify each one |
 | Silent fallback in financial / regulated computations | `return amount` on missing rate, `return 1.0` as default, `?? 0` on monetary values — invisible compliance breach |
-| Slopsquatting | AI hallucinates package names ~20% of the time; attackers register them as malicious packages — verify every recommended package exists (`npm view`, `composer show`, `pip show`) before approving |
+| Slopsquatting | AI hallucinates package names ~20% of the time; attackers register them as malicious packages — verify every recommended package exists (`npm view`, `composer show`, `pip show`) before approving. Real incidents: `unused-imports` (npm, hallucinated instead of `eslint-plugin-unused-imports`, ~233 weekly downloads), `huggingface-cli` (30K+ downloads in 3 months after Alibaba published AI-recommended install command). Autonomous AI agents escalate the risk — they install packages programmatically without human checkpoint (CSA April 2026) |
 | Deprecated config formats | `.eslintrc.*` (removed in ESLint 10, Feb 2026), old Node.js APIs, PHP functions removed in 8.x — AI training data lags behind deprecation timelines |
+| Iterative refinement degradation | Each AI refinement pass can introduce new security flaws (Arxiv 2506.11022) — don't assume iterating on AI-generated code converges to safety; review each iteration independently |
 
 ### When reviewing fix proposals or audit reports
 
@@ -180,6 +181,7 @@ Description.
 - **Be specific** — "this has a bug" is useless; "line 145 concatenates user input into SQL" is actionable
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
+<!-- Updated: 2026-07-01 — Added ProjectDiscovery 2026 stat (AI code 1.88× more vulnerable), specific slopsquatting incidents (unused-imports npm, huggingface-cli 30K+, CSA April 2026 autonomous agent risk), iterative refinement degradation anti-pattern (Arxiv 2506.11022) -->
 <!-- Updated: 2026-05-15 — Added 6th review axis: Test-Production Contract (orphan tests after DELETE/RENAME/signature change). Driven by PR #155 + 2026-05-15 ksef_daemon incident (7 orphan tests) -->
 <!-- Updated: 2026-05-01 — Added slopsquatting and deprecated config format checks to AI-generated code table, updated vulnerability stats to Veracode 2026 (45%) -->
-Last updated: 2026-05-15
+Last updated: 2026-07-01

@@ -37,6 +37,9 @@ Look for:
 - **Virtual generated columns** — computed at read time (no storage cost), now the default; use for derived values instead of triggers or application-level computation
 - `uuidv7()` — built-in timestamp-ordered UUIDs; better index locality than v4 for high-insert workloads
 
+**PostgreSQL 19 (Beta 1: June 2026, GA expected September 2026):**
+- Currently in beta — evaluate in non-production environments; GA expected Q3 2026
+
 ### Query rewriting
 
 Common wins:
@@ -238,5 +241,6 @@ For every optimization:
 - **Trade-offs** noted (write cost for read speed, storage for speed, etc.)
 - **Monitoring** — alert on regression
 
+<!-- Updated: 2026-07-01 — Added PostgreSQL 19 Beta 1 (June 2026, GA expected September 2026) -->
 <!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO subsystem with 3× read improvement, skip scan, virtual generated columns, uuidv7) -->
-Last updated: 2026-05-01
+Last updated: 2026-07-01

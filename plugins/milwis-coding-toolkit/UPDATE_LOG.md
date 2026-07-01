@@ -1,6 +1,55 @@
 # Update Log
 
-## Latest Run: 2026-06-01
+## Latest Run: 2026-07-01
+
+### Updated
+- **javascript-pro.md**: Updated Node.js LTS to v24+ (V8 13.6, Explicit Resource Management `using`/`await using`, `RegExp.escape()`, `Error.isError()`, built-in SQLite, npm 11). Added TypeScript 6.0 (March 2026: `strict` default, ES5 target removed, final JS compiler; TS 7.0 Go rewrite in development). Added `using`/`await using` pattern section.
+- **mobile-pwa-developer.md**: Updated platform support — iOS Safari 26+ (WebGPU enabled by default, `<model>` 3D, Digital Credentials, Trusted Types, File System WritableStream, Home Screen default to web app mode), Safari 27 beta (Grid Lanes/CSS masonry, Customizable Select), Chrome 148+ (Prompt API stable, PWA origin migration, WebMCP origin trial). WebGPU reached Baseline status (January 2026, ~77% global coverage). WebNN updated CR but not production-ready (estimated 2027). Added Service Worker Static Routing API.
+- **sql-pro.md**: Added PostgreSQL 19 Beta 1 (June 2026, GA expected September 2026). Added MySQL 9.6/9.7 quarterly innovation releases. Updated Modern Systems — CockroachDB 25.2 (distributed vector indexing), TiDB X (unified vector/graph/JSON/SQL engine + MCP integrations), Neon/Databricks Lakebase.
+- **code-reviewer.md**: Added ProjectDiscovery 2026 stat (AI code 1.88× more likely to introduce vulnerabilities). Added specific slopsquatting incidents — `unused-imports` npm (~233 weekly downloads), `huggingface-cli` (30K+ downloads, Alibaba incident), CSA April 2026 autonomous agent risk. Added iterative refinement degradation anti-pattern (Arxiv 2506.11022).
+- **database-optimizer.md**: Added PostgreSQL 19 Beta 1 (June 2026, GA expected September 2026).
+
+### Skipped (up to date, < 30 days)
+- **backend-security-coder.md**: Last updated 2026-06-01 (30 days)
+- **debugger.md**: Last updated 2026-06-01 (30 days)
+- **php-pro.md**: Last updated 2026-06-01 (30 days)
+- **python-pro.md**: Last updated 2026-06-01 (30 days)
+
+### Skipped (no significant new findings)
+- **refactoring-specialist.md**: Last updated 2026-05-15 (47 days) — no significant new refactoring tools or patterns found in research
+- **test-automator.md**: Last updated 2026-05-15 (47 days) — Vitest 4, Jest 30, Playwright already covered; no major new testing tool releases found
+- **new-project/SKILL.md**: Last updated 2026-05-01 (61 days) — Docker images still current (PG 19 still beta, not GA), no significant changes needed
+
+### Skipped (methodology/stable)
+- brainstorming/SKILL.md
+- writingplans/SKILL.md
+- executingplans/SKILL.md
+- systematic-debugging/SKILL.md
+- test-driven-development/SKILL.md
+- verification-before-completion/SKILL.md
+- audit-360/SKILL.md
+
+### Skipped (template/orchestration)
+- lang-guidelines/SKILL.md (meta-skill for generating agents, stable process)
+
+### Deferred to next run
+- None — all files processed within the 10-file limit
+
+### Issues
+- None
+
+### Next run priorities
+- refactoring-specialist.md (will be 77 days by next run — consider adding new AST tooling or patterns)
+- test-automator.md (will be 77 days by next run)
+- new-project/SKILL.md (will be 91 days by next run — update Docker images when PG 19 reaches GA)
+- backend-security-coder.md (will be 60 days by next run)
+- debugger.md (will be 60 days by next run)
+- php-pro.md (will be 60 days by next run)
+- python-pro.md (will be 60 days by next run)
+
+---
+
+## Run: 2026-06-01
 
 ### Updated
 - **python-pro.md**: Added Python 3.14 stable features — PEP 649 (deferred annotation evaluation), PEP 734 (multiple interpreters), PEP 758 (except without parens), PEP 779 (free-threaded Python officially supported), PEP 784 (compression.zstd), uuid7(), JIT compiler. Added 2026 CVEs: CVE-2026-3298 (asyncio buffer overflow), CVE-2026-4519 (webbrowser.open() injection), CVE-2026-0672 (cookies bypass). Added remote debugging security note. Updated description to 3.14+/3.15.
