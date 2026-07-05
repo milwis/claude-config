@@ -16,7 +16,7 @@ description: Use when you have a written implementation plan to execute. Drives 
 1. Read the plan file
 2. For each task, decide: **DIRECT** or **AGENT: {name}**?
 3. Map dependencies → assign **Group numbers**
-4. Create the todo list with labeled items (format below)
+4. Create TodoWrite with labeled items (format below)
 5. Concerns → raise before starting. Otherwise proceed.
 
 ### Dispatch mode — DIRECT vs AGENT
@@ -37,7 +37,7 @@ When unsure → AGENT. Quality beats speed.
 
 ### Dependency analysis — find parallel groups
 
-Tasks may run in parallel ONLY if ALL four hold:
+A task can run in parallel with another ONLY if ALL hold:
 1. **Disjoint files** — never write to the same file
 2. **No data dependency** — neither consumes a symbol/type/column/route produced by the other
 3. **No side-effect coupling** — no shared DB state, filesystem state, or config
@@ -45,32 +45,32 @@ Tasks may run in parallel ONLY if ALL four hold:
 
 If ANY fails → sequential.
 
-**Same-file rule (critical):** if N tasks touch the same file, **dispatch ONE agent with all N tasks in its prompt**. Never dispatch parallel agents on the same file — they clobber each other, AND you pay N× the agent boot-up cost.
+**Same-file rule (critical):** if N tasks touch the same file, **dispatch ONE agent with all N tasks in its prompt**. Never dispatch parallel agents on the same file — they clobber each other, AND you waste N× the agent boot-up cost.
 
-**Always sequential:** migrations before queries on new columns, git commits, the final `code-reviewer` + `test-automator` group.
+**Always sequential:** migrations before queries on new columns, git commits, final `code-reviewer` and `test-automator`.
 
 **When in doubt → sequential.**
 
 ### Todo list format (survives context compaction)
-
-One todo item per task (TodoWrite / the session's task tracker), labeled:
 
 ```
 [GROUP N|PARALLEL|SEQ] Task K: <description> [AGENT: <name>] or [DIRECT]
 ```
 
 Example:
-```
-[GROUP 1|SEQ]      Task 1: Migration — add status column [AGENT: sql-pro]
-[GROUP 2|PARALLEL] Task 2: Feature A endpoint+JS [AGENT: php-pro]
-[GROUP 2|PARALLEL] Task 3: Feature B endpoint+JS [AGENT: php-pro]
-[GROUP 2|PARALLEL] Task 4: Feature C JS module [AGENT: javascript-pro]
-[GROUP 3|SEQ]      Task 5: CSS polish [DIRECT]
-[GROUP 4|SEQ]      Verify + code review [AGENT: code-reviewer]
-[GROUP 4|SEQ]      Commit [DIRECT]
+```javascript
+TodoWrite([
+  { content: "[GROUP 1|SEQ] Task 1: Migration — add status column [AGENT: sql-pro]" },
+  { content: "[GROUP 2|PARALLEL] Task 2: Feature A endpoint+JS [AGENT: php-pro]" },
+  { content: "[GROUP 2|PARALLEL] Task 3: Feature B endpoint+JS [AGENT: php-pro]" },
+  { content: "[GROUP 2|PARALLEL] Task 4: Feature C JS module [AGENT: javascript-pro]" },
+  { content: "[GROUP 3|SEQ] Task 5: CSS polish [DIRECT]" },
+  { content: "[GROUP 4|SEQ] Verify + code review [AGENT: code-reviewer]" },
+  { content: "[GROUP 4|SEQ] Commit [DIRECT]" }
+])
 ```
 
-The todo list is your memory after compaction — the labels tell future-you what to dispatch and in what order.
+The todo list is your memory after compaction — labels tell future-you what to dispatch and in what order.
 
 ---
 
@@ -88,7 +88,7 @@ For each group G:
     - Send ONE assistant message with N Agent tool calls — concurrent dispatch
     - Wait for ALL to return
     - Verify the group (Step 3)
-    - If any failed → Stop-the-Line for that task; do NOT start the next group
+    - If any failed → Stop-the-Line for that task; don't start next group
     - Mark all completed → advance
 ```
 
@@ -96,10 +96,8 @@ For each group G:
 - The task block verbatim from the plan
 - Exact files to create / modify
 - Acceptance criteria for THIS task only
-- Explicit "do NOT touch file X" when overlap risk exists
+- Explicit "do NOT touch file X" if overlap risk
 - **Canon hand-off (financial / state / document tasks):** if the plan names a canonical implementation for this task's quantity/state/document, the agent prompt MUST include it — *"Canon: `<file:line>` — call it or mirror it; report any forced divergence back instead of silently coding around it."* Dispatching a variant-path task without its canon reference is an incomplete dispatch: fix the prompt, not the agent.
-
-**Plan vs reality mismatch:** if the code contradicts the plan (line moved, function renamed, assumption false) — trust the code, note the deviation. If the mismatch invalidates the task's approach, stop and reconcile before dispatching, don't improvise a new design mid-execution.
 
 ---
 
@@ -119,7 +117,7 @@ For each group G:
 - Code review (dispatch `code-reviewer`)
 - Commit
 
-The final test pass IS the comprehensive test coverage — don't add a separate "final testing task". Per-group verification + final pass is enough.
+The final test pass IS the comprehensive test coverage — don't also do a "final testing task". Per-group verification + final pass is enough.
 
 ---
 
@@ -137,7 +135,7 @@ Never rationalize past a failure. Invoke `systematic-debugging` before any fix.
 
 ### Rule 2: Scope Discipline
 
-Only touch what the current task requires. Improvements outside scope → note as a separate TODO, don't fix now. "Przy okazji" changes are the #1 source of regressions.
+Only touch what the current task requires. Improvements outside scope → note as separate TODO, don't fix now. "Przy okazji" changes are the #1 source of regressions.
 
 ### Rule 3: Read Before Modifying (when needed)
 
@@ -169,7 +167,7 @@ For tasks that modify existing files: read the file IF you need context you don'
 - 100+ lines written without running verification → verify now
 - Modifying files not listed in the task → scope creep, stop
 - "Probably fine" after an error → investigate
-- Agent returns an error and you retry blindly → diagnose first
+- Agent returns error and you retry blindly → diagnose first
 - Verification fails after 2 fix attempts → invoke `systematic-debugging`
 - Each fix reveals a new problem elsewhere → architectural issue, escalate
 

@@ -5,7 +5,7 @@ description: Use when you have a spec for a multi-step task. Creates implementat
 
 # Writing Plans
 
-**Core:** A plan describes WHAT and WHY clearly enough for a subagent to execute — WITHOUT spelling out every line of code. Bite-sized tasks ordered by risk. Vertical slicing. DRY. YAGNI.
+**Core:** Plans describe WHAT and WHY clearly enough for a subagent to execute, WITHOUT the plan spelling out every line of code. Bite-sized tasks ordered by risk. Vertical slicing. DRY. YAGNI.
 
 **Announce at start:** "I'm using the writing-plans skill."
 
@@ -13,16 +13,18 @@ description: Use when you have a spec for a multi-step task. Creates implementat
 
 ---
 
-## Step 0: Read-Only Analysis (before writing any plan content)
+## Step 0: Read-Only Analysis (before writing the plan)
+
+Do not write plan content until you complete this.
 
 1. **Read flow docs** for the affected module (`docs/dokumentacja programu/flows/{moduł}.md` if it exists)
-2. **Read the files** that will be modified. Note patterns: naming, error handling, imports, formatting
-3. **Check DB schema** for affected tables (grep for CREATE/ALTER or inspect the DB)
+2. **Read files** that will be modified. Note patterns: naming, error handling, imports, formatting
+3. **Check DB schema** for affected tables (grep for CREATE/ALTER or inspect DB)
 4. **Map dependencies** — which JS calls which endpoint, which controllers use which services
 5. **Identify risks** — missing `updated_at`, missing `$allowedResources`, cross-file JS without `window.`, missing `views`/`group_views` entries
-6. **Write a findings summary** (2-3 sentences) at the top of the plan
+6. **Write findings summary** (2-3 sentences) at the top of the plan
 
-Plans based on reading code work the first time. Plans based on imagination cause rework.
+Plans based on reading code work first time. Plans based on imagination cause rework.
 
 ---
 
@@ -34,15 +36,13 @@ Before writing tasks, dispatch an Explore agent with this exact shape:
 
 Then record in the Plan Header:
 - **Canon:** the single implementation new code must call or mirror (`file:line`). If none exists, the plan's FIRST task is to create it — never a second parallel implementation of the same quantity.
-- **Variants:** every sibling path found. For EACH: does this plan change it? If not — one sentence why skipping is safe.
+- **Variants:** every sibling path found. For EACH: does this plan change it, and if not — one sentence why skipping is safe.
 
-Why mandatory: a variant path (correction, delete, batch, offline, import, a reporting consumer) reimplemented from scratch — instead of reusing the guard/formula/filter the main path already has — is one of the most common and most expensive regression classes. No per-file code agent can see it, because the defect lives *between* files (variant vs canon). Only this inventory surfaces it before implementation.
+Why this is mandatory: a variant path (correction, delete, batch, offline, import, a reporting consumer) reimplemented from scratch — instead of reusing the guard/formula/filter the main path already has — is one of the most common and most expensive regression classes. No per-file code agent can see it, because the defect lives *between* files (variant vs canon). Only this inventory surfaces it before implementation.
 
 ---
 
-## Step 1: Write the Plan
-
-### Plan Header
+## Plan Header
 
 ```markdown
 # [Feature Name] Implementation Plan
@@ -63,10 +63,12 @@ Why mandatory: a variant path (correction, delete, batch, offline, import, a rep
 **Canon:** [the existing implementation new code must call/mirror — `file:line`, or "none, created in Task 1" — from Step 0.5]
 **Variants:** [every sibling path; for each: changed by this plan? if not, why skipping is safe — from Step 0.5]
 
-**Out of scope:** [what this plan deliberately does NOT touch — deferred findings, sibling features]
-
 ---
 ```
+
+---
+
+## Task Structure
 
 ### Vertical slicing — mandatory
 
@@ -79,7 +81,7 @@ Task 2: all JS    Task 2: Feature B — endpoint + JS + test
 Task 3: all tests Task 3: Feature C — endpoint + JS + test
 ```
 
-Each slice delivers a testable piece. If Task 2 fails, Task 1 still works.
+Each vertical slice delivers a testable piece. If Task 2 fails, Task 1 still works.
 
 ### Risk-first ordering
 
@@ -99,7 +101,9 @@ Find timeline-breaking issues in Task 1, not Task 8.
 
 **Max 5 files per task. Max 3 acceptance criteria per task.**
 
-### Per-Task Template
+---
+
+## Per-Task Template
 
 ```markdown
 ### Task N: [Feature/Component Name]
@@ -135,13 +139,11 @@ Find timeline-breaking issues in Task 1, not Task 8.
 **Commit message:** `feat(moduł): opis po polsku`
 ```
 
-### No implementation code in the plan
+**DO NOT put full implementation code in the plan.** The agent (`php-pro`, `sql-pro`, etc.) generates code following its own rules during execution. Plans describe intent; agents implement.
 
-**DO NOT put full implementation code in the plan.** The executing agent (`php-pro`, `sql-pro`, etc.) generates code following its own rules. Plans describe intent; agents implement.
+The only reason to include code in the plan is a very specific, non-obvious pattern — and even then, reference by file path rather than inline.
 
-The only reason to include code is a very specific, non-obvious pattern — and even then, reference it by file path rather than inline.
-
-Token efficiency: inline code means paying to generate the same code twice (in the plan, then in execution). Describing intent means the code exists only once — in the final implementation.
+**Why this matters for token efficiency:** inline code in the plan means you pay to generate the same code twice (in the plan, then in execution). Describing intent means the code exists only once — in the final implementation.
 
 ---
 
@@ -158,13 +160,13 @@ Token efficiency: inline code means paying to generate the same code twice (in t
 
 ---
 
-## Step 2: Self-Audit & Refinement (mandatory before handoff)
+## Step N: Self-Audit & Refinement (mandatory before handoff)
 
-**Do not present the plan to the user until this step is complete.** An un-audited plan typically contains 10-20 gaps the user would otherwise catch manually. Find and fix them first.
+**Do not present the plan to the user until this step is complete.** An un-audited plan typically contains 10–20 gaps that the user would otherwise catch manually. Find and fix them first.
 
 ### Pass 1 — General audit (main agent)
 
-Re-read the entire saved plan as a reviewer seeing it for the first time. Hunt for:
+Re-read the entire saved plan as if you were a reviewer seeing it for the first time. Hunt for:
 
 - **Gaps:** missing tasks, untouched dependencies, assumed-but-unverified file locations, missing migrations, missing rollback, missing seed/fixture updates
 - **Security / vulnerabilities:** auth/authz gaps, input validation, SQL injection, XSS, CSRF, secrets in code/logs, unsafe defaults, missing rate limits
@@ -174,7 +176,7 @@ Re-read the entire saved plan as a reviewer seeing it for the first time. Hunt f
 - **Operational:** logging, migrations reversible, feature flags, backward compatibility, data migration for existing rows
 - **DRY/YAGNI:** duplicated work across tasks, speculative features, premature abstractions
 
-Write findings as a checklist. Don't stop at the first few — aim to match the 10-20 issues a fresh reviewer would find.
+Write findings as a checklist. Do not stop at the first few — aim to match the 10–20 issues a fresh reviewer would find.
 
 ### Pass 2 — Language-specialist audits (parallel)
 
@@ -196,13 +198,13 @@ Identify which languages/technologies the plan touches. For each, spawn the matc
 - Exact section/task numbers to audit (not the whole plan)
 - Instruction: *"Read-only review. Do not edit the plan. Return a numbered list of concrete issues: gaps, vulnerabilities, anti-patterns, missing edge cases, risky patterns specific to [language]. No generic advice — each item must reference a specific task or file in the plan."*
 
-Example: PHP backend + JS frontend + MySQL schema → spawn `php-pro` (PHP tasks), `javascript-pro` (JS tasks), `sql-pro` (schema/queries) in one parallel batch.
+Example: a plan with PHP backend + JS frontend + MySQL schema → spawn `php-pro` (PHP tasks), `javascript-pro` (JS tasks), `sql-pro` (schema/queries) in one parallel batch.
 
 ### Pass 3 — Consolidate & fix
 
 1. Merge Pass 1 + Pass 2 findings. Deduplicate.
-2. Edit the plan file directly to address every valid finding: adjust the task, add an acceptance criterion, split a task, reorder, or add a new task.
-3. Discard findings that are out of scope — but note *why* in the plan's Out-of-scope/Findings section so the user sees the decision.
+2. Edit the plan file directly to address every valid finding. For each fix: adjust the task, add an acceptance criterion, split a task, reorder, or add a new task.
+3. Discard findings that are out of scope — but note *why* in the plan's Findings section so the user sees the decision.
 4. If Pass 3 caused material structural changes (new tasks, re-ordering, new risks), run Pass 1 again on the changed sections only.
 
 ### Pass 4 — Report to user
@@ -217,7 +219,7 @@ If zero issues were found, state it explicitly — that is unusual and worth fla
 
 ---
 
-## Step 3: Execution Handoff
+## Execution Handoff
 
 After the self-audit is complete and the plan is clean:
 
