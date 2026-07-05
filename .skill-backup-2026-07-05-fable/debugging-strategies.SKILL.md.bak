@@ -1,0 +1,285 @@
+---
+name: debugging-strategies
+description: Master systematic debugging techniques and root cause analysis for the FakturyKonkret project (PHP/JS/MySQL). Starts from server logs, follows 6-step triage, applies Stop-the-Line principle. Use when investigating bugs, performance issues, or unexpected behavior.
+---
+
+# Debugging Strategies
+
+Systematic debugging — not guesswork. Follow the process. Trust the evidence.
+
+## When to Use This Skill
+
+- Tracking down bugs (500 errors, wrong data, broken UI)
+- Investigating performance issues (slow queries, timeouts)
+- Understanding unexpected behavior
+- Debugging production issues
+- Analyzing error patterns in logs
+
+---
+
+## Krok 0: Sprawdź logi na serwerze (ZAWSZE PIERWSZY)
+
+**PRZED jakąkolwiek analizą kodu — ZAWSZE zacznij od logów!**
+
+| Symptom | Log do sprawdzenia |
+|---|---|
+| HTTP 500 przy zleceniach | `logs/orders.log` |
+| HTTP 500 przy fakturach | `logs/invoices.log` |
+| HTTP 500 przy zakupach | `logs/purchases.log` |
+| Problem z KSeF | `logs/ksef.log` |
+| Problem z GPS | `logs/gps.log` |
+| Problem z warsztatem | `logs/warsztat.log` |
+| Daemon winiet | `logs/vignette_email_monitor.log` |
+| Timeout/wolne | `grep 'SLOW API' logs/*.log` |
+| Fatal error | `grep 'Fatal' logs/*.log` |
+| Nieznany moduł | `grep '\[ERROR\]' logs/*.log \| tail -30` |
+
+```bash
+# Ostatnie błędy modułu
+grep '\[ERROR\]' logs/{modul}.log | tail -30
+
+# Śledzenie requestu po ID
+grep 'REQUEST_ID' logs/{modul}.log
+
+# Ostrzeżenia i slow queries
+grep '\[WARNING\]' logs/{modul}.log | tail -30
+```
+
+**Format logu:**
+```
+[2026-03-19 14:23:45] [ERROR] [a1b2c3d4] [saveOrder] [user:admin] Message | ExceptionClass: message | File:line
+```
+
+**Dopiero po przeczytaniu logów → przejdź do 6-Step Triage.**
+
+---
+
+## 6-Step Triage Process
+
+### Step 1: REPRODUCE — Ustal warunki awarii
+
+- Czy możesz to powtórzyć? Zawsze / czasami / losowo?
+- Jakie dane wejściowe powodują problem?
+- Czy dotyczy jednego użytkownika czy wszystkich?
+
+**Jeśli nie da się powtórzyć:**
+- Sprawdź zależności od czasu (cron, timezone, cache expiry)
+- Sprawdź dane (konkretny rekord z nietypowymi wartościami?)
+- Sprawdź stan sesji (uprawnienia, instancja)
+- Dodaj defensywny logging i czekaj na kolejne wystąpienie
+
+**Problem u 1 użytkownika vs 10 OK? → Prawdopodobnie dane, nie kod.**
+
+### Step 2: LOCALIZE — Zlokalizuj warstwę awarii
+
+| Warstwa | Jak sprawdzić |
+|---------|---------------|
+| **UI/JS** | Console errors w przeglądarce (F12), broken rendering |
+| **API/Network** | Network tab → status code, response body |
+| **PHP Controller** | Log z requestId, `php -l` syntax check |
+| **PHP Service/Repo** | Log stack trace, check query params |
+| **Database** | Slow query log, missing data, schema mismatch |
+| **External Service** | KSeF/GPS/WAPRO timeout, invalid response |
+| **Test itself** | Czy test jest poprawny? Fałszywy negatyw? |
+
+**Use `git bisect` for regressions:**
+```bash
+git bisect start
+git bisect bad          # current commit is broken
+git bisect good v3.5.0  # this version worked
+# test each suggested commit, mark good/bad
+git bisect reset
+```
+
+### Step 3: REDUCE — Uprość do minimalnego przypadku
+
+- Odrzuć niezwiązany kod/dane
+- Testuj z najprostszym inputem który powoduje błąd
+- Izoluj komponent (czy bug jest w kontrolerze? serwisie? repo? query?)
+
+### Step 4: FIX ROOT CAUSE — Napraw przyczynę, nie objaw
+
+```
+❌ WRONG: Dodanie try/catch który połyka błąd
+❌ WRONG: Dodanie if ($value !== null) bez zrozumienia DLACZEGO jest null
+❌ WRONG: Zwiększenie timeoutu bez sprawdzenia co jest wolne
+
+✅ RIGHT: Znalezienie DLACZEGO wartość jest null i naprawienie źródła
+✅ RIGHT: Optymalizacja wolnego query zamiast zwiększania timeoutu
+✅ RIGHT: Naprawienie walidacji danych wejściowych
+```
+
+### Step 5: GUARD — Zabezpiecz przed powtórzeniem
+
+**Napisz test regresyjny:**
+- Test MUSI failować BEZ twojego fixa
+- Test MUSI przechodzić Z twoim fixem
+- Test opisuje scenariusz który spowodował bug
+
+```php
+// Test regresyjny — bug #123: zamówienie z null client_name
+public function test_order_handles_null_client_name(): void
+{
+    $order = ['client_name' => null, 'route' => 'WAW-KRK'];
+    // Before fix: TypeError: trim(): Argument #1 must be of type string
+    // After fix: ValidationException: Client name is required
+    $this->expectException(ValidationException::class);
+    $this->service->createOrder($order);
+}
+```
+
+### Step 6: VERIFY END-TO-END
+
+1. Uruchom konkretny test: `vendor/bin/phpunit --filter test_name`
+2. Uruchom pełny test suite: `vendor/bin/phpunit --testdox`
+3. Sprawdź czy nic innego się nie zepsuło: `npm run test:js:run`
+4. Sprawdź syntax: `php -l php/controllers/ModifiedFile.php`
+
+---
+
+## Stop-the-Line Principle
+
+**Gdy napotkasz bug podczas implementacji innej funkcji:**
+
+```
+1. STOP — nie kontynuuj implementacji
+2. ZACHOWAJ — skopiuj error output, zanotuj kontekst
+3. DIAGNOZA — przejdź przez 6-Step Triage
+4. NAPRAW — fix root cause
+5. GUARD — test regresyjny
+6. VERIFY — pełny test suite
+7. KONTYNUUJ — dopiero po green na wszystkim
+```
+
+**Nigdy nie racionalizuj:**
+- "To pewnie niezwiązane" → Udowodnij. `git stash`, czy bug znika?
+- "Naprawię to później" → Nie naprawisz. Napraw teraz.
+- "To edge case, nikt tego nie trafi" → Log mówi co innego.
+
+---
+
+## Debugging Patterns by Issue Type
+
+### Pattern 1: strict_types TypeError
+
+Najczęstszy bug w FakturyKonkret.
+
+```php
+// Log: TypeError: str_pad(): Argument #1 ($string) must be of type string, int given
+// Przyczyna: declare(strict_types=1) + wartość int z bazy
+// Fix: str_pad((string)$order->number, 6, '0', STR_PAD_LEFT)
+
+// Log: TypeError: trim(): Argument #1 ($string) must be of type string, null given
+// Przyczyna: kolumna nullable w bazie
+// Fix: trim($row['notes'] ?? '')
+```
+
+### Pattern 2: Bundle-only crash (ReferenceError)
+
+```
+// Symptom: Działa w dev, crash na produkcji
+// Log (przeglądarka): ReferenceError: functionName is not defined
+// Przyczyna: Funkcja zdefiniowana w pliku A, używana w B, brak window. prefix
+// Fix: window.functionName = functionName; w pliku definicji
+// Weryfikacja: grep -rn "functionName" js/modules/ — sprawdź WSZYSTKIE użycia
+```
+
+### Pattern 3: N+1 Query (slow page)
+
+```
+// Symptom: Strona ładuje się >5s
+// Log: [WARNING] SLOW API: /api/orders took 4.2s
+// Diagnoza: grep 'SELECT' w logach — ile queries na jeden request?
+// Jeśli 100+ SELECTów → N+1 problem
+// Fix: JOIN zamiast pętli z query, lub batch load
+```
+
+### Pattern 4: 403 Forbidden (nowy moduł)
+
+```
+// Symptom: 403 na endpoincie który powinien działać
+// Przyczyna (99% przypadków): Brak wpisu w $allowedResources (php/helpers.php:201)
+// Fix: Dodaj resource do $allowedResources + permissions table + resources table
+```
+
+### Pattern 5: ChangesTracker nie odświeża
+
+```
+// Symptom: Dane zmienione ale tabela nie odświeża się automatycznie
+// Przyczyna: INSERT/UPDATE bez updated_at = NOW()
+// Fix: Dodaj updated_at = NOW() do query
+```
+
+---
+
+## Debugging Tools
+
+### PHP
+```bash
+# Syntax check
+php -l php/controllers/SomeController.php
+
+# Quick test
+vendor/bin/phpunit --filter test_name --testdox
+
+# Xdebug trace (jeśli włączony)
+php -d xdebug.mode=trace -d xdebug.output_dir=/tmp script.php
+```
+
+### JavaScript
+```javascript
+// Chrome DevTools
+debugger;  // breakpoint w kodzie
+console.table(arrayOfObjects);  // tabela w konsoli
+console.time('op'); /* ... */ console.timeEnd('op');  // timing
+
+// Network tab — sprawdź response body i status code
+// Console tab — sprawdź ReferenceError, TypeError
+```
+
+### MySQL
+```sql
+-- Slow query analysis
+EXPLAIN SELECT ... FROM orders WHERE ...;
+
+-- Check if index is used
+SHOW INDEX FROM orders;
+
+-- Current running queries
+SHOW PROCESSLIST;
+```
+
+### Git
+```bash
+# Kiedy ten bug się pojawił?
+git bisect start && git bisect bad && git bisect good v3.5.0
+
+# Kto ostatnio zmieniał ten plik?
+git blame php/controllers/OrderController.php
+
+# Co się zmieniło od ostatniego builda?
+git log --oneline v3.5.10..HEAD
+```
+
+---
+
+## Quick Checklist — When Stuck
+
+- [ ] Przeczytałeś PEŁNY error message? (nie tylko pierwszą linię)
+- [ ] Sprawdziłeś logi serwera? (`grep '\[ERROR\]' logs/*.log`)
+- [ ] Sprawdziłeś troubleshooting? (`grep -i "keyword" docs/troubleshooting.md`)
+- [ ] Sprawdziłeś co się ostatnio zmieniło? (`git log --oneline -10`)
+- [ ] Próbujesz z najprostszym inputem?
+- [ ] Sprawdziłeś dane w bazie? (może problem jest w danych, nie w kodzie)
+- [ ] Sprawdziłeś typ danych? (int vs string, null vs empty)
+- [ ] Sprawdziłeś uprawnienia? ($allowedResources, permissions table)
+- [ ] Sprawdziłeś cache? (czyścisz cache przeglądarki?)
+
+---
+
+## After Fixing — Documentation
+
+**Po rozwiązaniu nieoczywistego problemu:**
+1. Sprawdź czy warto dokumentować (nie: literówki; tak: nietypowe przyczyny)
+2. Zaktualizuj `docs/troubleshooting.md` z: symptom, przyczyna, rozwiązanie
+3. Napisz test regresyjny (Step 5)

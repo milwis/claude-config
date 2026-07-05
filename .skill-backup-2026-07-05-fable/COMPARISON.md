@@ -51,6 +51,25 @@ Nowe wersje: `plugins\milwis-coding-toolkit\skills\{brainstorming,writingplans,e
 
 ---
 
+## 4. systematic-debugging — FUZJA z debugging-strategies (4,4 KB + 7,4 KB → ~8,3 KB)
+
+Dogrywka na polecenie użytkownika: z dwóch skilli debugowania — `systematic-debugging` (claude-config, dyscyplina) i `debugging-strategies` (FakturyKonkret `.claude/skills/`, taktyka projektowa) — powstał jeden skill. Zapisany jako `systematic-debugging` w claude-config (nazwa zachowana, bo wskazują na nią cross-referencje: executing-plans, writing-plans, agenci `debugger` i `code-reviewer`). Oba źródła zbackupowane obok: `systematic-debugging.SKILL.md.bak`, `debugging-strategies.SKILL.md.bak`. **Repo FakturyKonkret nietknięte** — jego lokalny `debugging-strategies` dalej istnieje; jeśli ma zostać zastąpiony/usunięty, to osobna decyzja (CLAUDE.md projektu odwołuje się do `/debugging-strategies` w drzewie decyzyjnym).
+
+| Zmiana | Typ | Uzasadnienie |
+|---|---|---|
+| Szkielet = 4 fazy z systematic-debugging (Iron Law, JEDNA hipoteza, reguła 3 prób, "no root cause" ~95%, Final Rule) — wszystko zachowane | baza | Silniejsza struktura dyscypliny; 6-Step Triage z debugging-strategies zmapowany do faz: REPRODUCE/LOCALIZE/REDUCE → Faza 1 (pkt 2/4/5), FIX ROOT CAUSE → Faza 4 pkt 2, GUARD → Faza 4 pkt 1, VERIFY → Faza 4 pkt 3. Nic z triage nie zginęło. |
+| Nowy **Step 0: Logs First** przed fazami: early-warning (branch `log-reports`) → mapowanie symptom→log → grep/REQUEST_ID/format linii → `docs/troubleshooting.md` | fuzja + aktualizacja | Krok 0 z debugging-strategies, uzupełniony o system wczesnego ostrzegania z CLAUDE.md (2026-05-14), którego stary skill w ogóle nie znał. |
+| Tabela symptom→log (10 wierszy) ZASTĄPIONA odesłaniem do CLAUDE.md sekcji DEBUGOWANIE | celowe usunięcie duplikatu | Tabela w starym skillu była przestarzałym podzbiorem tej w CLAUDE.md (brak mysql_watchdog, vignette_lv_scrape, Paysera, cron_runs). CLAUDE.md jest zawsze w kontekście projektu — duplikat w toolkicie = gwarantowany drift. |
+| **Known Failure Patterns (FakturyKonkret)** — 5 wzorców (strict_types TypeError, bundle ReferenceError bez `window.`, N+1/SLOW API, 403/`$allowedResources`, ChangesTracker/`updated_at`) skondensowane do tabeli | przeniesione z debugging-strategies | Najcenniejsza projektowa treść źródła; fakty zweryfikowane (`$allowedResources` w `php/helpers.php` — troubleshooting.md; `updated_at`/`window.` — CLAUDE.md). Bez numeru linii `:201` (kruchy, wystarczy nazwa pliku). |
+| Stop-the-Line (7-kroków) z debugging-strategies NIE powielony — zostaje sekcja **Never Rationalize** (3 racjonalizacje z `git stash` po polsku) + Integration wskazuje, że Stop-the-Line należy do executing-plans i przekazuje tutaj | deduplikacja | Kontrakt Stop-the-Line ma jednego właściciela (executing-plans); dublowanie pełnej procedury w dwóch skillach = drift. Esencja ("nigdy nie racjonalizuj") zachowana. |
+| Toolbox i checklista "When Stuck" — scalone, skondensowane (php -l, phpunit --filter, EXPLAIN/SHOW PROCESSLIST, git bisect/blame, DevTools) | kondensacja | Usunięty tylko Xdebug trace (nieużywany w projekcie — brak śladów w CLAUDE.md/troubleshooting); git bisect przeniesiony do Fazy 1 pkt 3. |
+| Kod przykładu testu regresyjnego (PHP, 10 linii) usunięty — zostały 3 twarde warunki (fail bez fixa / pass z fixem / opisuje scenariusz) | odchudzenie | Przykład był generyczny; kontrakt niesie 3 bullety. |
+| Zachowane z systematic-debugging bez zmian | — | Podział ról skill vs agent `debugger`, Iron Law, Fazy 2-3 co do treści, reguła 3 prób z rozmową przed fixem #4, sekcja "no root cause", Integration (TDD RED, verification-before-completion, debugger, executing-plans), Final Rule. |
+
+**Ryzyko regresji:** niskie — jedyne realne ryzyko to odesłanie do tabeli symptom→log w CLAUDE.md zamiast lokalnej kopii: skill użyty POZA FakturyKonkret nie ma mapowania (ale stara tabela i tak była projektowo-specyficzna), a w projekcie CLAUDE.md jest zawsze załadowany i świeższy.
+
+---
+
 ## Jak porównać / jak wycofać
 
 - Diff starej i nowej wersji:
