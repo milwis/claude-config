@@ -103,6 +103,28 @@ Backup: `backend-security-coder.agent.md.bak`.
 
 ---
 
+## 7. systematic-debugging — UOGÓLNIENIE (wersja projektowa → uniwersalna)
+
+Na polecenie użytkownika: skill odwiązany od KonkretnyTMS/FakturyKonkret, ma działać na najwyższym poziomie w każdym projekcie. Wersja sprzed uogólnienia jest w historii git (commit `8655787`); pierwotne źródła nadal w `.bak` obok.
+
+**Zasada warstwowania (nowa, jawnie zapisana na górze skilla):** skill definiuje JAK debugować, projektowe CLAUDE.md/runbooki definiują GDZIE (lokalizacje logów, mapowania symptom→log, komendy testów). Gdy projekt dokumentuje własną ścieżkę debugowania, wykonuje się ją wewnątrz tego procesu.
+
+| Co było (projektowe) | Co jest (uniwersalne) |
+|---|---|
+| Step 0: branch `log-reports`, CLAUDE.md sekcja DEBUGOWANIE, format logu FakturyKonkret | Early-warning signals dowolnego typu (health report, dashboard, alerting); mapowanie z dokumentacji projektu; "log line anatomy" do rozpoznania (timestamp/level/correlation ID/module/user); fallback grep + logi web-servera/kontenera |
+| Tabela warstw: "PHP controller", "KSeF/GPS/WAPRO" | Warstwy generyczne: Frontend / API / Backend entry point / Service–data layer / Database / External service / The test itself |
+| Weryfikacja: `vendor/bin/phpunit`, `npm run test:js:run`, `php -l` | Komendy projektu z przykładami multi-stack: phpunit/pytest/vitest; php -l / node --check / py_compile |
+| "Known Failure Patterns (FakturyKonkret)" — 5 wzorców z `$allowedResources`, `window.`, `updated_at` | **"Universal Failure Patterns"** — 7 KLAS: type-boundary TypeError, dev-vs-prod-build symbol visibility, N+1/missing index, "jeszcze jeden rejestr uprawnień niż zarejestrowałeś", change-detection na nietkniętej kolumnie, environment drift (case-sensitivity/timezone/locale — lekcja PSR-4 z PR #155), pipeline-green-behavior-broken (fail-handler z exit 0 — lekcja `die()` w db_config). Instancje projektowe → troubleshooting doc projektu (Step 0.4). |
+| Checklist/dokumentacja: `docs/troubleshooting.md`, `$allowedResources` | "Project's troubleshooting doc / closed issues", "every whitelist/registry/guard on the path" |
+| git bisect z tagiem `v3.5.0` | `<last-good-tag>` |
+| Zachowane bez zmian | Iron Law, 4 fazy, JEDNA hipoteza, reguła 3 prób, "no root cause" ~95%, Never Rationalize (polskie cytaty — głos użytkownika, nie coupling projektowy), Quick Reference — Phase exit criteria, Integration, Final Rule, podział skill vs agent `debugger` |
+
+Dwie nowe klasy w Universal Failure Patterns (environment drift, swallowed exit code) NIE są zmyślone — to uogólnienia udokumentowanych incydentów projektu (PSR-4 case sensitivity Windows→Linux; `die()` zwracające exit 0 i zielone CI na zepsutej wersji — obie lekcje z CLAUDE.md §4b).
+
+**Ryzyko regresji:** niskie — w projekcie FakturyKonkret specyfika (mapowanie logów, wzorce, komendy) i tak żyje w CLAUDE.md, które jest zawsze w kontekście; skill traci jedynie zdublowane odniesienia, zyskuje przenośność do pozostałych projektów użytkownika.
+
+---
+
 ## Jak porównać / jak wycofać
 
 - Diff starej i nowej wersji:
