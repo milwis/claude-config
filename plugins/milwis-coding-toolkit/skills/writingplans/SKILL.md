@@ -28,6 +28,20 @@ Plans based on reading code work first time. Plans based on imagination cause re
 
 ---
 
+## Step 0.5: Canon & Variant Inventory (mandatory when the plan touches money, state columns, or document generation)
+
+Before writing tasks, dispatch an Explore agent with this exact shape:
+
+> "List EVERY place in the repo that already computes / writes / generates <the quantity, state column, or document this plan touches>. For each: file:line, the formula or guard used, and whether it looks canonical or a variant. Also list every sibling path of the operation being changed (correction / reversal / delete / cancel / batch / offline / single-vs-bulk export / import-update / analytics or reporting consumer / mobile or PWA twin). Report ONLY what exists in code, with file:line for every claim. Do not infer."
+
+Then record in the Plan Header:
+- **Canon:** the single implementation new code must call or mirror (`file:line`). If none exists, the plan's FIRST task is to create it — never a second parallel implementation of the same quantity.
+- **Variants:** every sibling path found. For EACH: does this plan change it, and if not — one sentence why skipping is safe.
+
+Why this is mandatory: a variant path (correction, delete, batch, offline, import, a reporting consumer) reimplemented from scratch — instead of reusing the guard/formula/filter the main path already has — is one of the most common and most expensive regression classes. No per-file code agent can see it, because the defect lives *between* files (variant vs canon). Only this inventory surfaces it before implementation.
+
+---
+
 ## Plan Header
 
 ```markdown
@@ -45,6 +59,9 @@ Plans based on reading code work first time. Plans based on imagination cause re
 - [finding 1]
 - [finding 2]
 - [risk/gotcha identified]
+
+**Canon:** [the existing implementation new code must call/mirror — `file:line`, or "none, created in Task 1" — from Step 0.5]
+**Variants:** [every sibling path; for each: changed by this plan? if not, why skipping is safe — from Step 0.5]
 
 ---
 ```
@@ -109,6 +126,12 @@ Find timeline-breaking issues in Task 1, not Task 8.
 - Match naming convention from [similar function]
 - Key constraint: [e.g., must preserve backward compatibility, must use existing validation helper]
 
+**Invariants & Failure Semantics** (required when the task writes financial/critical data, a state column, or talks to an external system):
+- DB invariant that keeps the rule true under races: UNIQUE / FK / CHECK named explicitly — or "none needed because <reason>". App-level COUNT/EXISTS-then-INSERT is not protection (TOCTOU).
+- State-column writes: guarded UPDATE (`WHERE <expected pre-state>`) + affected-rows check. List ALL existing writers of the column; new writes go through the one canonical transition method — no side doors.
+- External submit (payment, third-party API, e-mail, export file): after timeout/5xx the outcome is UNKNOWN, not failed — plan the write-ahead record before the physical call and the reconcile-by-reference step before any retry. Never wipe the payload on an ambiguous outcome.
+- Batch operations: exported/marked content must come from the same guarded set — file contents from a pre-read list + partial-success marking = double booking.
+
 **Verification:**
 - Failing test for [specific behavior] → passes after implementation
 - [other acceptance criterion checks]
@@ -132,6 +155,8 @@ The only reason to include code in the plan is a very specific, non-obvious patt
 - Easy tasks first, risky last → reverse the order
 - Plan assumes file structure without checking → back to Step 0
 - Plan contains full implementation code blocks → rewrite to describe intent
+- Plan adds a variant of an existing operation without naming the canon and the reuse point → back to Step 0.5
+- Plan introduces a second implementation of a quantity that already has one → the task must call the canon, or the plan must first consolidate it
 
 ---
 
@@ -159,14 +184,14 @@ Identify which languages/technologies the plan touches. For each, spawn the matc
 
 | Technology in plan | Agent |
 |---|---|
-| PHP (Laravel/Symfony/plain) | `milwis-coding-toolkit:php-pro` |
-| JavaScript / TypeScript / Node | `milwis-coding-toolkit:javascript-pro` |
-| Python | `milwis-coding-toolkit:python-pro` |
-| SQL / schema / queries | `milwis-coding-toolkit:sql-pro` |
-| PWA / mobile / service workers | `milwis-coding-toolkit:mobile-pwa-developer` |
-| Auth / API security / input validation | `milwis-coding-toolkit:backend-security-coder` |
-| Database performance / indexing | `milwis-coding-toolkit:database-optimizer` |
-| Tests / testability of the plan | `milwis-coding-toolkit:test-automator` |
+| PHP (Laravel/Symfony/plain) | `php-pro` |
+| JavaScript / TypeScript / Node | `javascript-pro` |
+| Python | `python-pro` |
+| SQL / schema / queries | `sql-pro` |
+| PWA / mobile / service workers | `mobile-pwa-developer` |
+| Auth / API security / input validation | `backend-security-coder` |
+| Database performance / indexing | `database-optimizer` |
+| Tests / testability of the plan | `test-automator` |
 
 **Prompt each specialist** with:
 - Absolute path to the plan file

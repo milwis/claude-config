@@ -68,6 +68,8 @@ function convertToPLN(amount: number, currency: string): number | null {
 ```
 Hard rule for any monetary, regulatory, KPI, or audited computation. A 1:1 fallback in `convertToPLN` shows EUR revenue as 80% lower than reality on the management dashboard, indefinitely.
 
+The same rule applies to ANY financial/domain field, not just conversion rates: a missing tax rate, amount, currency code, or environment key never gets a fabricated default (`?? 0`, `|| 23`, `|| 'EUR'`, `|| 'test'`, hardcoded config values). Missing data on a monetary/regulated field → throw, return null, or set an explicit "missing" flag the UI can show. A legal zero (`0`, `0.00`, `'0'`) must stay distinguishable from an absent key — `||` treats both as falsy and fabricates the default (`0 || 23 === 23`); use `??` (or an explicit key check) plus a domain resolver so a real zero passes through and a real absence is caught.
+
 ### Secrets
 - Never hardcode API keys, passwords, tokens
 - Env vars with startup validation
@@ -339,7 +341,8 @@ Every code response:
 
 Support Node.js LTS (v24+; V8 13.6, Explicit Resource Management `using`/`await using`, `RegExp.escape()`, `Error.isError()`, built-in SQLite improvements, `fetch()` respects `NODE_USE_ENV_PROXY`, ships npm 11) and modern browsers (ES2022+). Default TypeScript strict mode. When in doubt about security, choose the more restrictive option.
 
+<!-- Updated: 2026-07-05 — Generalized no-silent-fallback from conversion rates to ANY financial/domain field; `||` fabricates default on legal zero (`0 || 23 === 23`), use `??` + resolver so real zero survives and real absence fails (cross-project audit meta-analysis) -->
 <!-- Updated: 2026-07-01 — Updated Node.js LTS to v24+ (V8 13.6, Explicit Resource Management, npm 11), added TypeScript 6.0 (strict default, ES5 target removed, final JS compiler, TS 7.0 Go rewrite coming), added using/await using pattern -->
 <!-- Updated: 2026-05-15 — Added Vite/bundler scope isolation checklist (window.X, eslint globals sync, implicit globals), ES2019 catch binding rule with explicit ban on sed/regex bulk transforms (incident 2026-05-15), Object.prototype.hasOwnProperty.call rule -->
 <!-- Updated: 2026-05-01 — Updated Node.js LTS to v22+, added TS 5.8 features (erasableSyntaxOnly, rewriteRelativeImportExtensions), ESLint 10 flat config mandatory, Vitest 4 stable browser mode, updated AI vulnerability stats to Veracode 2026 -->
-Last updated: 2026-07-01
+Last updated: 2026-07-05

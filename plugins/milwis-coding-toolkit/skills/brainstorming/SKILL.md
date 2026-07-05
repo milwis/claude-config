@@ -84,6 +84,20 @@ One-pager contents:
 
 ---
 
+## Regulated-Domain Gate (tax, financial reporting, legal thresholds, compliance documents)
+
+If the feature touches a regulated computation or a compliance document, Phase 1 MUST produce a fact-pack before any direction is chosen:
+
+- Extract the governing rules from official sources vendored in the repo (schemas, standards, spec documents, regulator examples) — not from memory. Record each rule as: ID, source (file + section/line), threshold values, edge cases.
+- Explicitly list every rule you could NOT source — these are questions for the user, never defaults to guess. Implementing a regulation from memory is a top source of domain defects: thresholds `>=` vs `>`, wrong rounding anchor, wrong document classification, a period split on the wrong event.
+- When code comments/docs contradict each other about a data convention (timezone, encoding, sign) → resolve by PHYSICAL evidence (DDL, actual stored values, a runtime probe), never by the majority of comments. A single false comment can poison an entire subsystem for every author who reads it afterward.
+
+## Variant Question (mandatory in LIGHT and FULL)
+
+Ask early: **"Is this a variant of an operation that already exists?"** (correction, reversal, batch, offline, delete/cancel, import-update, second document, analytics/reporting consumer, mobile/PWA twin). If yes, the Explore dispatch must return the main path's implementation and its guards BEFORE any design choice. The default design is "reuse the canon"; every divergence needs a stated reason in the one-pager.
+
+---
+
 ## After the Design
 
 - Write validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`

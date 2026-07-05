@@ -213,6 +213,8 @@ function convertToPLN(float $amount, string $currency): ?float {
 ```
 Hard rule for monetary, regulatory, audited, and KPI computations. A missing data point silently becoming `1.0` is an invisible compliance breach — the analytics dashboard shows wrong totals, decisions are made on falsified data, and nobody knows for months.
 
+The same rule applies to ANY financial/domain field, not just conversion rates: a missing tax rate, amount, currency code, classification, or environment key never gets a fabricated default (`?? 0`, `?? '23'`, `?: 'EUR'`, `?: 'test'`, a hardcoded annotation value). Missing data on a monetary/regulated field → throw, return null, or set an explicit "missing" flag the caller can surface. A legal zero (0% rate, 0.00 amount) must be distinguishable from an absent value — the Elvis operator `?:` collapses both to the default; use `isset()` / `array_key_exists()` plus a domain resolver so a real zero survives and a real absence fails loud.
+
 ---
 
 ## Development Rules
@@ -595,4 +597,5 @@ Three implementations of NIP/REGON/PESEL/email validation in the same project = 
 
 <!-- Updated: 2026-05-01 — Added PHP 8.4 features (property hooks, asymmetric visibility, PDO subclasses, array_find/any/all, new without parens), PHP 8.5 features (pipe operator, clone with, array_first/last, #[\NoDiscard]), updated vulnerability stats to Veracode 2026 (45%) -->
 <!-- Updated: 2026-06-01 — Added PHP 8.5 URI extension (Rfc3986\Uri, WhatWg\Url), closures in constant expressions -->
-Last updated: 2026-06-01
+<!-- Updated: 2026-07-05 — Generalized no-fallback policy from conversion rates to ANY financial/domain field (tax rate, amount, currency, env key); Elvis `?:` collapses legal-zero into default, use isset/array_key_exists + resolver (cross-project audit meta-analysis) -->
+Last updated: 2026-07-05

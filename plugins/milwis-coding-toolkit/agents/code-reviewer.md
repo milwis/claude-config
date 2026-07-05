@@ -130,6 +130,9 @@ Severity:
 | Slopsquatting | AI hallucinates package names ~20% of the time; attackers register them as malicious packages — verify every recommended package exists (`npm view`, `composer show`, `pip show`) before approving. Real incidents: `unused-imports` (npm, hallucinated instead of `eslint-plugin-unused-imports`, ~233 weekly downloads), `huggingface-cli` (30K+ downloads in 3 months after Alibaba published AI-recommended install command). Autonomous AI agents escalate the risk — they install packages programmatically without human checkpoint (CSA April 2026) |
 | Deprecated config formats | `.eslintrc.*` (removed in ESLint 10, Feb 2026), old Node.js APIs, PHP functions removed in 8.x — AI training data lags behind deprecation timelines |
 | Iterative refinement degradation | Each AI refinement pass can introduce new security flaws (Arxiv 2506.11022) — don't assume iterating on AI-generated code converges to safety; review each iteration independently |
+| Variant-path regression | The diff implements a sibling of an existing operation (correction, reversal, batch, offline, delete/cancel, single-vs-bulk export, import-update) with its own logic. Grep the main path first: if the canon has a guard/formula/filter the variant lacks (edit-lock on save but not on delete; per-category buckets in one generator but not its sibling; mark-first in single export but not in the batch; a filter in one subquery but not its twin) → CRITICAL. The defect lives *between* files, so single-file review misses it |
+| State-machine side doors | A new endpoint or branch writes a status/state column directly (`status='...'`, `*_state=...`) instead of the canonical transition method, or with a weaker guard subset than the main path. Grep every writer of the column (`SET <column>`) and compare guards — asymmetric guards = CRITICAL |
+| Ambiguous external outcome treated as failure | Timeout/5xx AFTER a physical submit (payment, third-party API, export file written, e-mail sent) handled by wipe/retry/re-enqueue with no write-ahead reference and no reconcile-by-reference step → CRITICAL: this is the double-submit generator. UNKNOWN is a third state, distinct from failed |
 
 ### When reviewing fix proposals or audit reports
 
@@ -181,7 +184,8 @@ Description.
 - **Be specific** — "this has a bug" is useless; "line 145 concatenates user input into SQL" is actionable
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
+<!-- Updated: 2026-07-05 — Added 3 AI-scrutiny rows from cross-project audit meta-analysis: variant-path regression (sibling operation reimplemented without the canon's guards), state-machine side doors (direct status writes bypassing the canonical transition), ambiguous external outcome treated as failure (double-submit generator) -->
 <!-- Updated: 2026-07-01 — Added ProjectDiscovery 2026 stat (AI code 1.88× more vulnerable), specific slopsquatting incidents (unused-imports npm, huggingface-cli 30K+, CSA April 2026 autonomous agent risk), iterative refinement degradation anti-pattern (Arxiv 2506.11022) -->
 <!-- Updated: 2026-05-15 — Added 6th review axis: Test-Production Contract (orphan tests after DELETE/RENAME/signature change). Driven by PR #155 + 2026-05-15 ksef_daemon incident (7 orphan tests) -->
 <!-- Updated: 2026-05-01 — Added slopsquatting and deprecated config format checks to AI-generated code table, updated vulnerability stats to Veracode 2026 (45%) -->
-Last updated: 2026-07-01
+Last updated: 2026-07-05

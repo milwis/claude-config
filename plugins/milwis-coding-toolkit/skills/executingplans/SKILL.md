@@ -97,6 +97,7 @@ For each group G:
 - Exact files to create / modify
 - Acceptance criteria for THIS task only
 - Explicit "do NOT touch file X" if overlap risk
+- **Canon hand-off (financial / state / document tasks):** if the plan names a canonical implementation for this task's quantity/state/document, the agent prompt MUST include it — *"Canon: `<file:line>` — call it or mirror it; report any forced divergence back instead of silently coding around it."* Dispatching a variant-path task without its canon reference is an incomplete dispatch: fix the prompt, not the agent.
 
 ---
 
