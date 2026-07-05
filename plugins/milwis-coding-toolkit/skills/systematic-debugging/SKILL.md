@@ -197,6 +197,17 @@ update `docs/troubleshooting.md` with symptom → cause → fix, per the project
 
 ---
 
+## Quick Reference — Phase exit criteria
+
+| Phase | Done when |
+|---|---|
+| 1. Root cause | You understand *what* is wrong and *why* |
+| 2. Pattern | You can articulate every relevant difference |
+| 3. Hypothesis | Theory confirmed (→ Phase 4) or new theory formed |
+| 4. Fix | Bug resolved, all tests green, no regressions |
+
+---
+
 ## Integration
 
 - `test-driven-development` — Phase 4 step 1 (failing test before fix) is a TDD RED step
