@@ -12,7 +12,7 @@
       "name": "milwis-coding-toolkit",
       "source": "./plugins/milwis-coding-toolkit",
       "description": "Language-specific coding expert agents that prevent AI code generation errors, plus /lang-guidelines skill to create and update them",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "development",
       "tags": ["agents", "coding", "best-practices", "code-quality"]
     }
