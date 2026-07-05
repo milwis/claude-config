@@ -19,7 +19,6 @@ Applies `verification-before-completion` when reporting back — never claim "bu
 The FIRST debugging step is ALWAYS checking application logs.
 
 1. **Identify the relevant log source:**
-   - Early-warning/health report first, if the project has one (FakturyKonkret: branch `log-reports`, sections HEALTH STATUS / ANOMALIES) — if something is flagged there, the issue is there, not in `[ERROR]`
    - Which module/service does the error originate from?
    - Look for structured logs first (JSON, tagged by module)
    - Error logs: `grep -ri 'ERROR\|CRITICAL\|FATAL' logs/ --include="*.log" | tail -30`
@@ -47,14 +46,11 @@ The FIRST debugging step is ALWAYS checking application logs.
 - Exact file and line from stack trace
 - `git blame` — recently changed?
 - Reproducible consistently or intermittent?
-- Regression after a release? `git bisect` with the last known-good tag beats reading diffs
-- One user affected while others are fine → suspect data, not code
 
 ## Step 3: Form Hypotheses
 - List 2-3 most likely root causes based on evidence
 - Rank by probability
 - Design a test for the most likely hypothesis first
-- Test ONE hypothesis at a time, one variable at a time — never stack speculative fixes
 
 ## Step 4: Validate Hypothesis
 - Add targeted debug logging if needed
@@ -81,7 +77,6 @@ For each issue:
 - **Fix** — specific code change with file:line
 - **Test** — how to verify the fix works
 - **Prevention** — how to avoid similar issues
-- **Ruled out** — hypotheses eliminated and the evidence that eliminated them (prevents re-investigation)
 
 ---
 
@@ -114,5 +109,4 @@ Focus on root cause, not symptoms.
 
 <!-- Updated: 2026-05-01 — Added slopsquatting and AI tool supply chain compromise patterns -->
 <!-- Updated: 2026-06-01 — Added hallucinated APIs, incomplete-context conflicts, performance anti-patterns, semantic error dominance (>60% of AI faults) with 2026 stats -->
-<!-- Updated: 2026-07-05 — Early-warning report in Step 0, git bisect + data-vs-code heuristic in Step 2, one-hypothesis-at-a-time in Step 3, "Ruled out" in output format (alignment with merged systematic-debugging skill) -->
-Last updated: 2026-07-05
+Last updated: 2026-06-01

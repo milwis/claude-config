@@ -70,6 +70,39 @@ Dogrywka na polecenie użytkownika: z dwóch skilli debugowania — `systematic-
 
 ---
 
+## 5. Agent `debugger` — celowane uzupełnienia (nie rewrite)
+
+Backup: `debugger.agent.md.bak`. Agent był dobry — dodane 4 rzeczy wyrównujące go ze zfuzowanym skillem `systematic-debugging`:
+
+| Zmiana | Uzasadnienie |
+|---|---|
+| Step 0: raport wczesnego ostrzegania PRZED `[ERROR]` (FakturyKonkret: branch `log-reports`, HEALTH STATUS / ANOMALIES) | Agent nie znał systemu early-warning (CLAUDE.md 2026-05-14) — a to pierwszy krok ścieżki debugowania projektu. |
+| Step 2: `git bisect` przy regresji + heurystyka "1 użytkownik vs reszta OK → dane, nie kod" | Obie techniki są w skillu i CLAUDE.md; agentowi brakowało. |
+| Step 3: "Test ONE hypothesis at a time, one variable at a time — never stack speculative fixes" | Agent pozwalał listować 2-3 hipotezy bez dyscypliny testowania jednej naraz — rozjazd ze skillem (Faza 3). |
+| Output Format: nowa pozycja **Ruled out** (wykluczone hipotezy + dowód wykluczenia) | Zapobiega ponownemu śledztwu po tych samych ścieżkach przy nawrotach buga. |
+
+**Ryzyko regresji:** pomijalne — wyłącznie dodatki, zero usunięć; konwencja stampów aktualizacji zachowana.
+
+---
+
+## 6. Agent `backend-security-coder` — pełna regeneracja (9,0 KB → ~9,6 KB)
+
+Backup: `backend-security-coder.agent.md.bak`.
+
+| Zmiana | Typ | Uzasadnienie |
+|---|---|---|
+| Nowy "Discipline overlay": `verification-before-completion` — werdykt "secure"/"fixed" tylko z pokazanym dowodem | dodatek | Wzorzec już obecny u `code-reviewer`, `test-automator`, `debugger` — security-coder był jedynym bez overlayu; domyka spójność toolkitu. |
+| ALWAYS: nowa reguła **Fail CLOSED** (guard z wyjątkiem/timeoutem/brakiem configu → DENY, nie pominięcie checku) | dodatek | Ugruntowane w audytach projektu (plan `2026-07-04-triage2-205-ddd-fail-open-gaps.md` — cała klasa fail-open) i skillu `insecure-defaults`. Powtarzalna klasa defektów, której tabela nie kodowała. |
+| ALWAYS: nowa reguła **Timing-safe secret comparison** (`hash_equals()` / `crypto.timingSafeEqual()`) | dodatek | Wzorzec już produkcyjnie używany w projekcie (webhook deployu waliduje sekret przez `hash_equals` — CLAUDE.md §2a); agent go nie wymagał. |
+| Common Vulnerabilities: nowy wiersz **CSRF** (token na każdym mutującym requeście, SameSite) | dodatek | Jedyna pozycja OWASP-owej klasyki nieobecna w tabeli, mimo że projekt ma dedykowany `csrf-interceptor.js`. |
+| Checklist §5 Error Responses: dopisany fail-closed na ścieżce błędu | doprecyzowanie | Spójność z nową regułą ALWAYS. |
+| Output Format: jawne "Every finding cites file:line and a concrete fix — no generic advice" | doprecyzowanie | Ten sam kontrakt co w promptach Pass 2 writing-plans. |
+| Zachowane bez zmian | — | Frontmatter (name/description/model: sonnet), wszystkie 13 dotychczasowych reguł ALWAYS (w tym 3 lekcje audytowe: session regeneration na KAŻDEJ ścieżce logowania, permission consistency among neighbor routes, anonimizowane fixtures/GDPR), 8 pozycji ASK FIRST, wszystkie 14 zakazów NEVER (debug endpoints, tokeny w query stringu, composer/npm audit w CI, non-CSPRNG), 5-sekcyjny checklist ✅/❌, tabela podatności z aktualizacjami OWASP 2026 (SSRF→A01, Supply Chain A03, Mishandled Exceptions), format raportu z emoji-severity, cała sekcja AI & Agentic Security (statystyki Veracode/Sherlock, slopsquatting, OWASP Agentic 2026, MCP Top 10), historyczne komentarze aktualizacji. |
+
+**Ryzyko regresji:** bardzo niskie — regeneracja jest addytywna (3 nowe reguły + 2 doprecyzowania), żadna dotychczasowa reguła nie została usunięta ani osłabiona.
+
+---
+
 ## Jak porównać / jak wycofać
 
 - Diff starej i nowej wersji:
