@@ -18,7 +18,7 @@ Complete development toolkit: language-specific coding agents, security review, 
 | Agent | Focus |
 |-------|-------|
 | backend-security-coder | Three-tier security boundary system (Always/Ask/Never) |
-| code-reviewer | Structured 5-axis reviews with severity labels |
+| code-reviewer | Structured 7-axis reviews with severity labels |
 | debugger | Systematic 6-step root cause analysis, log-first approach |
 | database-optimizer | Database performance tuning and optimization |
 | refactoring-specialist | Safe code transformation techniques |
