@@ -1,13 +1,16 @@
-# Prompt for `refactoring-specialist` — architecture, complexity, debt
+# Prompt for `refactoring-orchestrator` — architecture, complexity, debt
 
 Paste the body below as the `prompt` parameter. Replace `<INVENTORY_PATH>`.
 
+The orchestrator runs in its read-only audit mode here — it diagnoses
+(FAZA 2 only), it does not back up, delegate, or change anything.
+
 ```
-subagent_type: refactoring-specialist
+subagent_type: refactoring-orchestrator
 description: Architectural audit — debt, complexity, large-file risk
 prompt: |
   You are auditing architecture and structural quality of the application
-  in <INVENTORY_PATH>. Mode: READ-ONLY (do NOT refactor — diagnose).
+  in <INVENTORY_PATH>. Mode: READ-ONLY audit (do NOT refactor — diagnose).
 
   Categories:
 

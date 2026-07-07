@@ -21,7 +21,7 @@ Complete development toolkit: language-specific coding agents, security review, 
 | code-reviewer | Structured 7-axis reviews with severity labels |
 | debugger | Systematic 6-step root cause analysis, log-first approach |
 | database-optimizer | Database performance tuning and optimization |
-| refactoring-specialist | Safe code transformation techniques |
+| refactoring-orchestrator | End-to-end refactoring orchestration: backup → baseline → audit → delegated execution → equivalence proof. Never codes itself |
 | test-automator | Comprehensive test automation strategies |
 | mobile-pwa-developer | PWA development with offline-first architecture |
 

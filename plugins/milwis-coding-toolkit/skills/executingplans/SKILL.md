@@ -155,7 +155,7 @@ For tasks that modify existing files: read the file IF you need context you don'
 | Query optimization, indexes, EXPLAIN | `database-optimizer` |
 | Bug investigation | `debugger` |
 | Security-sensitive code | `backend-security-coder` |
-| Refactoring, cleanup | `refactoring-specialist` |
+| Refactoring, cleanup | `refactoring-orchestrator` |
 | Final code review | `code-reviewer` |
 | Test creation | `test-automator` |
 | PWA / mobile | `mobile-pwa-developer` |

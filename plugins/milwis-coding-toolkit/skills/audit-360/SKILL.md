@@ -37,7 +37,7 @@ Specialists invoked via the Task tool (`subagent_type: <name>`):
 | 4 | `javascript-pro` | inherit | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
 | 5 | `sql-pro` | inherit | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
 | 6 | `database-optimizer` | inherit | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
-| 7 | `refactoring-specialist` | inherit | Architecture, complexity, dead code | `prompts/06-refactoring-specialist.md` |
+| 7 | `refactoring-orchestrator` (read-only audit mode) | inherit | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
 | 8 | `code-reviewer` | **opus** | AI-specific deep scrutiny | `prompts/07-code-reviewer-ai.md` |
 | 9 | `test-automator` | sonnet | Coverage, test quality, anti-patterns | `prompts/08-test-automator.md` |
 | 10 | `<lang>-pro` (2nd pass) | inherit | Dependencies + docs | `prompts/09-deps-docs.md` |
@@ -126,7 +126,7 @@ Specialist selection adapts to the stack detected in INVENTORY:
 | `backend-security-coder` (`prompts/01-backend-security.md`) | `php-pro` (`prompts/02-php-pro.md`) — if `*.php` files present |
 | `code-reviewer` AI-scrutiny pass (`prompts/07-code-reviewer-ai.md`) | `python-pro` — if `*.py` files present |
 | `test-automator` (`prompts/08-test-automator.md`) | `javascript-pro` (`prompts/03-javascript-pro.md`) — if `*.js`/`*.ts` |
-| `sql-pro` (`prompts/04-sql-pro.md`) — if any DB queries detected | `refactoring-specialist` (`prompts/06-refactoring-specialist.md`) — if codebase >5k LOC OR any file >1500 LOC |
+| `sql-pro` (`prompts/04-sql-pro.md`) — if any DB queries detected | `refactoring-orchestrator` (`prompts/06-refactoring-orchestrator.md`) — if codebase >5k LOC OR any file >1500 LOC |
 | `database-optimizer` (`prompts/05-database-optimizer.md`) — if any DB present | second pass of the project's primary language specialist for `dependencies + docs` (`prompts/09-deps-docs.md`) |
 
 Each specialist writes to `audit/findings/NN-<area>.md` with a unique ID prefix (`SEC-BE-`, `PHP-`, `JS-`, `SQL-`, `DB-`, `ARCH-`, `AI-`, `TEST-`, `DEP-`, …) and follows the finding format from §7.
@@ -226,7 +226,7 @@ All specialist prompts live in `prompts/` so the main skill stays small. The wor
 | `prompts/03-javascript-pro.md` | Deep JS/TS audit | If `*.js`/`*.ts`/`*.tsx` |
 | `prompts/04-sql-pro.md` | SQL injection / NULL / DDL / immutability | If any DB queries |
 | `prompts/05-database-optimizer.md` | Indexes / N+1 / EXPLAIN / partitioning | If any DB |
-| `prompts/06-refactoring-specialist.md` | Architecture / complexity / debt | If codebase >5k LOC OR file >1500 LOC |
+| `prompts/06-refactoring-orchestrator.md` | Architecture / complexity / debt | If codebase >5k LOC OR file >1500 LOC |
 | `prompts/07-code-reviewer-ai.md` | AI-specific 19-category scrutiny | Always |
 | `prompts/08-test-automator.md` | Coverage / test quality | Always |
 | `prompts/09-deps-docs.md` | Dependencies + docs (2nd pass) | Always |

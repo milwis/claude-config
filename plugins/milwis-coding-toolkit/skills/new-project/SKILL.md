@@ -79,7 +79,7 @@ If NOT from marketplace:
 | `code-reviewer` | ALWAYS — before every commit |
 | `debugger` | ALWAYS — root cause analysis |
 | `test-automator` | ALWAYS — test strategy |
-| `refactoring-specialist` | ALWAYS — code cleanup |
+| `refactoring-orchestrator` | ALWAYS — refactoring end-to-end |
 | `backend-security-coder` | When project has API/auth/user data |
 | `database-optimizer` | When project has database |
 | `sql-pro` | When project has SQL database |
@@ -105,7 +105,7 @@ Generate based on stack from Step 0:
 | Bugs, errors, failures | `debugger` | Start from logs, then code |
 | DB performance | `database-optimizer` | For slow queries, indexing |
 | Tests | `test-automator` | For test creation |
-| Refactoring | `refactoring-specialist` | For code cleanup |
+| Refactoring | `refactoring-orchestrator` | Orchestrated, zero-regression process |
 | PWA / mobile | `mobile-pwa-developer` | Only if PWA |
 
 **Workflow:** `/brainstorming → /writing-plans → /executing-plans → code-reviewer → commit`
