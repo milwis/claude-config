@@ -37,6 +37,8 @@ Complete development toolkit: language-specific coding agents, security review, 
 | `/executingplans` | Execute plans task-by-task with stop-the-line discipline |
 | `/new-project` | Universal foundation scaffold for any new project |
 | `/audit-360` | Comprehensive 360° code audit. Orchestrates parallel domain specialists, consolidates via code-reviewer (opus), reproduces P0 PoCs via debugger, self-reviews fix proposals against hallucinated APIs, and proposes agent updates from recurring patterns. Universal — adapts to any stack via `audit/INVENTORY.md` |
+| `/task-lifecycle` | Full autonomous cycle for one task: build (subagent) → code-review loop with auto-fix (cap 3) → security pass → `verify-e2e` in a fresh subagent → report package. Main session orchestrates, never codes |
+| `/issue-pipeline` | Batch resolution of GitHub issues / audit findings: triage against HEAD (stale findings die), file-disjoint batching, one `task-lifecycle` per issue on its own branch, monitor-by-exception, final status table |
 
 ### Discipline skills (auto-triggered by matching context)
 
@@ -45,6 +47,7 @@ These skills are not slash commands — they auto-match based on their `descript
 | Skill | Triggers when | Core rule |
 |---|---|---|
 | `verification-before-completion` | About to claim anything is done / fixed / passing, or to commit / push / PR | No completion claims without fresh verification evidence in the same message |
+| `verify-e2e` | After implementing any user-facing change (GUI, API, CLI, cron) | Verify on the SURFACE the user touches, in a fresh adversarial subagent, with evidence artifacts (screenshots / responses / recordings) |
 | `test-driven-development` | Implementing any feature, bugfix, refactor, or behavior change | Red → verify red → green → verify green → refactor. No production code before a failing test |
 | `systematic-debugging` | Any bug, test failure, or unexpected behavior | 4 phases before any fix: investigate → compare → hypothesize → fix. 3+ failed fixes = architectural problem |
 
@@ -73,4 +76,30 @@ The skills form a layered workflow:
 3. **When hitting any bug, test failure, or broken build** → invoke `systematic-debugging` *before* proposing a fix.
 4. **For full feature development** → `/brainstorming` (if design unclear) → `/writingplans` → `/executingplans`, with the three discipline skills applied inside each step.
 
-The three discipline skills are stackable and deliberately short — they are designed to be pulled in without derailing whatever else you're doing.
+The discipline skills are stackable and deliberately short — they are designed to be pulled in without derailing whatever else you're doing.
+
+## Autonomy Layer
+
+On top of the workflow above sits the orchestration layer (added after Boris's "steps of AI adoption" — the goal is that the human reviews *outputs*, not the *process*):
+
+```
+              ONE TASK                          A BATCH OF ISSUES
+          /task-lifecycle                       /issue-pipeline
+                │                                      │
+   build → review-fix loop (≤3)          triage on HEAD → batch by file-
+   → security pass → verify-e2e           disjointness → one task-lifecycle
+   → report package                       per issue → status table
+                │                                      │
+                └──────────────┬───────────────────────┘
+                               ▼
+              user reviews: diff + evidence + blockers
+              user decides: merge / push / deploy (NEVER the agent)
+```
+
+Key principles baked in:
+
+- **The orchestrator never writes code** — everything happens in subagents; the main context stays clean.
+- **Verification is adversarial and isolated** — a fresh subagent tries to falsify the "done" claim on the user's surface (pixels / HTTP / CLI), producing evidence artifacts. Smarter models cheat more convincingly; isolation is the countermeasure.
+- **Every loop has a hard cap** (3 review-fix, 3 verify-fix, 10 issues/run) — exhausted cap = stop and report, never spin.
+- **BLOCKED is a first-class result** — missing test accounts / keys / tools get recorded in the project's `docs/VERIFICATION_ENV.md`, so the verification environment compounds over time.
+- **Upstream feed:** `/audit-360` findings → GitHub issues → `/issue-pipeline` closes the audit-to-remediation loop automatically.

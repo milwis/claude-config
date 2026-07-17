@@ -117,6 +117,7 @@ For each group G:
 **Final group** is always sequential and always contains:
 - Comprehensive test pass (dispatch `test-automator` if new tests are needed)
 - Code review (dispatch `code-reviewer`)
+- **Surface verification** for user-facing changes: run the `verify-e2e` skill in a FRESH subagent (GUI → browser + screenshots, API → real request). Tests passing ≠ the surface working.
 - Commit
 
 The final test pass IS the comprehensive test coverage — don't add a separate "final testing task". Per-group verification + final pass is enough.
@@ -178,5 +179,7 @@ For tasks that modify existing files: read the file IF you need context you don'
 ## Companion Skills
 
 - `verification-before-completion` — the verification gate (runs at group boundaries, not per-task)
+- `verify-e2e` — surface-level verification in the final group (user-facing changes)
 - `systematic-debugging` — mandatory when Stop-the-Line fires
 - `test-driven-development` — for new production code written during execution
+- `task-lifecycle` — when this plan execution is one stage of a fully orchestrated task (adds review-fix loop + report package on top)

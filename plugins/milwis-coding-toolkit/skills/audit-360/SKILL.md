@@ -399,6 +399,7 @@ The main agent:
 10. **STEP 7** — `verification-before-completion` before presenting.
 11. **STEP 8** — produce `audit/AGENT_UPDATES.md`; ASK whether to apply updates.
 12. Output to user: report path + executive summary + GO/NO-GO + % of P0 reproduced + list of agent updates pending approval.
+13. **Remediation handoff (optional, on user approval):** offer to convert P0/P1 findings into GitHub issues (`gh issue create` — one per finding, body = finding + fix proposal + repro path) and launch the `issue-pipeline` skill on them. issue-pipeline re-triages every finding against HEAD before work starts, so the handoff is safe even days after the audit.
 
 ---
 

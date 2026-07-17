@@ -59,6 +59,7 @@ Before any statement implying success:
 | Requirements met | Line-by-line checklist vs. spec |
 | Subagent completed | `git diff` / `git status` shows expected changes |
 | Codebase fact stated | Grep/Read output confirming the fact exists |
+| User-facing change works | `verify-e2e` PASS from a fresh subagent, with evidence artifacts |
 
 ---
 
@@ -81,6 +82,7 @@ Before any statement implying success:
 - `test-driven-development` — Verify RED and Verify GREEN are this gate
 - `systematic-debugging` — Phase 4 "Verify Fix" is this gate
 - `code-reviewer` — before reporting "addressed"
+- `verify-e2e` — the OUTER gate: this skill proves commands/tests pass, verify-e2e proves the user surface works. User-facing change = both gates.
 
 ---
 
