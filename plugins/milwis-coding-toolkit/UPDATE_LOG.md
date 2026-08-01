@@ -1,5 +1,25 @@
 # Update Log
 
+## Run: 2026-08-01 — New language expert: nextjs-pro
+
+### Added
+- **agents/nextjs-pro.md**: Next.js 15.5+ / React 19.2 / TypeScript 5 expert (App Router, Server Components, Server Actions), generated via `/lang-guidelines` with web research. 15 documented AI failure modes with ❌/✅ examples, each grounded in a source: Pages Router APIs smuggled into App Router (`getServerSideProps`, `next/router`, `next/head`); synchronous `cookies()`/`headers()`/`params`/`searchParams` (async since Next 15); assuming `fetch` and GET Route Handlers are still cached by default (they are not); Server Actions treated as trusted instead of public HTTP endpoints; middleware as the sole auth layer (CVE-2025-29927); server data leaking into Client Components via props; `"use client"` at page/layout level instead of leaves; `forwardRef` in React 19; `useEffect` for initial data; hydration mismatches from nondeterministic render; mutations without `revalidatePath`/`revalidateTag`; hallucinated imports; `redirect()`/`notFound()` swallowed by try/catch; `.parse()` at the boundary with `any` behind it; filesystem writes on serverless. Ecosystem notes cover Tailwind 4, Serwist/PWA caching pitfalls, Zod 4, Netlify deployment.
+
+### Updated
+- **README.md**: nextjs-pro added to the Language Experts table.
+- **plugin.json / marketplace.json**: 1.3.0 → 1.4.0.
+
+### Rationale
+Toolkit had no specialist for the JS meta-framework stack. `javascript-pro` covers language-level JS/TS but not framework semantics — and Next 15 / React 19 are exactly where LLM training data actively fights correct code (years of Pages Router and Next 13/14 content dominate), so a dedicated agent carries the most weight per token.
+
+### Origin
+Created during an `/audit-360` run on the `aplikacja_portfel_inwestycyjny` project (Next.js 15.5.22 + React 19.2.4 + Serwist PWA on Netlify), where the specialist-selection step found no matching language expert.
+
+### Issues
+- None
+
+---
+
 ## Run: 2026-07-17 — Autonomy layer: task-lifecycle, issue-pipeline, verify-e2e
 
 ### Added

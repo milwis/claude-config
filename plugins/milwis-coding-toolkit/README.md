@@ -12,6 +12,7 @@ Complete development toolkit: language-specific coding agents, security review, 
 | javascript-pro | JavaScript/TypeScript | Security-first, ES2025, XSS/injection prevention, npm defense |
 | sql-pro | SQL | AI error prevention, query optimization, injection defense |
 | php-pro | PHP 8.3+/8.4/8.5 | Security-first, PSR-12, Laravel/Symfony, AI vulnerability mitigation |
+| nextjs-pro | Next.js 15+/React 19/TypeScript | App Router, Server Components, Server Actions as public endpoints, Next 15 caching semantics, CVE-2025-29927 |
 
 ### Universal Tools
 
