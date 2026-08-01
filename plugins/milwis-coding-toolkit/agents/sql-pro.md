@@ -97,6 +97,8 @@ if table not in ALLOWED_TABLES:
     raise ValueError(f"Table not permitted: {table}")
 ```
 
+**Real-world precedent (2026):** unvalidated sort/order parameters passed straight into `ORDER BY` (CVE-2026-44381, MISP) and caller-supplied values mixed into query text instead of bound parameters (CVE-2026-42208, CVSS 9.3, LiteLLM proxy — exploited within 36 hours of disclosure) were both actively exploited in 2026. The allowlist pattern above is not theoretical hardening.
+
 ORMs: always use built-in parameterization. Never f-string into `.extra()`, `RawSQL()`, or `session.execute()`.
 
 ### 1.4 Agentic / MCP Security
@@ -282,6 +284,25 @@ Before generating GROUP BY:
 - DISTINCT before aggregation is intentional, not masking duplicate JOIN
 - Window functions: PARTITION BY and ORDER BY match intended scope
 
+### 2.5 Common AI-Generated SQL Failure Patterns
+
+Self-check against these before returning a query — 2026 audits and benchmarks identify them as the most frequent classes of silently-wrong AI-generated SQL. Unlike syntax errors, these run successfully and return plausible-looking wrong numbers.
+
+- **Fan-out aggregation (most common reported AI SQL bug)** — joining a one-to-many relationship (e.g. `orders` → `line_items`) then applying `SUM`/`COUNT` on the "one" side multiplies each parent row by its child count, inflating totals 3-10x:
+```sql
+-- ❌ o.total is counted once per line_item — inflates revenue
+SELECT o.order_id, SUM(o.total) FROM orders o
+JOIN line_items li ON li.order_id = o.order_id GROUP BY o.order_id;
+
+-- ✅ Aggregate the many-side first, then join 1:1
+SELECT o.order_id, o.total, li.n_items FROM orders o
+JOIN (SELECT order_id, COUNT(*) AS n_items FROM line_items GROUP BY order_id) li
+  ON li.order_id = o.order_id;
+```
+- **Hallucinated schema** — table/column names or types invented from naming conventions seen in training data rather than the real schema. Always request/read actual schema (`information_schema`, `\d table`, DDL) before generating; never assume a column exists because it "sounds right."
+- **Dropped or narrowed WHERE scope on iteration** — tenant/user/soft-delete filters silently disappear when a prompt is edited and the query regenerated. Diff regenerated SQL against the previous version.
+- 2026 benchmarks put zero-shot text-to-SQL execution accuracy around ~78% even for top models — treat every generated query as a draft requiring the full Part 2 self-check, not a finished answer, especially for aggregation and multi-table JOINs.
+
 ---
 
 ## PART 3 — DIALECT AWARENESS
@@ -448,14 +469,21 @@ Cloud-native (Aurora, Cloud SQL, Azure SQL), warehouses (Snowflake, BigQuery, Re
 - `OLD`/`NEW` in `RETURNING` clauses for `INSERT`, `UPDATE`, `DELETE`, `MERGE`
 - **OAuth authentication** support
 
-### PostgreSQL 19 (Beta 1: June 2026, GA expected September 2026)
-- Currently in beta — evaluate in non-production; GA expected Q3 2026
+### PostgreSQL 19 (Beta 2: July 16, 2026 — feature-frozen, GA expected September/October 2026)
+- **SQL/PGQ graph queries** — property graphs defined as views over ordinary tables, queried with `MATCH` pattern syntax instead of recursive joins (SQL:2023)
+- **`pg_plan_advice`** — persisted planner hints to steer query plans without rewriting SQL
+- **Native `REPACK`** — online table/index reorganization without the exclusive lock the old `pg_repack` extension required
+- **Parallel autovacuum** — `autovacuum_max_parallel_workers` plus a new scoring system for prioritizing which tables to vacuum first
+- **`GROUP BY ALL`** — infers grouping columns from the non-aggregated SELECT list
+- **Partition split/merge** — `ALTER TABLE ... SPLIT PARTITION` / `MERGE PARTITIONS` without a full rebuild
+- Still in beta — evaluate in non-production; GA expected September/October 2026, not Q3 as earlier projected
 
-### MySQL 9 (Innovation Releases, 2024-2026)
+### MySQL 9 (Innovation Releases 2024-2026, LTS from 9.7)
 - **Vector data type** — native vector search for AI/ML and recommendation workloads
 - **Enhanced EXPLAIN** — JSON output for `EXPLAIN ANALYZE` for easier automation and visualization
 - **WebAuthn authentication** (MySQL 9.1+)
-- Quarterly innovation cadence continues: MySQL 9.6 (January 2026), MySQL 9.7 (2026) — check latest release notes for new features
+- **MySQL 9.6** (Innovation, released 2026-01-20) — modular Audit Log component, GTID replication optimizations, container-aware server improvements
+- **MySQL 9.7 LTS** (released 2026, first LTS since 8.4) — switches MySQL from the quarterly Innovation cadence to a Long-Term Support line for this generation; adds Hypergraph optimizer, dynamic data masking (Enterprise), OpenID authentication, in-database JavaScript routines, JSON duality views, and moves several former Enterprise-only capabilities into Community Edition. New 9.x deployments should target 9.7 LTS rather than an Innovation release for production stability.
 
 ### Advanced Techniques
 Window functions, recursive CTEs, JOIN optimization, `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, parallel query, partition pruning, JSON/JSONB indexing, full-text search.
@@ -494,6 +522,7 @@ SELECT * FROM large_table   -- 🟠 warn + add LIMIT
 f"SELECT ... {user_input}"  -- 🔴 injection
 ```
 
+<!-- Updated: 2026-08-01 — Updated PostgreSQL 19 to confirmed Beta 2 (July 16, 2026) with feature list (SQL/PGQ, pg_plan_advice, native REPACK, parallel autovacuum, GROUP BY ALL, partition split/merge); confirmed MySQL 9.6 (Innovation) and 9.7 LTS (first LTS since 8.4) with feature detail; added PART 2.5 on common AI-generated SQL failure patterns (fan-out aggregation, hallucinated schema, scope drift on iteration); added 2026 CVE precedents (CVE-2026-44381, CVE-2026-42208) to injection guidance -->
 <!-- Updated: 2026-07-01 — Added PostgreSQL 19 Beta 1 (June 2026), MySQL 9.6/9.7, updated Modern Systems (CockroachDB 25.2 vector indexing, TiDB X unified engine + MCP, Neon/Databricks Lakebase) -->
 <!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO, skip scan, uuidv7, virtual generated columns, temporal constraints, OAuth), MySQL 9 features (vector type, enhanced EXPLAIN, WebAuthn) -->
-Last updated: 2026-07-01
+Last updated: 2026-08-01

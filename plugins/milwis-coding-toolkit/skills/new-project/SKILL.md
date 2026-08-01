@@ -202,13 +202,15 @@ Contents:
 
 | Service | When | Image |
 |---|---|---|
-| PostgreSQL | SQL DB | `postgres:18` or `timescale/timescaledb:latest-pg18` (PG 18: async I/O, skip scan, uuidv7, virtual generated columns) |
+| PostgreSQL | SQL DB | `postgres:18` (currently `18.4`) or `timescale/timescaledb:latest-pg18` (PG 18: async I/O with up to 3x read throughput, skip scan, uuidv7, virtual generated columns) |
 | Redis | Cache/sessions | `redis:7-alpine` |
 | MongoDB | Documents | `mongo:8` |
 | RabbitMQ | Queue | `rabbitmq:4-management-alpine` |
 | Elasticsearch | Search/logs | `elasticsearch:8` |
 
 Always: env vars from `.env`, named volumes, health checks, memory limits.
+
+**Gotcha (postgres:18+):** the official image now defines its `VOLUME` at the parent `/var/lib/postgresql` and creates the data cluster in a versioned subdirectory (`/var/lib/postgresql/18/docker`) instead of directly in the mounted path — update volume mounts and `pg_upgrade` scripts accordingly when upgrading from `postgres:17` or earlier.
 
 ---
 
@@ -294,7 +296,10 @@ The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)
 - [ ] Security headers on every response
 - [ ] Health check endpoint
 - [ ] Exception handlers that NEVER leak internals
-- [ ] Pre-commit hook for secret detection
+- [ ] Pre-commit hook for secret detection (`gitleaks`, `trufflehog`, or `detect-secrets`)
+- [ ] Automated dependency updates enabled (`Dependabot` or `Renovate`) with lockfiles committed (`poetry.lock`, `package-lock.json`, `go.sum`) — no unpinned/floating versions in prod deps
+- [ ] SBOM (Software Bill of Materials) generated on build in CycloneDX or SPDX format — increasingly required for compliance (EU Cyber Resilience Act, US EO 14028) and needed to correlate dependencies against live CVEs
+- [ ] MFA enforced on all accounts with publish/admin rights (GitHub org, package registries, cloud console)
 
 ### Non-negotiable rules
 
@@ -306,6 +311,8 @@ The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)
 6. Auth on every endpoint except health/login; default deny
 7. Rate limiting: login strict (10/min), API reasonable (60/min)
 8. Generic errors to client, detailed logs server-side
+9. Dependencies pinned to exact versions/hashes — never unbounded ranges in production lockfiles
+10. Vulnerability scan (`Trivy`, `Grype`, or `pip-audit`/`npm audit`) on every build; block on critical/high findings
 
 ### Domain-specific safety
 
@@ -362,9 +369,10 @@ Same interface as real adapter. Track state in memory. Enforce same rules (valid
 ## Phase 11: CI/CD & Quality Gates
 
 ### Deliverables
-- [ ] GitHub Actions workflow
-- [ ] Pipeline: lint → type check → test (with Docker services)
+- [ ] GitHub Actions workflow (still the dominant platform in 2026 for GitHub-hosted repos; GitLab CI/CD, Jenkins, CircleCI, or Argo CD/GitOps for Kubernetes-heavy deployments are the common alternatives)
+- [ ] Pipeline: lint → type check → test (with Docker services) → dependency/vulnerability scan → SBOM generation
 - [ ] Pre-commit hooks: syntax, secret detection, stack-specific
+- [ ] Build fails automatically on critical/high vulnerability findings — security scanning lives INSIDE the pipeline, not as an afterthought
 - [ ] `Makefile` with common commands
 
 ### Makefile commands
@@ -471,6 +479,8 @@ Total: ~3-4 hours for a complete foundation.
 9. Skipping startup validation → crash mid-work instead of refusing to start
 10. Skipping Docker → "works on my machine" syndrome
 11. Skipping domain safety → general security isn't enough for financial/medical
+12. Skipping SBOM/dependency scanning → unpinned deps and unknown CVEs ship to production; increasingly a compliance requirement, not optional
 
 <!-- Updated: 2026-05-01 — Updated Docker images (postgres:18, mongo:8, rabbitmq:4), added PG 18 feature notes -->
-Last updated: 2026-05-01
+<!-- Updated: 2026-08-01 — Added SBOM generation (CycloneDX/SPDX), dependency pinning/lockfiles, automated dependency updates (Dependabot/Renovate), secret-scanning tool names (gitleaks/trufflehog/detect-secrets), vulnerability scanning (Trivy/Grype) in CI, MFA-on-publish-rights rule, postgres:18 Docker volume-path gotcha, and CI/CD platform landscape note -->
+Last updated: 2026-08-01

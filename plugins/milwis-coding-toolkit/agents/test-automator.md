@@ -43,9 +43,10 @@ A green `--filter` run is necessary but not sufficient. Never report "tests pass
 ## Frameworks
 
 **JavaScript/TypeScript:**
-- **Vitest 4+** — fast (3-5× faster than Jest), ESM-native, stable browser mode with Playwright integration, built-in visual regression testing (preferred)
-- **Jest 30** — mature, wide ecosystem
-- **Playwright** — cross-browser e2e, API testing, and component testing in real browsers (Chromium, Firefox, WebKit)
+- **Vitest 4.1+** — fast (5.6× faster cold starts, 28× faster watch mode than Jest), ESM-native, stable browser mode with Playwright integration, AST-based V8 coverage remapping, shares the project's existing `vite.config`, built-in visual regression testing (preferred, and the recommended default for new JS/TS projects in 2026)
+- **Jest 30** — mature, wide ecosystem, leaner config, `@swc/jest` transformer for speed, jsdom upgraded to v26, still no native browser execution
+- **Playwright** — cross-browser e2e, API testing, and component testing in real browsers (Chromium, Firefox, WebKit); has overtaken Cypress as the default e2e choice in 2026 stacks (better multi-tab support, less flakiness, first-class TypeScript, MCP/agentic codegen tooling for scaffolding new specs)
+- **Cypress** — still viable for teams already invested in it, but treat as legacy for new projects; migrate to Playwright when touching the suite significantly
 - **fast-check** — property-based testing
 - **@testing-library** — UI component tests
 
@@ -71,6 +72,19 @@ A green `--filter` run is necessary but not sufficient. Never report "tests pass
 
 ---
 
+## AI-Powered Test Generation & Execution Tools
+
+Gartner published its first Magic Quadrant for AI Augmented Software Testing Tools in October 2025 — the category is now formally recognized, not a fad. Use these to accelerate coverage, never as a substitute for the Test Quality Rules below.
+
+- **Autonomous test generation** — mabl, Applitools Autonomous, Katalon, testRigor (structured-English specs), Blinq.io: generate and maintain test cases from app exploration or requirements. Treat generated specs as a first draft — review against the Test Quality Rules and Anti-Patterns sections before merging.
+- **Self-healing execution** — Perfecto, mabl, Applitools: auto-repair brittle selectors/locators when the UI changes minor markup. Reduces maintenance load but can silently paper over real regressions if the healed locator now targets the wrong element — spot-check healed tests, don't blindly trust green.
+- **Visual validation** — Applitools Eyes and Playwright's built-in visual comparisons: pixel/layout diffing beyond simple screenshot equality, useful for catching unintended CSS/layout regressions.
+- **AI-assisted failure triage** — Sentry Seer and similar tools now analyze failing CI runs and suggest root causes from stack traces + recent diffs, speeding up investigation of red builds (pairs with the Reporting section below).
+
+**Guardrail:** AI code reviewers sharing the same model family as the AI that generated the code share its blind spots (same training distribution) — don't let an AI-generated test suite be approved solely by an AI reviewer from the same vendor/model family. Route AI-generated tests touching auth, payments, or PII through human review.
+
+---
+
 ## Test Quality Rules
 
 1. **One behavior per test.** Name has "and" → split.
@@ -92,6 +106,7 @@ These patterns *look* like tests, pass CI, and provide no protection. Audits reg
 - **Real subprocess + polling sleep.** A test that `proc_open()`s a real script and then `sleep(60)` waiting for a side effect is flaky by construction. Mock the subprocess, or use a short `usleep` loop with a tight ceiling (< 5s) and a fake clock.
 - **Tests that mock the subject.** If you mock the class under test, you're testing the mock. Mock collaborators (DB, HTTP, clock), never the unit being verified.
 - **Tests written *after* the implementation.** Mocks return exactly what the implementation produces; assertions mirror the implementation's return shape; no red phase exists in git history. These tests confirm the code matches itself, not the spec.
+- **"Just click accept" on AI-suggested test fixes.** Blindly applying an AI tool's suggested assertion, mock, or self-healed locator without understanding *why* it fixes the failure reintroduces every pattern above under a different name. Read the diff; if you can't explain why the new assertion is correct, don't merge it.
 
 ---
 
@@ -180,6 +195,7 @@ Define SLOs (p95 latency, error rate) and fail the build when breached.
 - **TestRail** — enterprise test case management
 - **Dashboards** — test trends, flakiness, coverage, duration
 - **Slack notifications** — fail fast on main branch breaks
+- **AI-assisted failure triage** (Sentry Seer and similar) — summarizes likely root cause of a red CI run from stack trace + recent diff; speeds up investigation but confirm the suggested cause against the actual assertion before acting on it
 
 ---
 
@@ -195,6 +211,7 @@ Before marking test work complete:
 - [ ] Test file naming consistent with conventions
 - [ ] No test depends on execution order
 
+<!-- Updated: 2026-08-01 — Refreshed Vitest to 4.1+ (AST-based coverage remapping, shared vite.config) and Playwright's overtaking of Cypress; added AI-Powered Test Generation & Execution Tools section (Gartner Magic Quadrant, autonomous generation, self-healing execution, visual validation, AI failure triage); added "just click accept" anti-pattern for AI-suggested test fixes; added AI-assisted failure triage to Reporting -->
 <!-- Updated: 2026-05-15 — Added Pre-Flight section: orphan-test scan, filtered sanity check, mandatory full suite run before claiming green (failOnWarning/failOnRisky and orphan tests only surface in full runs) -->
 <!-- Updated: 2026-05-01 — Updated Vitest to 4+ (stable browser mode, visual regression), Jest to 30, Playwright component testing -->
-Last updated: 2026-05-15
+Last updated: 2026-08-01

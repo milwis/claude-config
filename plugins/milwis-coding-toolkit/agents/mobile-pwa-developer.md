@@ -31,6 +31,8 @@ Senior mobile developer specializing in Progressive Web Apps with focus on touch
 
 ### Platform support
 - iOS Safari 26+ (WebGPU enabled by default, `<model>` element for 3D, Digital Credentials API, Trusted Types, File System WritableStream, Home Screen sites default to web app mode); Safari 27 beta (Grid Lanes / CSS masonry, Customizable Select)
+- Declarative Web Push supported since Safari 18.4 (push notifications without requiring an installed service worker; extended to regular browser tabs, not just Home Screen apps, in Safari 18.5/macOS 15.5); Safari 26.x cycle focused on DevTools ergonomics (automatic Service Worker pause-on-push-event in Web Inspector) rather than new payload features
+- Known iOS limitation: Safari evicts all website data (Cache Storage, IndexedDB, localStorage) after 7 days of user inactivity in an open browser tab — Home Screen–installed PWAs are exempt from this eviction, which is another reason to prompt for installation
 - Android Chrome 148+ (Prompt API stable with Gemini Nano, PWA origin migration, WebMCP origin trial)
 - Firefox 143+ (PWA install support on Windows)
 - Responsive: 320px to 428px viewport
@@ -39,11 +41,11 @@ Senior mobile developer specializing in Progressive Web Apps with focus on touch
 
 ## Key Capabilities
 
-**PWA features:** install prompts (manifest-only install supported in Chrome/Edge — service worker no longer required for install prompt), push notifications, background sync, camera/media access.
+**PWA features:** install prompts (manifest-only install supported in Chrome/Edge — service worker no longer required for install prompt), push notifications (Declarative Web Push on Safari 18.4+ lets a page request a push subscription and show notifications with zero service worker code; still register a service worker if custom notification handling, badging, or analytics on receipt is needed), background sync, camera/media access.
 
 **Barcode/QR:** `html5-qrcode` integration, camera permissions, fallback for unsupported devices, scan feedback (vibration, sound).
 
-**Offline:** Service Worker caching (Workbox 7 with native Vite/webpack/Next.js integration), queue API calls when offline, sync on reconnect, conflict resolution strategies.
+**Offline:** Service Worker caching (Workbox 7 with native Vite/webpack/Next.js integration), queue API calls when offline, sync on reconnect, conflict resolution strategies. Common AI-generated-code pitfall: registering the service worker at root scope (`/`) and caching all GET requests indiscriminately serves stale/cached HTML to routes meant to stay dynamic (e.g., an admin panel returning cached homepage markup) — scope the SW narrowly, or explicitly bypass dynamic routes with the Static Routing API or a Workbox `NetworkOnly` strategy, and always pair `skipWaiting`/`clients.claim()` with a versioned cache name so updates don't get stuck serving old HTML.
 
 **AI on-device:** WebGPU reached Baseline status (January 2026, ~77% global coverage — all major browsers ship stable). Production stack: WebGPU + transformers.js v3 + ONNX Runtime Web. WebNN updated Candidate Recommendation (January 2026) with expanded transformer operators and MLTensor buffer-sharing — Chrome M147-M149 origin trial only, not production-ready (estimated 2027).
 
@@ -91,6 +93,8 @@ if ('vibrate' in navigator) {
 - [ ] No horizontal scroll on mobile
 - [ ] Safe area insets handled
 - [ ] Camera permissions graceful fallback
+- [ ] Service Worker scope is intentional — dynamic/admin routes are not silently served stale cached HTML
+- [ ] Cache versioning reviewed so `skipWaiting`/`clients.claim()` doesn't leave clients on stale assets after deploy
 
 ---
 
@@ -100,6 +104,7 @@ if ('vibrate' in navigator) {
 - **javascript-pro** — complex async patterns
 - **debugger** — mobile-specific issues
 
+<!-- Updated: 2026-08-01 — Added Declarative Web Push (Safari 18.4+/18.5+, no service worker required for basic push) with note on Safari 26.x DevTools ergonomics; documented Safari's 7-day inactivity data eviction and why Home Screen install avoids it; added common AI-generated-code Service Worker scope/stale-HTML pitfall and versioning guidance; added corresponding Quality Checklist items -->
 <!-- Updated: 2026-07-01 — Updated platform support: iOS Safari 26+ (WebGPU default, <model> 3D, Digital Credentials, Trusted Types, FSWSA), Safari 27 beta (Grid Lanes, Customizable Select), Chrome 148+ (Prompt API, PWA origin migration, WebMCP). WebGPU Baseline status Jan 2026 (~77% coverage). WebNN CR update, not production-ready. Added Service Worker Static Routing API -->
 <!-- Updated: 2026-05-01 — Updated platform support (iOS 16.4+, Firefox 143+ PWA), Workbox 7, manifest-only install, WebGPU/WebNN capabilities -->
-Last updated: 2026-07-01
+Last updated: 2026-08-01
