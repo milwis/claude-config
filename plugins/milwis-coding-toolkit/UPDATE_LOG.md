@@ -1,5 +1,16 @@
 # Update Log
 
+## Run: 2026-08-01 — Set all toolkit agents to opus model class
+
+### Updated
+- **All agent frontmatter**: `model:` set to `opus` across every toolkit agent (was a mix of `inherit`/unset), so agents run on the Opus class regardless of the session model.
+- **plugin.json / marketplace.json**: 1.4.1 → 1.4.2.
+
+### Issues
+- None
+
+---
+
 ## Run: 2026-08-01 — Generalize nextjs-pro to be project-agnostic
 
 ### Updated
@@ -31,6 +42,49 @@ Created during an `/audit-360` run on the `aplikacja_portfel_inwestycyjny` proje
 
 ### Issues
 - None
+
+---
+
+## Run: 2026-08-01 — Monthly maintenance sweep
+
+### Updated
+- **agents/python-pro.md** (411→415 lines): Corrected version status (Python 3.14 stable / 3.15 beta, RC1 due 2026-08-04, final 2026-10-01 per PEP 790; 3.10 EOL Oct 2026). Added CVE-2026-5713 (profiling/asyncio-introspection privilege escalation) and CVE-2026-4786/6100 (CERT-FR CPython RCE advisory). Noted incomplete-mitigation follow-ups for CVE-2026-4519 and CVE-2026-0672. Added slopsquatting persistence note and an architecture-persona tip for AI-generated modules.
+- **agents/sql-pro.md** (500→528 lines): Added new PART 2.5 "Common AI-Generated SQL Failure Patterns" (fan-out aggregation, hallucinated schema, WHERE-scope drift on iteration, ~78% zero-shot text-to-SQL accuracy benchmark). Confirmed PostgreSQL 19 Beta 2 (July 16, 2026) feature list. Confirmed MySQL 9.6 (Innovation) and 9.7 LTS (first LTS since 8.4) feature detail. Added 2026 CVE precedents (CVE-2026-44381 MISP, CVE-2026-42208 LiteLLM) to injection guidance.
+- **agents/database-optimizer.md** (246→268 lines): Updated PostgreSQL 19 to confirmed Beta 2 with full feature list (pg_plan_advice, native REPACK, parallel autovacuum, logical replication of sequences, SQL/PGQ, GROUP BY ALL). Added MySQL 9.7 LTS (Hypergraph Optimizer now in Community Edition, cpuset cgroup support, HA telemetry now free). Added vector (HNSW/IVF) index row. Added "Redis-compatible alternatives" section (Valkey, Dragonfly, Garnet, Kvrocks).
+- **agents/mobile-pwa-developer.md** (105→110 lines): Added Declarative Web Push (Safari 18.4+/18.5+, no service worker required). Documented Safari's 7-day inactivity data-eviction gotcha (Home Screen installs exempt). Added common AI-generated Service Worker scope/stale-HTML pitfall plus fix, and two corresponding Quality Checklist items.
+- **agents/test-automator.md** (200→217 lines): Refreshed Vitest to 4.1+ (AST-based coverage remapping, shared vite.config) and noted Playwright overtaking Cypress as 2026 default. Added new "AI-Powered Test Generation & Execution Tools" section (Gartner's first AI-testing Magic Quadrant, autonomous generation, self-healing execution, visual validation, AI failure triage). Added "just click accept" anti-pattern for AI-suggested test fixes.
+- **skills/new-project/SKILL.md** (477→486 lines): Added SBOM generation (CycloneDX/SPDX), automated dependency updates (Dependabot/Renovate) with lockfile pinning, named secret-scanning tools (gitleaks/trufflehog/detect-secrets), vulnerability scanning (Trivy/Grype/pip-audit) as a CI gate, MFA-on-publish-rights rule, and a postgres:18+ Docker volume-path gotcha.
+
+### Skipped (up to date, < 30 days)
+- **backend-security-coder.md**: Last updated 2026-07-05 (27 days)
+- **code-reviewer.md**: Last updated 2026-07-07 (25 days)
+- **debugger.md**: Last updated 2026-07-05 (27 days)
+- **javascript-pro.md**: Last updated 2026-07-05 (27 days)
+- **php-pro.md**: Last updated 2026-07-05 (27 days)
+- **refactoring-orchestrator.md**: Last updated 2026-07-07 (25 days)
+
+### Skipped (methodology/stable)
+- brainstorming/SKILL.md
+- writingplans/SKILL.md
+- executingplans/SKILL.md
+- audit-360/SKILL.md
+- issue-pipeline/SKILL.md
+- systematic-debugging/SKILL.md
+- task-lifecycle/SKILL.md
+- test-driven-development/SKILL.md
+- verification-before-completion/SKILL.md
+- verify-e2e/SKILL.md
+- lang-guidelines/SKILL.md — meta-skill describing how to research/generate other agents; no "Last updated" of its own and no external technology domain to research (process definition, same category as brainstorming/writingplans/executingplans)
+
+### Deferred to next run
+- None — all 6 evolving files processed within the 10-file cap
+
+### Issues
+- None — all WebSearch queries returned useful results, no rephrasing needed, no git conflicts, all diffs self-reviewed clean (frontmatter intact, no deletions, line counts grew)
+
+### Next run priorities
+- backend-security-coder.md, debugger.md, javascript-pro.md, php-pro.md (last updated 2026-07-05 — will be ~57 days by next run)
+- code-reviewer.md, refactoring-orchestrator.md (last updated 2026-07-07 — will be ~55 days by next run)
 
 ---
 

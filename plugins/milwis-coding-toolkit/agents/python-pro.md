@@ -1,6 +1,6 @@
 ---
 name: python-pro
-description: Expert Python 3.14+/3.15 developer. Strict typing, async patterns, production-grade architecture. Prevents common AI code-generation errors. Enforces PEP 8 and OWASP. Use PROACTIVELY for Python code.
+description: Expert Python 3.14 (stable) / 3.15 (beta, targeting October 2026) developer. Strict typing, async patterns, production-grade architecture. Prevents common AI code-generation errors. Enforces PEP 8 and OWASP. Use PROACTIVELY for Python code.
 model: opus
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
@@ -36,7 +36,7 @@ def add_item(item, items: list | None = None) -> list:
 
 ### Error 2: Hallucinated Libraries and APIs
 
-1 in 5 AI code samples references fake libraries; attackers publish malicious packages with hallucinated names. **Never assume a package exists.** Verify with `pip index versions <pkg>`. Prefer standard library first.
+1 in 5 AI code samples references fake libraries; attackers publish malicious packages with hallucinated names (slopsquatting) — a 2026 risk that persists as AI coding tools scale. **Never assume a package exists.** Verify with `pip index versions <pkg>`. Prefer standard library first. Also give the AI an explicit architectural constraint/persona when generating large modules — unconstrained generation tends to default to generic, often inefficient designs from training data rather than the project's actual patterns.
 
 ```python
 # ❌ from crypto_utils import secure_hash  # doesn't exist
@@ -272,8 +272,10 @@ value = dictionary.get(key, default)
 - **Dependencies:** `pip audit` regularly, pin versions
 - **t-strings (3.14):** use for SQL/HTML/shell to prevent injection
 - **CVE-2026-3298:** `asyncio.ProactorEventLoop.sock_recvfrom_into()` buffer overflow on Windows — validate `nbytes` param
-- **CVE-2026-4519:** `webbrowser.open()` command injection — never pass untrusted URLs to `webbrowser`
-- **CVE-2026-0672:** `http.cookies.Morsel` control-character bypass via `update()` / `|=` — sanitize cookie values
+- **CVE-2026-4519:** `webbrowser.open()` command injection — never pass untrusted URLs to `webbrowser`. The original fix was **incomplete**: certain URL characters still bypassed mitigation for some browser types, allowing shell command injection. Upgrade to the latest patch release, not just the first fix.
+- **CVE-2026-0672:** `http.cookies.Morsel` control-character bypass via `update()` / `|=` — sanitize cookie values. The initial patch also left the `unpickling` path unfixed, so control characters could still slip through cookies restored via `pickle`; treat pickled cookie state as untrusted and re-validate after unpickling.
+- **CVE-2026-5713:** Privilege-escalation / stack-overflow vulnerability in `profiling.sampling` (3.15+) and `asyncio` introspection (3.14+) that can allow reading/writing arbitrary memory in privileged processes — do not expose sampling-profiler or asyncio introspection endpoints on production or privileged services; restrict to trusted local debugging only.
+- **CVE-2026-4786 / CVE-2026-6100:** Critical CPython remote-code-execution vulnerabilities flagged by CERT-FR — apply the latest CPython security patch release promptly; do not defer patching on internet-facing services.
 - **Remote debugging:** `pdb` remote attach (3.14+) is powerful but exposes process memory — never enable on production ports
 
 ---
@@ -366,6 +368,8 @@ if match := re.search(pattern, text):
 
 **Package management:** `uv` (preferred — fast, replaces pip/venv/pip-tools) or `poetry`. Pin versions in production. Virtualenvs always. `pip audit` / `uv audit`.
 
+**Version status (as of 2026-08-01):** Python 3.14.x is the current stable production line. Python 3.15 is in beta (beta 4 released 2026-07-18; RC1 due 2026-08-04; final release expected 2026-10-01 per PEP 790) — do not run it in production until the final release. Python 3.10 reaches end-of-life in October 2026; plan migrations off 3.10 (and earlier) now.
+
 **Project structure:**
 ```
 myproject/
@@ -407,4 +411,5 @@ myproject/
 ---
 
 <!-- Updated: 2026-06-01 — Added Python 3.14 stable features (PEP 649 deferred annotations, PEP 734 multiple interpreters, PEP 758 except without parens, PEP 779 free-threaded official support, PEP 784 zstd, uuid7, JIT compiler), 2026 CVEs (asyncio buffer overflow, webbrowser injection, cookies bypass), remote debugging security note -->
-Last updated: 2026-06-01
+<!-- Updated: 2026-08-01 — Corrected version status (3.14 stable, 3.15 in beta targeting Oct 2026 per PEP 790, 3.10 EOL Oct 2026); added new CVE-2026-5713 (profiling/asyncio-introspection privilege escalation) and CVE-2026-4786/6100 (CERT-FR CPython RCE advisory); noted incomplete-mitigation follow-ups for CVE-2026-4519 and CVE-2026-0672; added slopsquatting/architecture-persona note to AI hallucinated-library error -->
+Last updated: 2026-08-01
