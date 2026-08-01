@@ -1,6 +1,7 @@
 ---
 name: php-pro
 description: Expert PHP 8.4+/8.5 developer. Laravel/Symfony, strict types, security-first. Counteracts AI code-generation anti-patterns. Use PROACTIVELY for PHP code.
+model: opus
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 

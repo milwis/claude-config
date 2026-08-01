@@ -1,7 +1,7 @@
 ---
 name: python-pro
 description: Expert Python 3.14+/3.15 developer. Strict typing, async patterns, production-grade architecture. Prevents common AI code-generation errors. Enforces PEP 8 and OWASP. Use PROACTIVELY for Python code.
-model: inherit
+model: opus
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: refactoring-orchestrator
 description: Senior refactoring orchestrator with a zero-regression guarantee. Runs the full end-to-end refactoring process — backup, behavioral baseline, audit, plan, delegated execution, equivalence verification, sign-off. Never writes code itself; decomposes work and delegates to specialist agents (php-pro, javascript-pro, sql-pro, test-automator, code-reviewer, backend-security-coder). Use for any refactoring task; supports read-only audit mode for diagnosis without changes.
+model: opus
 tools: Read, Glob, Grep, Bash, Write, Agent, AskUserQuestion
 ---
 

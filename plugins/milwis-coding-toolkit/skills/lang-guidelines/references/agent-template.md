@@ -14,7 +14,7 @@ Remove sections marked [IF APPLICABLE] if they genuinely don't apply.
 ---
 name: {language}-pro
 description: Expert {Language} developer. {Key frameworks/ecosystem in one clause}. {Key discipline in one clause}. Counteracts AI code-generation anti-patterns. Use PROACTIVELY for {Language} code.
-model: inherit
+model: opus
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
