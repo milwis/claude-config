@@ -1,5 +1,19 @@
 # Update Log
 
+## Run: 2026-08-01 — Generalize nextjs-pro to be project-agnostic
+
+### Updated
+- **agents/nextjs-pro.md**: removed all assumptions inherited from the project it was created on (`aplikacja_portfel_inwestycyjny`): fixed stack list in the intro (Tailwind/Serwist/Zod/Vitest/Netlify/local JSON) replaced with a "discover the stack from `package.json` / `tsconfig.json` / `next.config.*` first" instruction plus a new Core Philosophy bullet ("The repository is the source of truth"); "this project's data layer is local JSON" → serverless-filesystem guidance for any host (Netlify/Vercel/Lambda as examples); hardcoded path aliases (`@config/*`, `@data/*`) → "check `tsconfig.json` paths"; "tsconfig here already runs strict…" → recommended baseline to verify; project CSP claims → general security-header guidance; "Vitest 4 + RTL" → "use the repo's existing runner"; domain-specific coverage list (rates, inflation, indicators) → generic (calculations, parsing, validation); Tailwind/Serwist/Netlify ecosystem notes gated behind "only when `package.json` shows the project uses it"; checklist items reworded (fs writes conditional on serverless target, scripts read from `package.json`).
+- **plugin.json / marketplace.json**: 1.4.0 → 1.4.1.
+
+### Rationale
+The agent was generated during an audit of a specific Next.js project and carried that project's stack as hard facts ("this project", "this repo"). As a marketplace plugin agent it runs against arbitrary repositories — stated assumptions that are false in a given repo (e.g. "your data layer is local JSON") are worse than no assumption. Same generalization pass previously applied to systematic-debugging (4aa5edf).
+
+### Issues
+- None
+
+---
+
 ## Run: 2026-08-01 — New language expert: nextjs-pro
 
 ### Added
