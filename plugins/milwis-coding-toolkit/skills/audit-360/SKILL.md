@@ -37,7 +37,7 @@ The **Model** column is the agent's own frontmatter default — you do not pass 
 | 2 | `php-pro` | sonnet | PHP 8.3+ — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
 | 3 | `python-pro` | sonnet | Python 3.13+ — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
 | 4 | `javascript-pro` | sonnet | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
-| 5 | `sql-pro` | sonnet | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
+| 5 | `sql-pro` | **opus** | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
 | 6 | `database-optimizer` | sonnet | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
 | 7 | `refactoring-orchestrator` (read-only audit mode) | **opus** | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
 | 8 | `code-reviewer` | **opus** | AI-specific deep scrutiny | `prompts/07-code-reviewer-ai.md` |
