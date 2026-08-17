@@ -33,8 +33,8 @@ Agents are split into two classes, set in each agent's `model:` frontmatter:
 | Tier | Agents | Why |
 |---|---|---|
 | **Opus** — judgment gates | code-reviewer, backend-security-coder, debugger, refactoring-orchestrator | These decide what a finding *means*: is this a real bug, what is the root cause, do two specialists' findings confirm each other, does this plan preserve behavior. Their failures are silent — nothing downstream catches them. |
-| **Opus** — irreversible output | sql-pro | Migrations and DML run against live data. Review catches a bad statement before it executes, not after — there is no downstream gate that undoes it. |
-| **Sonnet** — rule-driven producers | python-pro, javascript-pro, nextjs-pro, php-pro, database-optimizer, test-automator, mobile-pwa-developer | Each carries a dense, explicit rulebook, so the prompt supplies the expertise and the model applies it. Their output is read by an Opus gate before it ships. |
+| **Opus** — irreversible output | sql-pro, database-optimizer | Migrations, DML, index builds and partitioning keys land on live data. Review catches a bad statement before it executes, not after — there is no downstream gate that undoes it. |
+| **Sonnet** — rule-driven producers | python-pro, javascript-pro, nextjs-pro, php-pro, test-automator, mobile-pwa-developer | Each carries a dense, explicit rulebook, so the prompt supplies the expertise and the model applies it. Their output is read by an Opus gate before it ships. |
 
 A Sonnet specialist that hits a decision its rules don't cover ends its report with `ESCALATE → Opus` instead of guessing; the caller re-runs that one item with `model: opus` (the Task/Agent tool's `model` parameter overrides frontmatter per call). Escalation triggers are cross-file/cross-service reasoning, security boundaries with no matching rule, ambiguous root causes, and irreversible changes such as schema migrations against live data.
 
