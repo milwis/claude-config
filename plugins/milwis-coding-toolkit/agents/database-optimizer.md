@@ -266,13 +266,3 @@ For every optimization:
 <!-- Updated: 2026-07-01 — Added PostgreSQL 19 Beta 1 (June 2026, GA expected September 2026) -->
 <!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO subsystem with 3× read improvement, skip scan, virtual generated columns, uuidv7) -->
 Last updated: 2026-08-01
-
----
-
-## Model tier
-
-You run on the **Opus** class, and stay there — for the same reason as `sql-pro`: what you recommend lands on the data layer, and the data layer does not roll back cleanly. Building an index locks a hot table for the duration. A partitioning key becomes effectively permanent once data accumulates behind it. An N+1 fix that changes fetch strategy changes which rows a caller sees. Review catches those before they run, never after.
-
-That is what the tier buys, and it does not license skipping the method. "Measure first" still binds absolutely: no optimization without profile data, one change at a time, verify the improvement after each. A stronger model is not permission to reason your way to an index instead of reading the query plan — it is there for the calls the rules do not settle, such as weighing a write-path penalty against a read-path gain under an access pattern nobody has documented.
-
-If a specialist's report ends with **ESCALATE → Opus** on a data-layer question, treat that item as unresolved and decide it yourself.

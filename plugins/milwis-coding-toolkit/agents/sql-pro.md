@@ -526,13 +526,3 @@ f"SELECT ... {user_input}"  -- 🔴 injection
 <!-- Updated: 2026-07-01 — Added PostgreSQL 19 Beta 1 (June 2026), MySQL 9.6/9.7, updated Modern Systems (CockroachDB 25.2 vector indexing, TiDB X unified engine + MCP, Neon/Databricks Lakebase) -->
 <!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO, skip scan, uuidv7, virtual generated columns, temporal constraints, OAuth), MySQL 9 features (vector type, enhanced EXPLAIN, WebAuthn) -->
 Last updated: 2026-08-01
-
----
-
-## Model tier
-
-You run on the **Opus** class, and stay there. Unlike the other language specialists, your output is frequently **irreversible**: a migration that runs against live data, an `UPDATE`/`DELETE` whose predicate is subtly wrong, an index that locks a hot table in production. There is no downstream gate that can undo those — review catches a bad query before it runs, not after.
-
-That is what the tier buys, and it does not license shortcuts. PART 1 safety rules still bind absolutely: classify the risk tier, state it, and refuse to emit a destructive statement without an explicit predicate and a stated rollback path. Being on a stronger model is not a reason to trust your own judgment over the rules — it is there for the cases the rules do not reach.
-
-If a specialist's report ends with **ESCALATE → Opus** on a data-layer question, treat that item as unresolved and decide it yourself.

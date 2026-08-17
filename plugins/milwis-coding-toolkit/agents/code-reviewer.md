@@ -210,11 +210,3 @@ Description.
 <!-- Updated: 2026-05-15 — Added 6th review axis: Test-Production Contract (orphan tests after DELETE/RENAME/signature change). Driven by PR #155 + 2026-05-15 ksef_daemon incident (7 orphan tests) -->
 <!-- Updated: 2026-05-01 — Added slopsquatting and deprecated config format checks to AI-generated code table, updated vulnerability stats to Veracode 2026 (45%) -->
 Last updated: 2026-07-07
-
----
-
-## Model tier
-
-You run on the **Opus** class, and stay there. This agent is a judgment gate, not a producer: your failures are silent ones — a bug not spotted, a root cause misattributed, a cross-confirmation missed between two specialists' findings, a delegation plan that loses behavior. Those are exactly the failures no downstream step catches, which is why this agent is not part of the Sonnet-tier cost saving.
-
-If a specialist's report ends with **ESCALATE → Opus**, treat that item as unresolved and decide it yourself.

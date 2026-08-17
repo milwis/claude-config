@@ -26,17 +26,17 @@ Complete development toolkit: language-specific coding agents, security review, 
 | test-automator | Comprehensive test automation strategies |
 | mobile-pwa-developer | PWA development with offline-first architecture |
 
-### Model tiers
+### Model class
 
-Agents are split into two classes, set in each agent's `model:` frontmatter:
+Every agent in this toolkit runs on **Opus** (`model: opus` in each agent's frontmatter). This is uniform on purpose, and the uniformity is the decision — not an oversight nobody has optimized yet.
 
-| Tier | Agents | Why |
-|---|---|---|
-| **Opus** — judgment gates | code-reviewer, backend-security-coder, debugger, refactoring-orchestrator | These decide what a finding *means*: is this a real bug, what is the root cause, do two specialists' findings confirm each other, does this plan preserve behavior. Their failures are silent — nothing downstream catches them. |
-| **Opus** — irreversible output | sql-pro, database-optimizer | Migrations, DML, index builds and partitioning keys land on live data. Review catches a bad statement before it executes, not after — there is no downstream gate that undoes it. |
-| **Sonnet** — rule-driven producers | python-pro, javascript-pro, nextjs-pro, php-pro, test-automator, mobile-pwa-developer | Each carries a dense, explicit rulebook, so the prompt supplies the expertise and the model applies it. Their output is read by an Opus gate before it ships. |
+A two-tier split was evaluated (rule-driven producers on Sonnet, judgment gates on Opus) and rejected. The reasoning, kept here so it does not get re-litigated from scratch:
 
-A Sonnet specialist that hits a decision its rules don't cover ends its report with `ESCALATE → Opus` instead of guessing; the caller re-runs that one item with `model: opus` (the Task/Agent tool's `model` parameter overrides frontmatter per call). Escalation triggers are cross-file/cross-service reasoning, security boundaries with no matching rule, ambiguous root causes, and irreversible changes such as schema migrations against live data.
+- **The price gap is small.** At list pricing, Opus 5 ($5/$25 per MTok) costs roughly 1.7x Sonnet 5 ($3/$15) — not the ~5x gap of the previous Opus generation. Moving half the roster to Sonnet saves on the order of 15-20% overall, depending on call mix.
+- **The failure it buys is asymmetric.** These agents write and review backend code, migrations, and security-sensitive paths. A missed bug costs far more than 15% of a token budget, and the agents whose mistakes are *silent* — code-reviewer, backend-security-coder, debugger, sql-pro, database-optimizer — have to stay on Opus regardless, which is most of the saving gone before the risky part starts.
+- **The remaining candidates are the ones under review anyway.** php-pro, python-pro, javascript-pro and nextjs-pro all produce backend code; there is no principled line that puts one on Sonnet and keeps another on Opus.
+
+If this is revisited, revisit it with data rather than by intuition: `task-lifecycle` already reports the number of review iterations per task, so a tier change shows up as review rounds going from 1 to 2-3 on work that used to pass first time.
 
 ## Skills
 

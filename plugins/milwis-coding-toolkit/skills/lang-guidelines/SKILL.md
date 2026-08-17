@@ -158,7 +158,7 @@ Use the template at [references/agent-template.md](references/agent-template.md)
 
 ### Content requirements (all must be present)
 
-1. **Frontmatter** — 1-sentence description, `model: sonnet`, tools list. Language experts are rule-driven producers and belong on the Sonnet tier. Two kinds of agent carry `model: opus` instead: judgment gates (`code-reviewer`, `backend-security-coder`, `debugger`, `refactoring-orchestrator`), and any specialist whose normal output is **irreversible** — `sql-pro` and `database-optimizer` are the current examples, because a migration, a DML statement, or an index build cannot be un-run once it touches live data. If the language you are generating for has that property (a data-layer or infrastructure DSL rather than an application language), put it on Opus and say why in the agent's Model tier section. Close the agent with the standard **Model tier** section (copy it from `python-pro.md`) so it knows to answer `ESCALATE → Opus` instead of guessing outside its rules.
+1. **Frontmatter** — 1-sentence description, `model: opus`, tools list. Every agent in this toolkit runs on the Opus class; see the plugin README ("Model class") for why the toolkit does not mix classes.
 2. **Identity & Philosophy** — language's guiding principles
 3. **AI Code Generation Error Prevention** (most detailed — at least 10 specific errors with ❌/✅ examples)
 4. **Code Style & Conventions** — naming, formatting, imports

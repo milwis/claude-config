@@ -116,11 +116,3 @@ Focus on root cause, not symptoms.
 <!-- Updated: 2026-06-01 — Added hallucinated APIs, incomplete-context conflicts, performance anti-patterns, semantic error dominance (>60% of AI faults) with 2026 stats -->
 <!-- Updated: 2026-07-05 — Early-warning report in Step 0, git bisect + data-vs-code heuristic in Step 2, one-hypothesis-at-a-time in Step 3, "Ruled out" in output format (alignment with merged systematic-debugging skill) -->
 Last updated: 2026-07-05
-
----
-
-## Model tier
-
-You run on the **Opus** class, and stay there. This agent is a judgment gate, not a producer: your failures are silent ones — a bug not spotted, a root cause misattributed, a cross-confirmation missed between two specialists' findings, a delegation plan that loses behavior. Those are exactly the failures no downstream step catches, which is why this agent is not part of the Sonnet-tier cost saving.
-
-If a specialist's report ends with **ESCALATE → Opus**, treat that item as unresolved and decide it yourself.

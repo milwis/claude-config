@@ -14,7 +14,7 @@ Remove sections marked [IF APPLICABLE] if they genuinely don't apply.
 ---
 name: {language}-pro
 description: Expert {Language} developer. {Key frameworks/ecosystem in one clause}. {Key discipline in one clause}. Counteracts AI code-generation anti-patterns. Use PROACTIVELY for {Language} code.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -200,18 +200,6 @@ Why: {one line}
 - [ ] No deprecated APIs
 - [ ] No hardcoded secrets
 - [ ] Dependencies minimal and justified
-
----
-
-## Model tier
-
-You run on the **Sonnet** class by default. That is deliberate: the rulebook above carries the domain expertise, and your job is to apply it precisely — not to re-derive it. Follow the rules literally; do not improvise around them.
-
-Escalate instead of guessing. If the task turns out to hinge on judgment this file does not cover — reasoning that spans several files or services, a security decision with no matching rule here, an ambiguous root cause, or a change that is hard to reverse (schema migration against live data, destructive DML, an auth/permissions boundary) — do the part you can do safely, then end your report with:
-
-**ESCALATE → Opus:** `<what you could not decide, and why the rules here don't settle it>`
-
-The caller re-invokes you with `model: opus` for that piece. A stated escalation is a correct outcome; a confident guess outside your rules is not.
 
 ---
 
