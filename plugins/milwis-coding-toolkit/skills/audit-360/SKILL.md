@@ -27,22 +27,24 @@ This skill DELEGATES to specialists from the `milwis-coding-toolkit` plugin. Wit
 /plugin install milwis-coding-toolkit         # if missing
 ```
 
-Specialists invoked via the Task tool (`subagent_type: <name>`):
+Specialists invoked via the Task tool (`subagent_type: <name>`).
+
+The **Model** column is the agent's own frontmatter default — you do not pass it. It is listed so you can see where the audit's judgment sits: finders run on Sonnet, every gate that decides what a finding *means* runs on Opus. Override to `model: opus` on a single call only when a finder returns `ESCALATE → Opus`.
 
 | # | Agent | Model | Domain | Prompt file |
 |---|-------|-------|--------|-------------|
-| 1 | `backend-security-coder` | sonnet | Three-tier security boundary (Always/Ask/Never) | `prompts/01-backend-security.md` |
-| 2 | `php-pro` | inherit | PHP 8.3+ — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
-| 3 | `python-pro` | inherit | Python 3.13+ — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
-| 4 | `javascript-pro` | inherit | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
-| 5 | `sql-pro` | inherit | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
-| 6 | `database-optimizer` | inherit | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
-| 7 | `refactoring-orchestrator` (read-only audit mode) | inherit | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
+| 1 | `backend-security-coder` | **opus** | Three-tier security boundary (Always/Ask/Never) | `prompts/01-backend-security.md` |
+| 2 | `php-pro` | sonnet | PHP 8.3+ — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
+| 3 | `python-pro` | sonnet | Python 3.13+ — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
+| 4 | `javascript-pro` | sonnet | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
+| 5 | `sql-pro` | sonnet | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
+| 6 | `database-optimizer` | sonnet | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
+| 7 | `refactoring-orchestrator` (read-only audit mode) | **opus** | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
 | 8 | `code-reviewer` | **opus** | AI-specific deep scrutiny | `prompts/07-code-reviewer-ai.md` |
 | 9 | `test-automator` | sonnet | Coverage, test quality, anti-patterns | `prompts/08-test-automator.md` |
-| 10 | `<lang>-pro` (2nd pass) | inherit | Dependencies + docs | `prompts/09-deps-docs.md` |
+| 10 | `<lang>-pro` (2nd pass) | sonnet | Dependencies + docs | `prompts/09-deps-docs.md` |
 | 11 | `code-reviewer` | **opus** | Consolidation | `prompts/10-consolidator.md` |
-| 12 | `debugger` | sonnet | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
+| 12 | `debugger` | **opus** | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
 | 13 | `code-reviewer` | **opus** | Self-review (forked instance) | `prompts/12-self-review.md` |
 
 Discipline skills active throughout (auto-loaded by the plugin):
@@ -364,7 +366,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 5. **Time/token budget**: each specialist has a budget of ~50 tool calls. The prompt already says so.
 6. **No nested subagents**: SDK limit — specialists never spawn more Task calls.
 7. **Discipline overlay**: `verification-before-completion`, `systematic-debugging`, `test-driven-development` activate automatically inside each specialist (they're plugin-bundled).
-8. **Consolidation must be opus**: STEP 4 — the consolidator runs on `model: opus`. Sonnet misses cross-confirmations.
+8. **Every gate is opus, every finder is sonnet**: STEP 4 (consolidation), STEP 6 (self-review), and the P0 reproduction in STEP 5 run on `model: opus` — Sonnet misses cross-confirmations and mis-attributes root causes, and both failures are silent. Language and database specialists run on Sonnet: their prompts carry the rules, and their output is read by an Opus gate before it reaches the report. A finder that returns `ESCALATE → Opus` is re-run on opus for that item only.
 9. **PoC reproduction is mandatory**: STEP 5 — P0 without reproduction = P1 with note.
 10. **Self-review is mandatory**: STEP 6 — fresh forked `code-reviewer` checks the consolidator's work.
 11. **Both self-checks are mandatory**: STEP 4 CHECK A (numeric) + STEP 6 (d) (hallucinated APIs). Both have caught 30%+ defects in the report itself in real audits.

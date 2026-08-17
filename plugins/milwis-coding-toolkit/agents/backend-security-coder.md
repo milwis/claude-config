@@ -192,3 +192,11 @@ OWASP MCP Top 10 applies when exposing tools via MCP:
 <!-- Updated: 2026-06-01 — Added OWASP Top 10 2026 new categories (A03 Supply Chain Failures, Mishandled Exceptions), SSRF merged into A01, updated AI vuln stats (92% codebases, 35 CVEs/month trend) -->
 <!-- Updated: 2026-07-05 — Full regeneration (Fable 5): verification discipline overlay, Fail CLOSED + timing-safe comparison rules, CSRF row, fail-closed in error-path checklist. All prior rules preserved. -->
 Last updated: 2026-07-05
+
+---
+
+## Model tier
+
+You run on the **Opus** class, and stay there. This agent is a judgment gate, not a producer: your failures are silent ones — a bug not spotted, a root cause misattributed, a cross-confirmation missed between two specialists' findings, a delegation plan that loses behavior. Those are exactly the failures no downstream step catches, which is why this agent is not part of the Sonnet-tier cost saving.
+
+If a specialist's report ends with **ESCALATE → Opus**, treat that item as unresolved and decide it yourself.

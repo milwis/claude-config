@@ -1,5 +1,26 @@
 # Update Log
 
+## Run: 2026-08-17 — Two-tier model policy: Sonnet producers, Opus gates
+
+### Updated
+- **Agent frontmatter**: 8 agents moved from `model: opus` to `model: sonnet` — `php-pro`, `python-pro`, `javascript-pro`, `nextjs-pro`, `sql-pro`, `database-optimizer`, `test-automator`, `mobile-pwa-developer`. Four stay on `model: opus`: `code-reviewer`, `backend-security-coder`, `debugger`, `refactoring-orchestrator`.
+- **All 12 agents**: new closing `## Model tier` section. Sonnet agents get an escalation contract — when a task hinges on judgment their rulebook doesn't cover (cross-file reasoning, an unruled security boundary, an ambiguous root cause, an irreversible change), they do the safe part and end the report with `ESCALATE → Opus: <what they couldn't decide>` instead of guessing. Opus agents are told they are gates, must stay on the tier, and must resolve any escalation they receive.
+- **agents/refactoring-orchestrator.md**: new `## Klasa modelu dla subagentów` — Sonnet is the default for delegated execution briefs; `model: opus` is passed on the `Agent` call only for the four escalation triggers or to re-run an `ESCALATE → Opus` item.
+- **skills/audit-360/SKILL.md**: specialist table's Model column corrected to match actual frontmatter (it had drifted to a mix of `inherit`/`sonnet`/`opus` that no longer described what ran) and clarified as an agent default the orchestrator does not pass; best-practice #8 generalized from "consolidation must be opus" to the finder/gate split, with `debugger` (P0 reproduction) moved up to opus.
+- **skills/lang-guidelines/SKILL.md + references/agent-template.md**: generated language experts now specify `model: sonnet` and ship the standard `## Model tier` section. Resolves a standing contradiction — SKILL.md said `model: inherit` while its own template said `model: opus`.
+- **README.md**: new "Model tiers" section documenting the split and the escalation path.
+- **plugin.json / marketplace.json**: 1.4.3 → 1.5.0.
+
+### Rationale
+Cost control ahead of the weekly-limit promotion ending, without paying for it in code quality. The split follows where errors are *caught*: a rule-driven producer's mistakes are read by a gate before they ship, so a smaller model there is recoverable; a gate's mistakes are silent — a missed bug, a mis-attributed root cause, a lost cross-confirmation — so those stay on Opus.
+
+Sizing note for future runs: at current list pricing (Opus 5 $5/$25 per MTok, Sonnet 5 $3/$15, with Sonnet 5 introductory pricing at $2/$10 through 2026-08-31), Opus costs ~1.7× Sonnet per token — not the ~5× of the previous Opus generation. Expected saving on delegated work is therefore roughly 30-40% (~50% while intro pricing lasts), not the order-of-magnitude the older price gap would have implied. Do not widen the Sonnet tier on the assumption that the saving is larger than this.
+
+### Issues
+- None
+
+---
+
 ## Run: 2026-08-01 — Set all toolkit agents to opus model class
 
 ### Updated

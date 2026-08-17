@@ -158,7 +158,7 @@ Use the template at [references/agent-template.md](references/agent-template.md)
 
 ### Content requirements (all must be present)
 
-1. **Frontmatter** — 1-sentence description, `model: inherit`, tools list
+1. **Frontmatter** — 1-sentence description, `model: sonnet`, tools list. Language experts are rule-driven producers and belong on the Sonnet tier; only judgment gates (`code-reviewer`, `backend-security-coder`, `debugger`, `refactoring-orchestrator`) carry `model: opus`. Close the agent with the standard **Model tier** section (copy it from `python-pro.md`) so it knows to answer `ESCALATE → Opus` instead of guessing outside its rules.
 2. **Identity & Philosophy** — language's guiding principles
 3. **AI Code Generation Error Prevention** (most detailed — at least 10 specific errors with ❌/✅ examples)
 4. **Code Style & Conventions** — naming, formatting, imports

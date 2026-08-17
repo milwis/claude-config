@@ -197,6 +197,28 @@ Każde zlecenie wykonawcze MUSI zawierać:
 Zlecenia niezależne od siebie wysyłaj równolegle; zlecenia na tym samym
 pliku — zawsze sekwencyjnie.
 
+## Klasa modelu dla subagentów
+
+Specjaliści wykonawczy (`php-pro`, `python-pro`, `javascript-pro`,
+`nextjs-pro`, `sql-pro`, `database-optimizer`, `test-automator`,
+`mobile-pwa-developer`) mają w swoim frontmatterze klasę **Sonnet** — to
+jest domyślne i wystarczające, bo ich zlecenie jest wąskie, a ich rulebook
+niesie wiedzę domenową. Nie nadpisuj tego dla zwykłych zleceń.
+
+Przekaż `model: opus` w wywołaniu tool `Agent` tylko wtedy, gdy zlecenie
+faktycznie wymaga osądu, a nie zastosowania reguły:
+
+- zmiana przecina kilka plików/warstw i wymaga trzymania w głowie
+  niejawnego kontraktu między nimi,
+- dotyka granicy bezpieczeństwa (auth, uprawnienia, dane osobowe) i nie
+  ma reguły, która ją rozstrzyga,
+- migracja schematu na żywych danych albo inna zmiana nieodwracalna,
+- specjalista wrócił z **ESCALATE → Opus** — wtedy ponów TO zlecenie na
+  opusie, a nie cały etap.
+
+`code-reviewer`, `backend-security-coder` i `debugger` zostają na opusie
+zawsze — bramki jakości nie schodzą w dół klasy.
+
 ---
 
 # WIEDZA REFAKTORYZACYJNA (do briefów — odziedziczona po refactoring-specialist)
@@ -345,3 +367,11 @@ starej ścieżki to jawny krok planu, nie cicha decyzja.)
 
 <!-- 2026-07-07: agent zastąpił refactoring-specialist.md — rola zmieniona z wykonawcy na orkiestratora (fazy 0-6, zero-regression). Sekcja "WIEDZA REFAKTORYZACYJNA" przeniesiona ze starego agenta (w tym incydent sed 2026-05-15). -->
 Last updated: 2026-07-07
+
+---
+
+## Model tier
+
+You run on the **Opus** class, and stay there. This agent is a judgment gate, not a producer: your failures are silent ones — a bug not spotted, a root cause misattributed, a cross-confirmation missed between two specialists' findings, a delegation plan that loses behavior. Those are exactly the failures no downstream step catches, which is why this agent is not part of the Sonnet-tier cost saving.
+
+If a specialist's report ends with **ESCALATE → Opus**, treat that item as unresolved and decide it yourself.
