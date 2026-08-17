@@ -26,6 +26,18 @@ Complete development toolkit: language-specific coding agents, security review, 
 | test-automator | Comprehensive test automation strategies |
 | mobile-pwa-developer | PWA development with offline-first architecture |
 
+### Model class
+
+Every agent in this toolkit runs on **Opus** (`model: opus` in each agent's frontmatter). This is uniform on purpose, and the uniformity is the decision — not an oversight nobody has optimized yet.
+
+A two-tier split was evaluated (rule-driven producers on Sonnet, judgment gates on Opus) and rejected. The reasoning, kept here so it does not get re-litigated from scratch:
+
+- **The price gap is small.** At list pricing, Opus 5 ($5/$25 per MTok) costs roughly 1.7x Sonnet 5 ($3/$15) — not the ~5x gap of the previous Opus generation. Moving half the roster to Sonnet saves on the order of 15-20% overall, depending on call mix.
+- **The failure it buys is asymmetric.** These agents write and review backend code, migrations, and security-sensitive paths. A missed bug costs far more than 15% of a token budget, and the agents whose mistakes are *silent* — code-reviewer, backend-security-coder, debugger, sql-pro, database-optimizer — have to stay on Opus regardless, which is most of the saving gone before the risky part starts.
+- **The remaining candidates are the ones under review anyway.** php-pro, python-pro, javascript-pro and nextjs-pro all produce backend code; there is no principled line that puts one on Sonnet and keeps another on Opus.
+
+If this is revisited, revisit it with data rather than by intuition: `task-lifecycle` already reports the number of review iterations per task, so a tier change shows up as review rounds going from 1 to 2-3 on work that used to pass first time.
+
 ## Skills
 
 ### Workflow skills (slash commands)
