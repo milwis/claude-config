@@ -8,6 +8,8 @@
 
 ## Run: 2026-08-19 — Audit-360 feedback loop (KonkretnyTMS) + token economy (v1.5.0)
 
+> **SUPERSEDES wpis „2026-08-17 — stay uniformly on Opus".** Tamta analiza liczyła koszt po cenniku API (luka Opus/Sonnet ~1,7×) i na tej podstawie odrzuciła podział dwupoziomowy. Użytkownik pracuje jednak na **subskrypcji Max (limit kwotowy)**, gdzie zużycie liczone jest wg wagi modelu, a nie cennika API — Opus wypala limit wielokrotnie szybciej niż Sonnet — i decyzją użytkownika (19.08, po wypaleniu limitu Max20 w 2-3 dni) agenci piszący przechodzą na Sonneta. Ryzyko jakościowe adresują: review na Opusie (code-reviewer, backend-security-coder, refactoring-orchestrator), override `model: opus` dla WSZYSTKICH specjalistów w audit-360 oraz metryka z tamtego wpisu (liczba iteracji review w task-lifecycle — jeśli zadania zaczną wymagać 2-3 rund zamiast 1, wracamy do rozmowy z danymi).
+
 ### Updated
 - **Modele:** agenci piszący → `sonnet` (php-pro, sql-pro, javascript-pro, test-automator, debugger, database-optimizer, nextjs-pro, python-pro, mobile-pwa-developer); `opus` zostaje: code-reviewer, backend-security-coder, refactoring-orchestrator. Skill audit-360 spawnuje specjalistów z jawnym override `model: opus` (polityka w SKILL.md §1).
 - **Nowe reguły z audytu 360° KonkretnyTMS 19.08.2026 (AGENT_UPDATES.md, wzorce 1-9):** kanon Money/VAT + reguła kierunku dokumentu (php-pro, javascript-pro); trigger-scope + grep-all-writers przy rekordach finalnych oraz seeding z autorytatywnego słownika / legacy twins (sql-pro); raportowanie ZAKRESU narzędzia + liczniki SKIPPED zamiast gołego „zielono" (code-reviewer krok 6, test-automator, php-pro, javascript-pro, debugger); reguły dopasowania w configach — sonda 403-vs-404 zamiast czytania, allowlista katalogów (backend-security-coder, code-reviewer, php-pro); guard `PHP_SAPI` + zakaz inline poświadczeń w skryptach operatorskich (php-pro, backend-security-coder); autoloader przed pierwszym `exit` w cronach (php-pro, debugger); antywzorce testowe + próba mutacyjna (php-pro); martwe odwołania w dokumentacji (code-reviewer, projektowy skryba).
@@ -20,6 +22,35 @@
 ### Issues
 - Zmiany zvendorowane ręcznie do KonkretnyTMS/.claude tego samego dnia (kopie identyczne z pluginem).
 
+---
+
+## Run: 2026-08-17 — Model-class decision: stay uniformly on Opus; doc drift fixed
+
+### Decided
+- **Two-tier split (Sonnet producers / Opus gates) was evaluated and rejected.** All 12 agents stay on `model: opus`. No agent frontmatter changed in this run.
+
+### Updated
+- **skills/audit-360/SKILL.md**: the specialist table's Model column had drifted to a mix of `inherit` / `sonnet` / `opus` that stopped describing what actually ran once the 2026-08-01 run forced every agent to opus. Column corrected to the real value (`opus` throughout), with a note that the uniformity is deliberate and that any future row reading otherwise is a change someone made on purpose. Best-practice #8 reworded accordingly.
+- **skills/lang-guidelines/SKILL.md + references/agent-template.md**: resolved a standing contradiction — SKILL.md required `model: inherit` in generated agents while its own template wrote `model: opus`. Both now say `model: opus` and point at the README rationale, so newly generated language experts land in the right class.
+- **README.md**: new "Model class" section recording the decision and the reasoning behind it.
+- **plugin.json / marketplace.json**: 1.4.3 → 1.4.4.
+
+### Rationale
+The question was whether to cut token cost by moving rule-driven producers to Sonnet ahead of the weekly-limit promotion ending. Three findings killed it:
+
+1. **The price gap is much smaller than the previous Opus generation's.** At list pricing Opus 5 is $5/$25 per MTok against Sonnet 5's $3/$15 — about 1.7x, not the ~5x that made this trade obviously worthwhile in the past. (Sonnet 5 introductory pricing of $2/$10 runs through 2026-08-31, so the gap is temporarily ~2.5x.)
+2. **The agents that must stay on Opus are most of the roster.** Anything whose mistakes are silent — `code-reviewer`, `backend-security-coder`, `debugger`, `refactoring-orchestrator` — plus anything whose output is irreversible once it runs — `sql-pro`, `database-optimizer` — cannot move. That is 6 of 12 before considering the risky cases, leaving roughly 15-20% total saving.
+3. **The remaining candidates have no principled boundary.** `php-pro`, `python-pro`, `javascript-pro` and `nextjs-pro` all produce backend code; there is no rule that puts one on Sonnet and keeps another on Opus, so the choice is all-or-nothing rather than per-agent.
+
+15-20% is not worth a quality question mark over backend code, migrations, and security-sensitive paths.
+
+### If this is revisited
+Revisit with data, not intuition. `task-lifecycle` Step 2 already reports review iterations per task, so a tier change is measurable: work that used to pass review in one round starting to need two or three is the signal that the smaller model is not carrying the task. Re-check the price gap first — this analysis is only valid while it stays near 1.7x.
+
+### Issues
+- None
+
+---
 
 ## Run: 2026-08-01 — Set all toolkit agents to opus model class
 

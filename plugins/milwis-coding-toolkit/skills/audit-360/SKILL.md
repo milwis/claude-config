@@ -27,25 +27,25 @@ This skill DELEGATES to specialists from the `milwis-coding-toolkit` plugin. Wit
 /plugin install milwis-coding-toolkit         # if missing
 ```
 
-Specialists invoked via the Task tool (`subagent_type: <name>`):
+Specialists invoked via the Task tool (`subagent_type: <name>`).
+
+The **Model** column is the model the audit RUNS each specialist on — since 2026-08-19 the agents' own frontmatter defaults to `sonnet` for daily work (token economy on subscription quota), so the orchestrator must pass an explicit **`model: opus`** override on every Task call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
 
 | # | Agent | Model | Domain | Prompt file |
 |---|-------|-------|--------|-------------|
-| 1 | `backend-security-coder` | sonnet | Three-tier security boundary (Always/Ask/Never) | `prompts/01-backend-security.md` |
-| 2 | `php-pro` | inherit | PHP 8.3+ — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
-| 3 | `python-pro` | inherit | Python 3.13+ — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
-| 4 | `javascript-pro` | inherit | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
-| 5 | `sql-pro` | inherit | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
-| 6 | `database-optimizer` | inherit | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
-| 7 | `refactoring-orchestrator` (read-only audit mode) | inherit | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
-| 8 | `code-reviewer` | **opus** | AI-specific deep scrutiny | `prompts/07-code-reviewer-ai.md` |
-| 9 | `test-automator` | sonnet | Coverage, test quality, anti-patterns | `prompts/08-test-automator.md` |
-| 10 | `<lang>-pro` (2nd pass) | inherit | Dependencies + docs | `prompts/09-deps-docs.md` |
-| 11 | `code-reviewer` | **opus** | Consolidation | `prompts/10-consolidator.md` |
-| 12 | `debugger` | sonnet | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
-| 13 | `code-reviewer` | **opus** | Self-review (forked instance) | `prompts/12-self-review.md` |
-
-**Model policy for audits (2026-08-19):** the agents' frontmatter defaults to `sonnet` for daily work (token economy). Audits are rare and quality-critical — spawn EVERY specialist in this skill with an explicit **`model: opus`** override on the Task call. The Model column above is superseded by this rule.
+| 1 | `backend-security-coder` | opus | Three-tier security boundary (Always/Ask/Never) | `prompts/01-backend-security.md` |
+| 2 | `php-pro` | opus | PHP 8.3+ — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
+| 3 | `python-pro` | opus | Python 3.13+ — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
+| 4 | `javascript-pro` | opus | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
+| 5 | `sql-pro` | opus | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
+| 6 | `database-optimizer` | opus | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
+| 7 | `refactoring-orchestrator` (read-only audit mode) | opus | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
+| 8 | `code-reviewer` | opus | AI-specific deep scrutiny | `prompts/07-code-reviewer-ai.md` |
+| 9 | `test-automator` | opus | Coverage, test quality, anti-patterns | `prompts/08-test-automator.md` |
+| 10 | `<lang>-pro` (2nd pass) | opus | Dependencies + docs | `prompts/09-deps-docs.md` |
+| 11 | `code-reviewer` | opus | Consolidation | `prompts/10-consolidator.md` |
+| 12 | `debugger` | opus | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
+| 13 | `code-reviewer` | opus | Self-review (forked instance) | `prompts/12-self-review.md` |
 
 Discipline skills active throughout (auto-loaded by the plugin):
 
@@ -369,7 +369,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 5. **Time/token budget**: each specialist has a budget of ~50 tool calls. The prompt already says so.
 6. **No nested subagents**: SDK limit — specialists never spawn more Task calls.
 7. **Discipline overlay**: `verification-before-completion`, `systematic-debugging`, `test-driven-development` activate automatically inside each specialist (they're plugin-bundled).
-8. **Consolidation must be opus**: STEP 4 — the consolidator runs on `model: opus`. Sonnet misses cross-confirmations.
+8. **Consolidation, self-review and P0 reproduction must be opus**: STEP 4, STEP 6 and STEP 5 carry the audit's judgment — Sonnet misses cross-confirmations and mis-attributes root causes, and both failures are silent (no later step re-checks them). Every other specialist is on Opus too; the toolkit does not currently mix classes.
 9. **PoC reproduction is mandatory**: STEP 5 — P0 without reproduction = P1 with note.
 10. **Self-review is mandatory**: STEP 6 — fresh forked `code-reviewer` checks the consolidator's work.
 11. **Both self-checks are mandatory**: STEP 4 CHECK A (numeric) + STEP 6 (d) (hallucinated APIs). Both have caught 30%+ defects in the report itself in real audits.

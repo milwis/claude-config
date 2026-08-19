@@ -26,6 +26,18 @@ Complete development toolkit: language-specific coding agents, security review, 
 | test-automator | Comprehensive test automation strategies |
 | mobile-pwa-developer | PWA development with offline-first architecture |
 
+### Model class — two-tier policy (2026-08-19)
+
+The toolkit runs a deliberate two-tier split:
+
+- **`sonnet` (writer agents):** php-pro, sql-pro, javascript-pro, test-automator, debugger, database-optimizer, nextjs-pro, python-pro, mobile-pwa-developer.
+- **`opus` (judgment gates):** code-reviewer, backend-security-coder, refactoring-orchestrator.
+- **Audits are the exception:** the `audit-360` skill spawns EVERY specialist with an explicit `model: opus` override — audits are rare and quality-critical (see `skills/audit-360/SKILL.md` §1).
+
+History: on 2026-08-17 a uniform-Opus policy was adopted based on API list pricing (Opus 5 vs Sonnet 5 ≈ 1.7×, so ~15-20% total saving — arguably not worth a quality risk). That analysis did not apply to the owner's actual billing: a **Max subscription quota**, where usage is weighted by model class and Opus burns the quota several times faster than Sonnet — the owner was exhausting a Max20 limit in 2-3 days. On 2026-08-19 the owner decided the two-tier split. The audit that triggered the change (KonkretnyTMS 360°, 19.08.2026) also showed the recorded P0s were caused by missing *rules* in agent instructions, not by model capability — Opus wrote those bugs too — so the quality question is addressed by rules + Opus review gates rather than by an Opus-everywhere roster.
+
+Revisit with data, not intuition: `task-lifecycle` reports review iterations per task — if work that used to pass review in one round starts needing 2-3, that is the signal the smaller writer model is not carrying the task. Do not silently flip models back in a maintenance run (see UPDATE_LOG maintenance policy).
+
 ## Skills
 
 ### Workflow skills (slash commands)

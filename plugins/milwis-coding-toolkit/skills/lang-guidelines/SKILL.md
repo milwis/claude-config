@@ -158,7 +158,7 @@ Use the template at [references/agent-template.md](references/agent-template.md)
 
 ### Content requirements (all must be present)
 
-1. **Frontmatter** — 1-sentence description, `model: inherit`, tools list
+1. **Frontmatter** — 1-sentence description, `model: sonnet`, tools list. New language experts are WRITER agents and land in the Sonnet tier; judgment gates (code-reviewer, backend-security-coder, refactoring-orchestrator) stay on Opus — see the plugin README ("Model class") for the two-tier policy.
 2. **Identity & Philosophy** — language's guiding principles
 3. **AI Code Generation Error Prevention** (most detailed — at least 10 specific errors with ❌/✅ examples)
 4. **Code Style & Conventions** — naming, formatting, imports
