@@ -64,3 +64,12 @@ prompt: |
   Operate under `verification-before-completion`. Cite real evidence —
   no naked assertions.
 ```
+
+---
+
+## Addendum (2026-08-19)
+
+- Verify CHECK B was performed MECHANICALLY (all symbols extracted from diffs), not from a hand-curated list — if the consolidator verified "N symbols, 0 rejected", cross-check that N covers every symbol used in the proposals.
+- Verify signatures, not just existence: a logger/helper called with the wrong argument count passes a grep-for-name check and still crashes in production.
+- Verify every file path in FIX_PROPOSALS against `git ls-files` — consolidation-stage path hallucination is a documented failure mode even when source findings were correct.
+- Verify that numbers corrected during consolidation/self-review were propagated back to the report header and executive summary.

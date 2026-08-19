@@ -45,6 +45,8 @@ Specialists invoked via the Task tool (`subagent_type: <name>`):
 | 12 | `debugger` | sonnet | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
 | 13 | `code-reviewer` | **opus** | Self-review (forked instance) | `prompts/12-self-review.md` |
 
+**Model policy for audits (2026-08-19):** the agents' frontmatter defaults to `sonnet` for daily work (token economy). Audits are rare and quality-critical — spawn EVERY specialist in this skill with an explicit **`model: opus`** override on the Task call. The Model column above is superseded by this rule.
+
 Discipline skills active throughout (auto-loaded by the plugin):
 
 - `verification-before-completion` — no specialist reports "done" without evidence
@@ -111,7 +113,7 @@ This inventory lets specialist prompts stay short and generic — "audit the pro
 
 ### STEP 2 — Spawn specialists in parallel (one tool block)
 
-**CRITICAL**: invoke all Task calls in a SINGLE message. That's the only way to get genuine parallelism in Claude Code.
+**CRITICAL**: invoke all Task calls in a SINGLE message. That's the only way to get genuine parallelism in Claude Code. Pass `model: opus` on every Task call (see §1 model policy).
 
 For each specialist you want to run:
 
@@ -149,10 +151,11 @@ Then:
 
 Read `prompts/10-consolidator.md`, substitute `<INVENTORY_PATH>`, spawn `code-reviewer` with `model: opus`. The consolidator dedupes, applies escalation rules from §6, generates `audit/REPORT.md` and `audit/FIX_PROPOSALS.md`, and runs **two mandatory self-checks** at the end:
 
-- **CHECK A (numeric consistency)**: counts in tables match executive summary
-- **CHECK B (fix-proposal hallucination)**: every recommended class/method/package is verified to exist via grep / `npm view` / `composer show`
+- **CHECK A (numeric consistency)**: counts in tables match executive summary — and every number corrected later in the document (self-review, measurements) must be propagated BACK to the header/summary; a resolution at the bottom with a stale number at the top is the same defect the audit reports in the project.
+- **CHECK B (fix-proposal hallucination)**: extract ALL symbols mechanically from FIX_PROPOSALS — every function/method call, class name, file path, and constant appearing in the proposed diffs (not a hand-curated list) — and verify each: symbol exists (`grep`, with the full SIGNATURE checked for functions you call with arguments), package exists (`npm view` / `composer show`), file path exists (`git ls-files`), and every cited `file:line` actually contains the quoted code (`sed -n '<line>p'`).
+- **Path fidelity**: the consolidator copies file paths VERBATIM from the source findings — never rewrites, normalizes, or "corrects" a path. Real-audit failure mode: source modules had the path right, the consolidation invented a plausible-looking wrong one, and it propagated into FIX_PROPOSALS.
 
-Skipping either check has produced miscounts of 30%+ and recommendations to call non-existent methods in real audits.
+Skipping these checks has produced miscounts of 30%+, recommendations calling non-existent methods, a three-arg call to a four-arg logger signature (production TypeError), and a hallucinated path in real audits.
 
 ### STEP 5 — PoC reproduction for every P0 (`debugger`)
 
@@ -174,6 +177,8 @@ grep -c '^| P2-'  audit/REPORT.md
 ```
 
 Show output to the user. Without this, the audit is not "done".
+
+Also write `audit/RUN_META.md`: start/end timestamps, number of Task invocations per step, models used, tool-call budget overruns per specialist, and any lost/failed/restarted passes **with their approximate cost**. A consolidation pass that fails or is redone MUST be recorded here — "run 1 lost without record" must never happen again. This file is how the user learns what the audit cost and where the budget went.
 
 ### STEP 8 — Feedback loop: propose agent updates
 

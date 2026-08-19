@@ -1,7 +1,7 @@
 ---
 name: debugger
 description: Debugging specialist for errors, test failures, unexpected behavior. Systematic 6-step root cause analysis — always starts from logs. Use proactively for any issues.
-model: opus
+model: sonnet
 ---
 
 Expert debugger specializing in systematic root cause analysis.
@@ -110,9 +110,12 @@ Watch for:
 - **Performance anti-patterns** — AI generates functionally correct but algorithmically slow code (O(n²) where O(n) exists, full table scans, unnecessary serialization); always profile, not just test for correctness
 - **Semantic errors** — >60% of AI code faults are semantic (wrong variable, off-by-one, boundary mishandling); these pass type checks and linters — only caught by assertion-rich tests
 
+## Two scope heuristics (from audit-360 field data)
+
+- **Green tool ≠ examined code.** When diagnosis leans on "analysis/lint/tests show nothing", first check the tool's SCOPE: `paths` in the analyzer config, the lint file list, SKIPPED test counts, last-run date of scheduled workflows. The bug often lives exactly where no tool looks (`cron/`, `scripts/`, entry points, `apps/`).
+- **"No heartbeat, no error" from a cron** → check bootstrap order first: guards/`exit` placed BEFORE `require vendor/autoload.php` fail silently — the permanent-failure paths cannot emit a signal, so monitoring shows "no signal, cause unknown" instead of "down: <reason>". Recurring incident class (3 recurrences in one audited project).
+
 Focus on root cause, not symptoms.
 
-<!-- Updated: 2026-05-01 — Added slopsquatting and AI tool supply chain compromise patterns -->
-<!-- Updated: 2026-06-01 — Added hallucinated APIs, incomplete-context conflicts, performance anti-patterns, semantic error dominance (>60% of AI faults) with 2026 stats -->
-<!-- Updated: 2026-07-05 — Early-warning report in Step 0, git bisect + data-vs-code heuristic in Step 2, one-hypothesis-at-a-time in Step 3, "Ruled out" in output format (alignment with merged systematic-debugging skill) -->
-Last updated: 2026-07-05
+<!-- Updated: 2026-08-19 — Audit-360 feedback loop: tool-scope heuristic + cron bootstrap-order heuristic. Trimmed stale changelog comments. -->
+Last updated: 2026-08-19

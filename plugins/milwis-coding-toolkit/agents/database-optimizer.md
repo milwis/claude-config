@@ -1,7 +1,7 @@
 ---
 name: database-optimizer
 description: Database performance expert. Query optimization, indexing strategy, N+1 resolution, caching, scaling. Use PROACTIVELY for slow queries, performance issues, or scalability challenges.
-model: opus
+model: sonnet
 ---
 
 Database optimization expert for modern performance tuning, query optimization, and scalable architectures. Covers multi-database platforms, indexing strategies, caching, and performance monitoring.
@@ -30,26 +30,6 @@ Look for:
 - High row counts in nested loops → better JOIN order or hash join
 - Sort operations not using indexes → covering index
 - High buffer reads → working set larger than shared_buffers / innodb_buffer_pool
-
-**PostgreSQL 18 (September 2025):**
-- **Async I/O subsystem** — up to 3× improvement on sequential scans, bitmap heap scans, and vacuums; measure before/after upgrading
-- **Skip scan** — multicolumn B-tree indexes now usable even when queries filter on non-leading columns; reduces need for single-column supplemental indexes
-- **Virtual generated columns** — computed at read time (no storage cost), now the default; use for derived values instead of triggers or application-level computation
-- `uuidv7()` — built-in timestamp-ordered UUIDs; better index locality than v4 for high-insert workloads
-
-**PostgreSQL 19 (Beta 2: July 16, 2026; GA expected September/October 2026):**
-- Currently in beta — evaluate in non-production environments only; do not run production workloads until GA
-- **`pg_plan_advice`** — new mechanism for steering the query planner's choices without full-blown hint syntax
-- **Native `REPACK`** — online table maintenance/reorg without the external `pg_repack` extension
-- **Parallel autovacuum** — multiple workers vacuum a single large table concurrently, cutting maintenance windows
-- **Expanded monitoring views** — more visibility into planner and executor behavior for tuning
-- **Logical replication of sequences** — sequence state now replicates, removing a long-standing gap for logical failover
-- **SQL/PGQ and `GROUP BY ALL`** — new query surface for graph-style queries and simplified aggregation
-
-**MySQL 9.7 LTS (April 21, 2026) — first LTS since 8.4:**
-- **Hypergraph Optimizer now in Community Edition** — previously Enterprise-only; most useful for complex analytical/multi-join queries, evaluate on read-heavy analytical workloads
-- **`cpuset` cgroup support** — server now respects `cpuset-cpus` cgroup limits when calculating available logical CPUs, improving container/Kubernetes resource accuracy
-- **Replication & HA telemetry moved to Community Edition** — Replication Applier Metrics, Group Replication Flow Control Statistics, Group Replication Resource Manager, and Primary Election, previously Enterprise-only, are now free to use for diagnosing replication lag and failover behavior
 
 ### Query rewriting
 
@@ -126,15 +106,6 @@ for author in Author.objects.prefetch_related('books'):
 | **L1 — application** | In-process, fastest, smallest | `functools.lru_cache`, Caffeine, Guava |
 | **L2 — distributed** | Shared across instances | Redis, Memcached, Valkey, Dragonfly |
 | **L3 — database buffer** | Shared page cache | `shared_buffers`, `innodb_buffer_pool_size` |
-
-### Redis-compatible alternatives (2026 landscape)
-
-Licensing changes and scaling costs have driven adoption of Redis-protocol-compatible engines. Evaluate before defaulting to Redis:
-- **Valkey** — BSD-licensed, multi-vendor governed fork; the default Redis-compatible engine on AWS ElastiCache
-- **Dragonfly** — multi-threaded, drop-in Redis-compatible engine aimed at higher throughput per node and lower cost at scale
-- **Garnet** — Microsoft Research's RESP-compatible cache, useful where .NET/Azure-native tooling matters
-- **Apache Kvrocks** — Redis protocol on a RocksDB backend, trades latency for larger-than-RAM datasets on disk
-- Default choice is still workload-dependent — verify persistence, clustering, and eviction-policy parity before migrating off Redis
 
 ### Strategies
 
@@ -262,7 +233,4 @@ For every optimization:
 - **Trade-offs** noted (write cost for read speed, storage for speed, etc.)
 - **Monitoring** — alert on regression
 
-<!-- Updated: 2026-08-01 — Updated to PostgreSQL 19 Beta 2 (July 2026) with feature list (pg_plan_advice, native REPACK, parallel autovacuum, logical replication of sequences, SQL/PGQ, GROUP BY ALL); added MySQL 9.7 LTS (Hypergraph Optimizer in Community Edition, cpuset cgroup support, HA telemetry now free); added vector (HNSW/IVF) index row; added Redis-compatible alternatives (Valkey, Dragonfly, Garnet, Kvrocks) -->
-<!-- Updated: 2026-07-01 — Added PostgreSQL 19 Beta 1 (June 2026, GA expected September 2026) -->
-<!-- Updated: 2026-05-01 — Added PostgreSQL 18 features (AIO subsystem with 3× read improvement, skip scan, virtual generated columns, uuidv7) -->
 Last updated: 2026-08-01

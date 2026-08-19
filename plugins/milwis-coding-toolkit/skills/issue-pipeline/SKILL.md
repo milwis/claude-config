@@ -88,7 +88,7 @@ Plus: evidence paths per issue, aggregated `VERIFICATION_ENV.md` gaps discovered
 
 1. **No merge, no push to the deploy branch, no deploy, no `gh issue close` — without the user.** The pipeline ends at branches + table.
 2. **Triage is never skipped**, even for issues written today — the anchor refresh alone pays for it.
-3. **Caps propagate:** each task-lifecycle keeps its own 3+3 caps; the pipeline adds one more — max **10 issues per run** without a fresh check-in with the user.
+3. **Caps propagate:** each task-lifecycle keeps its own review/verify caps; the pipeline adds one more — max **3 issues per run** without a fresh check-in with the user (the binding constraint is the token budget, not wall-clock; raise the cap only on the user's explicit request).
 4. **DB-touching issues never run in parallel with each other** (shared dev DB = side-effect coupling).
 5. Batch results are reported per batch if the run is long — the user sees progress, not silence.
 

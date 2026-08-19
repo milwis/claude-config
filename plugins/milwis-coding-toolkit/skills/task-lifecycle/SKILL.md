@@ -35,9 +35,11 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
 1. Restate the task in 1-2 sentences; if the spec is ambiguous on something that changes the implementation, ask now — never mid-pipeline.
 2. Classify size:
    - **Trivial** (copy, CSS, config, docs) — skip to Step 1, DIRECT edit allowed (per `executing-plans` DIRECT rules), then jump to Step 4.
+   - **Small** (single coherent fix, expected diff < 30 lines, ≤ 2 files, NOT touching money/VAT, auth/permissions, or regulated data) — one builder subagent, then ONE review pass (no loop; findings fixed once, no re-review unless CRITICAL). Skip Step 3. Step 4 only if a user-facing surface changed. This class exists to stop 8-line fixes from paying the full-pipeline cost.
    - **Standard** (single feature/bugfix, one coherent change) — Step 1 with one builder subagent.
    - **Large** (multi-task, 3+ modules, needs design) — route through `brainstorming` → `writingplans` → `executing-plans` for the build; this skill then owns Steps 2-5 on the combined result.
-3. **Branch strategy:** if the project deploys from its main branch (deploy gate on push), create a feature branch first — `agent/<slug>` or `agent/issue-<n>`. Autonomous work must never have a direct path to production. Merge/push to main is ALWAYS the user's decision.
+3. **Task context block (mandatory for Standard/Large):** at intake write a short context block — target files, canonical paths/services for any variant work, decisions already made, hard constraints ("do NOT touch X"). Paste it into EVERY subagent prompt in this lifecycle. Before each review iteration, append the previous iteration's findings + what was changed — reviewer N must know what reviewer N-1 found. Subagents rediscovering the project from scratch is both the main token cost and a source of contradictory decisions.
+4. **Branch strategy:** if the project deploys from its main branch (deploy gate on push), create a feature branch first — `agent/<slug>` or `agent/issue-<n>`. Autonomous work must never have a direct path to production. Merge/push to main is ALWAYS the user's decision.
 
 ## Step 1: Build (in a subagent)
 
@@ -54,7 +56,8 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
 2. Split findings by severity:
    - **CRITICAL / HIGH / MEDIUM** → dispatch a builder subagent with the findings **verbatim** (file:line, description, suggested direction). Then re-review the touched areas.
    - **LOW / stylistic / uncertain ("plausible")** → collect for the final report. Do not auto-fix, do not silently drop.
-3. Repeat review→fix up to **3 iterations**. Still failing after 3 → STOP; report remaining findings and why they persist. Never loop indefinitely, never merge review debt silently.
+3. Repeat review→fix up to **2 iterations** (3 for Large tasks). Cap exhausted → STOP; report remaining findings and why they persist. Never loop indefinitely, never merge review debt silently.
+4. **Test-run economy inside the loop:** builders run TARGETED tests (`--filter` / single file) while iterating. The FULL suite runs exactly once — at the final gate before the report — and its result is reported with BOTH counts (passed AND skipped, with the skip reason). Re-running the full suite after every fix is waste, not rigor.
 
 ## Step 3: Security pass (conditional)
 

@@ -1,5 +1,26 @@
 # Update Log
 
+> **MAINTENANCE POLICY (obowiązuje rutynę miesięczną — od 2026-08-19):**
+> 1. **Nie zmieniaj frontmatter `model:`** — podział jest celowy: `sonnet` dla agentów piszących, `opus` dla code-reviewer / backend-security-coder / refactoring-orchestrator. Audyty (audit-360) i tak spawnują specjalistów z override `model: opus` — patrz SKILL.md §1.
+> 2. **Nie dodawaj sekcji „newsowych"** (wydania PostgreSQL/MySQL/Node/Safari, listy narzędzi, statystyki branżowe z datami). Zostały celowo usunięte 2026-08-19 — starzeją się co miesiąc, nie zmieniają decyzji przy pisaniu kodu i zżerają tokeny przy każdym wywołaniu agenta. Aktualizuj wyłącznie REGUŁY (co wolno / czego nie wolno / jak zweryfikować).
+> 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
+> 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
+
+## Run: 2026-08-19 — Audit-360 feedback loop (KonkretnyTMS) + token economy (v1.5.0)
+
+### Updated
+- **Modele:** agenci piszący → `sonnet` (php-pro, sql-pro, javascript-pro, test-automator, debugger, database-optimizer, nextjs-pro, python-pro, mobile-pwa-developer); `opus` zostaje: code-reviewer, backend-security-coder, refactoring-orchestrator. Skill audit-360 spawnuje specjalistów z jawnym override `model: opus` (polityka w SKILL.md §1).
+- **Nowe reguły z audytu 360° KonkretnyTMS 19.08.2026 (AGENT_UPDATES.md, wzorce 1-9):** kanon Money/VAT + reguła kierunku dokumentu (php-pro, javascript-pro); trigger-scope + grep-all-writers przy rekordach finalnych oraz seeding z autorytatywnego słownika / legacy twins (sql-pro); raportowanie ZAKRESU narzędzia + liczniki SKIPPED zamiast gołego „zielono" (code-reviewer krok 6, test-automator, php-pro, javascript-pro, debugger); reguły dopasowania w configach — sonda 403-vs-404 zamiast czytania, allowlista katalogów (backend-security-coder, code-reviewer, php-pro); guard `PHP_SAPI` + zakaz inline poświadczeń w skryptach operatorskich (php-pro, backend-security-coder); autoloader przed pierwszym `exit` w cronach (php-pro, debugger); antywzorce testowe + próba mutacyjna (php-pro); martwe odwołania w dokumentacji (code-reviewer, projektowy skryba).
+- **Ekonomia testów:** testy celowane w iteracji, pełna suita RAZ na bramce z raportem passed+skipped (php-pro, test-automator, task-lifecycle).
+- **Skille:** task-lifecycle — klasa Small (diff <30 linii → 1 review pass), cap pętli 3→2, obowiązkowy Task-context block dla subagentów; verify-e2e — polityka dowodów (1 screenshot przy PASS, komplet przy FAIL, GIF na życzenie, API = dump tekstowy); issue-pipeline — cap 10→3 issues na przebieg; writingplans — Pass 2 warunkowy (>5 zadań lub domena regulowana, max 2 specjalistów); audit-360 — polityka modeli, `audit/RUN_META.md` (koszt/czas/utracone przebiegi), CHECK B mechaniczny (wszystkie symbole + sygnatury + weryfikacja file:line), path fidelity konsolidatora + addenda w prompts/10 i prompts/12.
+
+### Removed (token economy)
+- php-pro: sekcje Laravel/Symfony i zdublowany „Modern PHP Quick Reference" (~150 linii); sql-pro + database-optimizer: bloki newsów wersji baz (~80 linii); test-automator: katalogi narzędzi AI/API/perf (~25 linii); wszyscy: skumulowane stopki changelogowe.
+
+### Issues
+- Zmiany zvendorowane ręcznie do KonkretnyTMS/.claude tego samego dnia (kopie identyczne z pluginem).
+
+
 ## Run: 2026-08-01 — Set all toolkit agents to opus model class
 
 ### Updated

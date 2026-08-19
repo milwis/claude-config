@@ -176,9 +176,11 @@ Re-read the entire saved plan as a reviewer seeing it for the first time. Hunt f
 
 Write findings as a checklist. Don't stop at the first few — aim to match the 10-20 issues a fresh reviewer would find.
 
-### Pass 2 — Language-specialist audits (parallel)
+### Pass 2 — Language-specialist audits (parallel; conditional)
 
-Identify which languages/technologies the plan touches. For each, spawn the matching specialist agent **in parallel** (single message, multiple `Agent` calls) to audit only their relevant sections:
+**Run Pass 2 only for plans with more than 5 tasks OR touching money/VAT, auth/permissions, or regulated data — and cap it at the 2 most relevant specialists.** Auditing the TEXT of a small plan with a panel of agents costs more than the reality-check the code itself will force during execution; the review loop in `task-lifecycle` catches what a plan audit would. For plans below the threshold, skip to Pass 3 with Pass 1 findings only.
+
+Identify which languages/technologies the plan touches. Pick up to 2 matching specialists (by risk, not by coverage) and spawn them **in parallel** (single message, multiple `Agent` calls) to audit only their relevant sections:
 
 | Technology in plan | Agent |
 |---|---|

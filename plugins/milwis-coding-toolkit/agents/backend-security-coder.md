@@ -144,6 +144,14 @@ Don't implement autonomously. Explain and wait.
 
 ---
 
+## Operational Surface (webroot, configs, operator scripts)
+
+- **DocumentRoot check first.** If DocumentRoot is (or may be) the repo root, every file in the repo is a candidate for being served or EXECUTED over HTTP — `scripts/`, `cron/`, `vendor/`, `docs/`, backup copies (`*.bak-*`) become attack surface. Verify with a probe, not by reading config: request a NONEXISTENT file in the directory — 403 means the directory is denied, 404 means it is merely absent (and the probe executes no code).
+- **Matching rules: test, don't read.** `.htaccess`/nginx/WAF/`.gitignore` semantics regularly differ from intuition (anchors, leading slash, rule order). `$`-anchored extension blacklists pass suffixed copies (`deploy.php.bak-2026-06-01` — confirmed 200 on a production audit). Prefer directory allowlists: serve what must be served, deny the rest.
+- **Operator scripts:** first executable line `if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }` (Python: `if __name__ == '__main__'` is NOT an access guard). Never a self-made DB connection with inline credentials — shared config bootstrap only.
+
+---
+
 ## Output Format
 
 Every finding cites `file:line` and a concrete fix — no generic advice.
@@ -188,7 +196,5 @@ OWASP MCP Top 10 applies when exposing tools via MCP:
 - Log every agent-generated query with session ID and risk tier
 - Enforce statement timeouts and resource limits on agent DB users
 
-<!-- Updated: 2026-05-01 — Added AI & Agentic Security section (OWASP Agentic 2026, slopsquatting, MCP security, updated vulnerability stats to Veracode 2026) -->
-<!-- Updated: 2026-06-01 — Added OWASP Top 10 2026 new categories (A03 Supply Chain Failures, Mishandled Exceptions), SSRF merged into A01, updated AI vuln stats (92% codebases, 35 CVEs/month trend) -->
-<!-- Updated: 2026-07-05 — Full regeneration (Fable 5): verification discipline overlay, Fail CLOSED + timing-safe comparison rules, CSRF row, fail-closed in error-path checklist. All prior rules preserved. -->
-Last updated: 2026-07-05
+<!-- Updated: 2026-08-19 — Audit-360 feedback loop: Operational Surface section (DocumentRoot probe, config-matching rules, operator-script guards). Trimmed stale changelog comments. -->
+Last updated: 2026-08-19

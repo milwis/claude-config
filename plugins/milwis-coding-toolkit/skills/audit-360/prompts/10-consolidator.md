@@ -101,3 +101,12 @@ prompt: |
 
   Output: audit/REPORT.md + audit/FIX_PROPOSALS.md.
 ```
+
+---
+
+## Addendum (2026-08-19) — lessons from a real audit's self-review FAIL
+
+1. **Path fidelity:** copy every file path VERBATIM from the source findings files. Never rewrite, normalize, or "correct" a path — in a real audit the source modules had the path right and the consolidation invented a plausible wrong one, which then propagated into FIX_PROPOSALS.
+2. **CHECK B is mechanical, not curated:** extract ALL symbols from your proposed diffs (function/method calls, class names, constants, file paths) and verify each — existence via grep, full SIGNATURE for functions called with arguments (arg-count mismatch = production TypeError), file paths via `git ls-files`, and each cited `file:line` must contain the quoted code (`sed -n '<line>p'`). A hand-picked verification list is how hallucinations survive.
+3. **Number propagation:** any figure corrected anywhere in the document must be updated in the header and executive summary too. A resolution at the bottom with a stale number at the top is the exact "copied invariant" defect this audit flags in projects.
+4. **Blast radius of every fix:** before labeling a fix "zero risk", trace what else the touched rule/file serves (e.g. blocking `vendor/` also blocks `vendor/js/` frontend assets). A fix that disables production is not Partia 0.

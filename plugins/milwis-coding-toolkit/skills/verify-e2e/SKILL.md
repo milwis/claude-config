@@ -92,8 +92,10 @@ Noisy tool-calling (browser automation) stays in the subagent — the orchestrat
 
 - Evidence artifacts (screenshots, GIFs, response dumps) go to the session scratchpad or a git-ignored `.verify/` directory — never into commits.
 - The final report references artifacts by path with one-line descriptions.
+- **Screenshots are for GUI surfaces only** — API/CLI evidence is text (request + response dumps, command output + exit code). A screenshot of a terminal is never evidence.
+- **Evidence economy:** on PASS, ONE screenshot showing the final feature state suffices (plus one for the negative case if it is visual). On FAIL, capture every step of the repro — that is where volume pays. Screenshots cost ~1.5k tokens each; a 10-screenshot PASS trail is waste.
 - Screenshots must show the actual feature state, not just "page loaded".
-- For multi-step GUI flows prefer a GIF/recording — the user reviews recordings faster than prose.
+- GIF/recordings only when the user asks for one or the flow genuinely cannot be evidenced by stills.
 
 ---
 

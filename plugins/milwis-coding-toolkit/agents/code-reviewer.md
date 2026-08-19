@@ -120,9 +120,11 @@ Severity:
 | ⚪ **NIT** | Minor style/naming | Author may ignore |
 | ℹ️ **FYI** | Informational context | No action |
 
-### 6. Verify completion
-- [ ] Build/lint passes on changed files?
-- [ ] Existing tests still pass?
+### 6. Verify completion — a green result is a claim about SCOPE, not about the code
+- [ ] Build/lint/static analysis passes — **and report what the tool actually covered**: read `paths` in the analyzer config (directories outside it were NOT analyzed; check declared language version vs runtime) and the lint script + flat-config `files`/`ignores` in `package.json`. Files outside the configured scope are *unexamined*, not clean — say so explicitly.
+- [ ] Existing tests still pass — **report BOTH counts: passed AND skipped**. A test skipped for a missing DB/network/key is a test the gate does not have. Format: "3 210 passed, **1 409 skipped** (no DB on CI) — DB layer unverified", never "tests green".
+- [ ] Parity/property gates: state what they prove — a gate comparing two implementations proves their AGREEMENT, not their correctness; a shared bug passes.
+- [ ] Scheduled CI workflows: check the date of the LAST run, not the file's existence — scheduled workflows get disabled platform-side with no trace in the repo.
 - [ ] New behavior has test coverage?
 - [ ] No debug statements (console.log, print, breakpoint)?
 - [ ] Dependencies justified and audited?
@@ -151,6 +153,8 @@ Severity:
 | Variant-path regression | The diff implements a sibling of an existing operation (correction, reversal, batch, offline, delete/cancel, single-vs-bulk export, import-update) with its own logic. Grep the main path first: if the canon has a guard/formula/filter the variant lacks (edit-lock on save but not on delete; per-category buckets in one generator but not its sibling; mark-first in single export but not in the batch; a filter in one subquery but not its twin; a 2nd-of-kind document computed from the ORIGINAL state instead of the post-1st state, e.g. a second correction derived from the original invoice; a correction XML dumping the whole diff into ONE VAT bucket while the invoice generator splits per rate) → CRITICAL. The defect lives *between* files, so single-file review misses it |
 | State-machine side doors | A new endpoint or branch writes a status/state column directly (`status='...'`, `*_state=...`) instead of the canonical transition method, or with a weaker guard subset than the main path. Grep every writer of the column (`SET <column>`) and compare guards — asymmetric guards = CRITICAL |
 | Ambiguous external outcome treated as failure | Timeout/5xx AFTER a physical submit (payment, third-party API, export file written, e-mail sent) handled by wipe/retry/re-enqueue with no write-ahead reference and no reconcile-by-reference step → CRITICAL: this is the double-submit generator. UNKNOWN is a third state, distinct from failed. Audit: a KSeF send timeout wiped the XML and re-enqueued with no `referenceNumber` reconcile → duplicate fiscal document |
+| Config matching rule wider in the eye than in the regex | Changes to `.htaccess`/`.gitignore`/nginx/WAF/CODEOWNERS: collide the pattern with real filenames (`git check-ignore -v`; curl 403-vs-404 probe on a NONEXISTENT file). `$`-anchored extension blacklists miss suffixed copies. Prefer directory allowlists | Production audit: `\.(bak\|log)$` blacklist served `deploy.php.bak-2026-06-01` with HTTP 200 |
+| Dead documentation references | For changed docs: every `file.php:123`, class name and path must physically exist (`ls` the file, grep the symbol; prefer symbol references over line numbers). In AI-assisted projects docs are read by agents BEFORE every change — a dead reference is an instruction leading into a nonexistent place | Audit: CLAUDE.md pointed at a nonexistent working directory; a deleted controller cited 10× |
 
 ### When reviewing fix proposals or audit reports
 
@@ -204,9 +208,5 @@ Description.
 - **Label finding confidence** — CONFIRMED (evidence in hand) vs PLAUSIBLE (needs verification) vs LATENT (real bug, current data doesn't trigger it). Never report speculation as certainty, and never recommend a class/method you haven't grepped for — see "When reviewing fix proposals or audit reports"
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
-<!-- Updated: 2026-07-07 — Added Review Process step 2 (variant-of-canonical diff), 7th axis G. Implementation Fidelity & Data Integrity (8 patterns distilled from docs/fable_audits/: producer↔consumer key contract, dead-on-dispatch, TOCTOU, ODKU merge, cache poisoning, silent type coercion, cross-consumer inconsistency, regulated-logic-from-memory), sharpened 3 overlapping AI-scrutiny rows with audit examples, 2 Principles (physical evidence over docs, confidence labels) -->
-<!-- Updated: 2026-07-05 — Added 3 AI-scrutiny rows from cross-project audit meta-analysis: variant-path regression (sibling operation reimplemented without the canon's guards), state-machine side doors (direct status writes bypassing the canonical transition), ambiguous external outcome treated as failure (double-submit generator) -->
-<!-- Updated: 2026-07-01 — Added ProjectDiscovery 2026 stat (AI code 1.88× more vulnerable), specific slopsquatting incidents (unused-imports npm, huggingface-cli 30K+, CSA April 2026 autonomous agent risk), iterative refinement degradation anti-pattern (Arxiv 2506.11022) -->
-<!-- Updated: 2026-05-15 — Added 6th review axis: Test-Production Contract (orphan tests after DELETE/RENAME/signature change). Driven by PR #155 + 2026-05-15 ksef_daemon incident (7 orphan tests) -->
-<!-- Updated: 2026-05-01 — Added slopsquatting and deprecated config format checks to AI-generated code table, updated vulnerability stats to Veracode 2026 (45%) -->
-Last updated: 2026-07-07
+<!-- Updated: 2026-08-19 — Audit-360 feedback loop: step 6 rewritten as scope-reporting gate (analyzer paths, SKIPPED counts, parity-gate semantics, workflow last-run dates), 2 new AI-scrutiny rows (config matching rules, dead documentation references). Trimmed stale changelog comments. -->
+Last updated: 2026-08-19

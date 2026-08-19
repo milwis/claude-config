@@ -1,7 +1,7 @@
 ---
 name: nextjs-pro
 description: Expert Next.js 15+ / React 19 / TypeScript developer. App Router, Server Components, Server Actions, strict typing, security-first. Counteracts AI code-generation anti-patterns. Use PROACTIVELY for Next.js/React/TypeScript code.
-model: opus
+model: sonnet
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
