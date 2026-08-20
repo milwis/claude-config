@@ -107,15 +107,17 @@ For each group G:
 
 **At the end of each group**, one verification pass:
 1. Syntax check modified files (`php -l`, `node --check`)
-2. Run affected tests (`phpunit`, `pytest`, `npm test`)
+2. Run **TARGETED tests only** — the test classes/files covering what this group touched: `phpunit --filter <ChangedClass>` / `phpunit tests/Path/`, `pytest -k`, `vitest run <file>`. **NEVER the full suite at a group boundary** — on a 10k-test suite a full run costs minutes and proves nothing the targeted run doesn't; builders and subagents inherit this rule. Derive the filter from the group's changed files (`git diff --name-only` → matching test classes + tests added in this group).
 3. Check acceptance criteria for each task in the group
+
+**The FULL suite runs exactly ONCE per plan execution — in the final group, before commit** (it catches `failOnWarning`/`failOnRisky`, orphan tests and cross-module regressions that filters miss). It is run by the final gate (orchestrator, or delegated to `code-reviewer`/`test-automator` in that group) — **task builders never run it**. Report it with BOTH counts: passed AND skipped, with the skip reason.
 
 **Verification fails → Stop-the-Line (Rule 1).** Invoke `systematic-debugging` for root cause before any fix.
 
 **Before marking any todo item `completed`** — the verification for its group must have run in this session. This is the `verification-before-completion` gate applied at group granularity, not per-task.
 
 **Final group** is always sequential and always contains:
-- Comprehensive test pass (dispatch `test-automator` if new tests are needed)
+- Comprehensive test pass — the single FULL-suite run of this execution (dispatch `test-automator` if new tests are needed)
 - Code review (dispatch `code-reviewer`)
 - **Surface verification** for user-facing changes: run the `verify-e2e` skill in a FRESH subagent (GUI → browser + screenshots, API → real request). Tests passing ≠ the surface working.
 - Commit

@@ -57,7 +57,7 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
    - **CRITICAL / HIGH / MEDIUM** → dispatch a builder subagent with the findings **verbatim** (file:line, description, suggested direction). Then re-review the touched areas.
    - **LOW / stylistic / uncertain ("plausible")** → collect for the final report. Do not auto-fix, do not silently drop.
 3. Repeat review→fix up to **2 iterations** (3 for Large tasks). Cap exhausted → STOP; report remaining findings and why they persist. Never loop indefinitely, never merge review debt silently.
-4. **Test-run economy inside the loop:** builders run TARGETED tests (`--filter` / single file) while iterating. The FULL suite runs exactly once — at the final gate before the report — and its result is reported with BOTH counts (passed AND skipped, with the skip reason). Re-running the full suite after every fix is waste, not rigor.
+4. **Test-run economy inside the loop:** builders run TARGETED tests ONLY (`--filter` / single file / directory matching their diff) — a builder NEVER runs the full suite. The FULL suite runs exactly once — at the final gate before the report, executed by the orchestrator or delegated to the reviewer alongside the final code review — and its result is reported with BOTH counts (passed AND skipped, with the skip reason). Re-running the full suite after every fix is waste, not rigor.
 
 ## Step 3: Security pass (conditional)
 
