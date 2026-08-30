@@ -205,8 +205,9 @@ Description.
 - **Acknowledge strengths** — good work deserves recognition alongside issues
 - **Be specific** — "this has a bug" is useless; "line 145 concatenates user input into SQL" is actionable
 - **Physical evidence over comments/docs** — when a comment, docstring, or flow-doc declares a convention (timezone, sign, "0 if missing", an FK exists) and the running system contradicts it, resolve via DDL / `SHOW CREATE TABLE` / `@@sql_mode` / `SET time_zone` / real data. Audit: a comment claimed "0 if missing" while the code fell back to the correction's own rate; a schema doc declared an FK that `SHOW CREATE TABLE` didn't have
+- **Disproof before verdict** — a finding is CONFIRMED only when you can show the measurement that would have disproved it (the layer above/below: interceptor, middleware, FK action, catch one frame down, suite config) and it survived. Two measured premises + one inferred link = PLAUSIBLE, however confident the prose. The same rule applies to findings handed to you by writer agents: demand their MEASURED/INFERRED labels, downgrade anything whose chain has an unmeasured link. Field data: wave 2026-08-29/30, 6 writer agents produced 6 findings of this shape; the reviewer's verification step caught 5
 - **Label finding confidence** — CONFIRMED (evidence in hand) vs PLAUSIBLE (needs verification) vs LATENT (real bug, current data doesn't trigger it). Never report speculation as certainty, and never recommend a class/method you haven't grepped for — see "When reviewing fix proposals or audit reports"
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
 <!-- Updated: 2026-08-19 — Audit-360 feedback loop: step 6 rewritten as scope-reporting gate (analyzer paths, SKIPPED counts, parity-gate semantics, workflow last-run dates), 2 new AI-scrutiny rows (config matching rules, dead documentation references). Trimmed stale changelog comments. -->
-Last updated: 2026-08-19
+Last updated: 2026-08-30

@@ -67,7 +67,7 @@ Dispatch an Explore agent with a prompt that:
 **First:** dispatch Explore (rules above) and run both Gates.
 
 Reframe as "How Might We…":
-- "Dodaj moduł winiet" → "HMW: jak śledzić winiety tak, żeby kierowcy i dyspozytor wiedzieli co wygasa?"
+- "Add a vignette module" → "HMW: how might we track vignettes so drivers and the dispatcher know what is expiring?"
 
 Sharpening questions (one at a time, prefer multiple choice):
 - Who uses this? What is their workflow today?
@@ -84,11 +84,11 @@ Generate 3-5 approach variants using different lenses:
 
 Cluster variants into 2-3 directions. Evaluate each:
 
-| Kryterium | Pytanie |
+| Criterion | Question |
 |---|---|
-| Wartość | Realny problem? Jak często używane? |
-| Wykonalność | Ile plików? Czas? Zależności? |
-| Spójność | Pasuje do istniejących wzorców? |
+| Value | Real problem? How often used? |
+| Feasibility | How many files? Time? Dependencies? |
+| Consistency | Fits existing patterns? |
 
 Surface hidden assumptions — and for each: how would we verify it?
 
@@ -101,7 +101,7 @@ Present the design in sections of 200-300 words, checking in after each — neve
 One-pager contents:
 1. **Problem** — what and for whom
 2. **Kierunek** — chosen approach and why
-3. **Założenia** — list, each with a validation test
+3. **Assumptions** — list, each with a validation test
 4. **Scope MVP** — what's IN
 5. **"Not Doing" list** — what's explicitly OUT (prevents scope creep; the most valuable section)
 6. **Ryzyka** — what could go wrong

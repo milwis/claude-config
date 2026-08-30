@@ -46,6 +46,7 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
 - Select the builder per the `executing-plans` agent table (php-pro / javascript-pro / sql-pro / backend-security-coder / ...). When unsure → specialist agent, not DIRECT.
 - The builder prompt is self-contained: task block, exact files, acceptance criteria, canon references for variant paths, "do NOT touch X" where relevant.
 - Discipline skills apply inside the builder: `test-driven-development` for new behavior, `systematic-debugging` on failures.
+- **Verification-type briefs are two-sided.** "Establish whether X or not-X, and name what decides it" — never "check whether X". A confirmation-shaped brief was measured (2026-08-29/30) to make a subagent confirm a false thesis while holding its disproof in its own context. Every subagent report labels load-bearing claims MEASURED (command / file:line) or INFERRED; the orchestrator treats an INFERRED link under a CONFIRMED claim as unverified.
 - The builder returns: files changed, tests added/updated, verification commands it ran. Confirm with `git diff --stat` — a builder's success report is not evidence (`verification-before-completion`).
 
 ## Step 2: Review loop (cap 3)
@@ -55,6 +56,7 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
    - diff **≥ 100 lines** → thorough review (all 7 axes, tests first).
 2. Split findings by severity:
    - **CRITICAL / HIGH / MEDIUM** → dispatch a builder subagent with the findings **verbatim** (file:line, description, suggested direction). Then re-review the touched areas.
+   - A finding the reviewer labels PLAUSIBLE (chain has an unmeasured link) is NOT dispatched as a fix — it goes back as a two-sided brief ("establish whether X or not-X") and only a MEASURED result enters the fix loop.
    - **LOW / stylistic / uncertain ("plausible")** → collect for the final report. Do not auto-fix, do not silently drop.
 3. Repeat review→fix up to **2 iterations** (3 for Large tasks). Cap exhausted → STOP; report remaining findings and why they persist. Never loop indefinitely, never merge review debt silently.
 4. **Test-run economy inside the loop:** builders run TARGETED tests ONLY (`--filter` / single file / directory matching their diff) — a builder NEVER runs the full suite. The FULL suite runs exactly once — at the final gate before the report, executed by the orchestrator or delegated to the reviewer alongside the final code review — and its result is reported with BOTH counts (passed AND skipped, with the skip reason). Re-running the full suite after every fix is waste, not rigor.

@@ -14,6 +14,18 @@ Applies `verification-before-completion` when reporting back — never claim "bu
 
 ---
 
+## Discipline overlay — measurement vs. conclusion
+
+Recurring failure class (KonkretnyTMS wave 2026-08-29/30: 6 agents, 11 issues, one agent three times, identical shape): **two true measured premises + one UNMEASURED premise → false conclusion.** Measured "no CSRF header added here" and "route not on the exemption list" → concluded 403; nobody measured the global fetch interceptor one layer up. Measured "swallowed UPDATE" → concluded orphans; nobody measured `FK ON DELETE SET NULL`. Measured "no log in this catch" → concluded events are lost; nobody measured the logger catching `PDOException` one frame down. The unmeasured link is almost always the layer ABOVE or BELOW the code in front of you: interceptor / middleware, DB constraint, catch one frame down, a suite that never collects the file.
+
+Before you name a cause, file a finding, or write "X is broken / unreachable / lost":
+1. State the claim in one sentence.
+2. Write down the ONE measurement that would DISPROVE it (grep the layer above, `SHOW CREATE TABLE`, run the request, read the catch below, check the suite config) — and run it. A claim without an executed disproof attempt is a hypothesis, never a finding.
+3. In your report label every load-bearing sentence **MEASURED** (with the command / file:line that produced it) or **INFERRED**. An INFERRED sentence may not carry a CONFIRMED verdict, and a CONFIRMED verdict may not rest on an INFERRED link.
+4. A brief phrased "check whether X" is a confirmation trap — treat X as the hypothesis and start from step 2. When YOU delegate, brief as "establish whether X or not-X, and name what decides it". Measured in the same wave: a subagent confirmed a false thesis while holding its disproof in its own context, because the brief asked it to confirm.
+
+---
+
 ## Step 0: Always Start from Logs
 
 The FIRST debugging step is ALWAYS checking application logs.
@@ -53,13 +65,14 @@ The FIRST debugging step is ALWAYS checking application logs.
 ## Step 3: Form Hypotheses
 - List 2-3 most likely root causes based on evidence
 - Rank by probability
-- Design a test for the most likely hypothesis first
+- Design a test for the most likely hypothesis first — and write down what result would DISPROVE it before you run anything
 - Test ONE hypothesis at a time, one variable at a time — never stack speculative fixes
 
 ## Step 4: Validate Hypothesis
 - Add targeted debug logging if needed
 - Test with specific inputs that trigger the failure
 - Verify the hypothesis explains ALL symptoms, not just some
+- Run the disproving measurement from Step 3 (layer above/below: interceptor, middleware, FK action, catch one frame down, suite config). Only a hypothesis that survived its own disproof becomes the root cause in the report; label it MEASURED with the evidence
 
 ## Step 5: Implement Minimal Fix
 - Fix the root cause, not just the symptom
@@ -118,4 +131,4 @@ Watch for:
 Focus on root cause, not symptoms.
 
 <!-- Updated: 2026-08-19 — Audit-360 feedback loop: tool-scope heuristic + cron bootstrap-order heuristic. Trimmed stale changelog comments. -->
-Last updated: 2026-08-19
+Last updated: 2026-08-30

@@ -29,12 +29,14 @@ For each item, dispatch a cheap read-only subagent (Explore-type):
 ```
 Issue: [title + body]
 Verify against CURRENT HEAD:
-1. Does the described problem still exist? Re-derive file:line yourself — do not trust line numbers in the issue.
+1. Establish whether the described problem EXISTS on HEAD or NOT — and name the measurement that decides it. Do not stop at the premises the issue lists; measure the layer above/below them (global interceptor/middleware, DB constraint action, catch one frame down, whether the suite collects the file at all). Re-derive file:line yourself — do not trust line numbers in the issue.
 2. Was it already fixed? If so, cite the evidence (commit / current code).
 3. Is the issue actionable as written, or does it need clarification?
-Return: VALID (with fresh file:line anchors) | ALREADY-FIXED (evidence) | NEEDS-CLARIFICATION (question)
+Return: VALID (with fresh file:line anchors) | ALREADY-FIXED (evidence) | NOT-A-BUG (the disproving measurement) | NEEDS-CLARIFICATION (question)
+Label every load-bearing sentence MEASURED (command / file:line) or INFERRED.
 ```
 
+- NOT-A-BUG → same handling as ALREADY-FIXED; the disproving measurement goes into the closing comment. An issue whose premises are all true but whose conclusion was never measured is the most common stale item in a wave.
 - ALREADY-FIXED → close/comment (with user-approved `gh issue close -c "..."`) or mark in the table; never "re-fix".
 - NEEDS-CLARIFICATION → park in the report with the question; do not guess.
 - VALID items proceed with **fresh anchors** replacing the issue's stale ones.

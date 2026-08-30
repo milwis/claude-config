@@ -92,11 +92,13 @@ Only after reading the logs → Phase 1.
 ### Phase 3 — Hypothesis & Testing
 
 1. **Form ONE hypothesis:** *"I think X is the root cause because Y (evidence from Phase 1/2)."*
-2. **Test it minimally.** Smallest change that confirms or denies. **One variable at a time.**
-3. **Verify before continuing:**
+2. **Write the disproof first.** Name the ONE measurement that would show X is NOT the cause — typically the layer above/below the code you are staring at (interceptor/middleware, FK `ON DELETE` action, a catch one frame down, a suite that never collects the file). Run it before anything else. Two measured premises + one unmeasured link is the shape of every false root cause in the 2026-08-29/30 wave.
+3. **Test it minimally.** Smallest change that confirms or denies. **One variable at a time.**
+4. **Verify before continuing:**
    - Confirmed → Phase 4
    - Wrong → new hypothesis from new evidence. Don't stack fixes.
-4. **Say "I don't understand X"** when true. Don't hand-wave.
+5. **Say "I don't understand X"** when true. Don't hand-wave.
+6. **Report MEASURED vs INFERRED.** Every load-bearing sentence in the diagnosis carries the command / file:line that produced it, or is labelled INFERRED. An INFERRED link never sits under a CONFIRMED root cause.
 
 ### Phase 4 — Fix, Guard, Verify
 
@@ -130,9 +132,9 @@ Pattern indicating an architectural, not local, bug:
 
 ## Never Rationalize
 
-- "To pewnie niezwiązane" → prove it: `git stash` — does the bug disappear?
-- "Naprawię to później" → you won't. Fix it now.
-- "To edge case, nikt tego nie trafi" → the log says otherwise.
+- "That's probably unrelated" → prove it: `git stash` — does the bug disappear?
+- "I'll fix it later" → you won't. Fix it now.
+- "It's an edge case, nobody will hit it" → the log says otherwise.
 
 ---
 

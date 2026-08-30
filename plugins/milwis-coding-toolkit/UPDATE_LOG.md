@@ -6,6 +6,21 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-08-30 — Klasa błędu „pomiar ≠ wniosek": procedura falsyfikacji u agentów piszących (v1.5.1)
+
+Źródło: diagnoza agenta po fali 11 issues w KonkretnyTMS (2026-08-29/30). Sześciu agentów piszących popełniło ten sam błąd (jeden trzykrotnie): dwie prawdziwe przesłanki zmierzone, trzecia niezmierzona, wniosek fałszywy (403 CSRF vs globalny interceptor; `--exclude-group` vs plik w ogóle niezbierany przez suitę; „sieroty" vs `FK ON DELETE SET NULL`; „zdarzenia przepadają" vs logger łapiący `PDOException` piętro niżej). Reguły kodowały WNIOSKI z incydentów, nie PROCEDURĘ; jedyne miejsce łapiące klasę systematycznie to wymóg dowodu mutacyjnego (procedura, nie przestroga). code-reviewer (krok weryfikacyjny w definicji) wyłapał 5/6 — brakowało odpowiednika u piszących.
+
+### Updated
+- **Wszyscy agenci piszący** (php-pro, javascript-pro, test-automator, sql-pro, database-optimizer, mobile-pwa-developer, nextjs-pro, python-pro, backend-security-coder, debugger): wspólna sekcja „Discipline overlay — measurement vs. conclusion" — nazwana klasa, 4-krokowa procedura (teza → pomiar OBALAJĄCY → wykonaj → etykiety MEASURED/INFERRED w raporcie), zasada zleceń dwustronnych („ustal, czy X czy nie-X, i podaj, co rozstrzyga", nigdy „sprawdź, czy X"). debugger dodatkowo: krok 3/4 — zapisz obalenie przed uruchomieniem, root cause tylko po przeżytym obaleniu.
+- **code-reviewer:** zasada „Disproof before verdict" — CONFIRMED tylko z pokazanym pomiarem obalającym; znalezisko od agenta piszącego bez etykiet MEASURED/INFERRED lub z niezmierzonym ogniwem → degradacja do PLAUSIBLE.
+- **Skille (minimalnie, tylko formułowanie zleceń):** task-lifecycle — zlecenia weryfikacyjne dwustronne, PLAUSIBLE od recenzenta wraca jako zlecenie dwustronne, nie jako fix; issue-pipeline — triage „ustal, czy istnieje czy NIE" + nowy werdykt NOT-A-BUG z pomiarem obalającym; systematic-debugging — Faza 3 krok „najpierw obalenie", raport MEASURED/INFERRED.
+- Nie ruszono: refactoring-orchestrator (ma już wymóg dowodu przeciwnego), workflow i reszta skilli (nie były przyczyną ani razu w fali).
+
+### Issues
+- Zvendorowane ręcznie do KonkretnyTMS/.claude tego samego dnia; tam dodatkowo nagłówek klasy w `.claude/rules/incident-lessons.md`, jednoliniówka w CLAUDE.md §4 i overlay w `skryba.md`.
+
+---
+
 ## Run: 2026-08-19 — Audit-360 feedback loop (KonkretnyTMS) + token economy (v1.5.0)
 
 > **SUPERSEDES wpis „2026-08-17 — stay uniformly on Opus".** Tamta analiza liczyła koszt po cenniku API (luka Opus/Sonnet ~1,7×) i na tej podstawie odrzuciła podział dwupoziomowy. Użytkownik pracuje jednak na **subskrypcji Max (limit kwotowy)**, gdzie zużycie liczone jest wg wagi modelu, a nie cennika API — Opus wypala limit wielokrotnie szybciej niż Sonnet — i decyzją użytkownika (19.08, po wypaleniu limitu Max20 w 2-3 dni) agenci piszący przechodzą na Sonneta. Ryzyko jakościowe adresują: review na Opusie (code-reviewer, backend-security-coder, refactoring-orchestrator), override `model: opus` dla WSZYSTKICH specjalistów w audit-360 oraz metryka z tamtego wpisu (liczba iteracji review w task-lifecycle — jeśli zadania zaczną wymagać 2-3 rund zamiast 1, wracamy do rozmowy z danymi).

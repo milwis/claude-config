@@ -15,7 +15,7 @@ description: Use when you have a spec for a multi-step task. Creates implementat
 
 ## Step 0: Read-Only Analysis (before writing any plan content)
 
-1. **Read flow docs** for the affected module (`docs/dokumentacja programu/flows/{moduł}.md` if it exists)
+1. **Read flow docs** for the affected module (`docs/dokumentacja programu/flows/{module}.md` if it exists)
 2. **Read the files** that will be modified. Note patterns: naming, error handling, imports, formatting
 3. **Check DB schema** for affected tables (grep for CREATE/ALTER or inspect the DB)
 4. **Map dependencies** — which JS calls which endpoint, which controllers use which services
@@ -132,7 +132,7 @@ Find timeline-breaking issues in Task 1, not Task 8.
 - Failing test for [specific behavior] → passes after implementation
 - [other acceptance criterion checks]
 
-**Commit message:** `feat(moduł): opis po polsku`
+**Commit message:** `feat(module): description (in Polish, per project convention)`
 ```
 
 ### No implementation code in the plan
