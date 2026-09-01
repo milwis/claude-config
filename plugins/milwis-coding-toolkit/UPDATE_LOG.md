@@ -1,5 +1,49 @@
 # Update Log
 
+## Run: 2026-09-01 — Monthly maintenance sweep
+
+### Updated
+- **skills/new-project/SKILL.md** (486→488 lines): Added two-tier vulnerability-scan strategy as a RULE (fast production-only scan gates every PR, full scan including dev dependencies runs weekly as a CI artifact). Added "Action allowlisting enabled on the repo/org" to the CI/CD checklist (restrict workflows to approved third-party Actions). Reframed SBOM generation as a compliance-reporting prerequisite rather than a later add-on. Deliberately did NOT add PostgreSQL point-version bumps, PG19-beta status, or dated EU CRA enforcement dates found during research — per the 2026-08-19 maintenance policy above, dated version/news content is out of scope for this routine; only actionable rules were kept.
+
+### Skipped (up to date, < 30 days)
+- backend-security-coder.md: Last updated 2026-08-30 (2 days)
+- code-reviewer.md: Last updated 2026-08-30 (2 days)
+- database-optimizer.md: Last updated 2026-08-30 (2 days)
+- debugger.md: Last updated 2026-08-30 (2 days)
+- javascript-pro.md: Last updated 2026-08-30 (2 days)
+- mobile-pwa-developer.md: Last updated 2026-08-30 (2 days)
+- nextjs-pro.md: Last updated 2026-08-30 (2 days)
+- php-pro.md: Last updated 2026-08-30 (2 days)
+- python-pro.md: Last updated 2026-08-30 (2 days)
+- refactoring-orchestrator.md: Last updated 2026-08-24 (8 days)
+- sql-pro.md: Last updated 2026-08-30 (2 days)
+- test-automator.md: Last updated 2026-08-30 (2 days)
+
+### Skipped (methodology/stable)
+- brainstorming/SKILL.md
+- writingplans/SKILL.md
+- executingplans/SKILL.md
+- audit-360/SKILL.md
+- issue-pipeline/SKILL.md
+- systematic-debugging/SKILL.md
+- task-lifecycle/SKILL.md
+- test-driven-development/SKILL.md
+- verification-before-completion/SKILL.md
+- verify-e2e/SKILL.md
+- lang-guidelines/SKILL.md — meta-skill for generating other agents; no "Last updated" of its own, no external technology domain to research (process definition)
+
+### Deferred to next run
+- None — only 1 evolving file found (new-project/SKILL.md), well within the 10-file cap
+
+### Issues
+- None — all 5 WebSearch queries returned useful results, no rephrasing needed, no git conflicts. Note: most research findings (PostgreSQL 18.6/19-beta, specific EU CRA dates) were discarded rather than applied, per the repo's own no-dated-news policy — see Updated section above.
+
+### Next run priorities
+- refactoring-orchestrator.md (will be ~38 days by next monthly run)
+- All other agents will be ~33 days by next run — check for real rule changes (new AI error patterns, new CVEs), not version bumps
+
+---
+
 > **MAINTENANCE POLICY (obowiązuje rutynę miesięczną — od 2026-08-19):**
 > 1. **Nie zmieniaj frontmatter `model:`** — podział jest celowy: `sonnet` dla agentów piszących, `opus` dla code-reviewer / backend-security-coder / refactoring-orchestrator. Audyty (audit-360) i tak spawnują specjalistów z override `model: opus` — patrz SKILL.md §1.
 > 2. **Nie dodawaj sekcji „newsowych"** (wydania PostgreSQL/MySQL/Node/Safari, listy narzędzi, statystyki branżowe z datami). Zostały celowo usunięte 2026-08-19 — starzeją się co miesiąc, nie zmieniają decyzji przy pisaniu kodu i zżerają tokeny przy każdym wywołaniu agenta. Aktualizuj wyłącznie REGUŁY (co wolno / czego nie wolno / jak zweryfikować).

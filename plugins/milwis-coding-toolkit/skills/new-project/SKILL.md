@@ -298,7 +298,7 @@ The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)
 - [ ] Exception handlers that NEVER leak internals
 - [ ] Pre-commit hook for secret detection (`gitleaks`, `trufflehog`, or `detect-secrets`)
 - [ ] Automated dependency updates enabled (`Dependabot` or `Renovate`) with lockfiles committed (`poetry.lock`, `package-lock.json`, `go.sum`) — no unpinned/floating versions in prod deps
-- [ ] SBOM (Software Bill of Materials) generated on build in CycloneDX or SPDX format — increasingly required for compliance (EU Cyber Resilience Act, US EO 14028) and needed to correlate dependencies against live CVEs
+- [ ] SBOM (Software Bill of Materials) generated on build in CycloneDX or SPDX format — increasingly required for compliance (EU Cyber Resilience Act, US EO 14028) and needed to correlate dependencies against live CVEs. Regulatory reporting deadlines depend on already having SBOM visibility, so treat this as a prerequisite, not a later add-on
 - [ ] MFA enforced on all accounts with publish/admin rights (GitHub org, package registries, cloud console)
 
 ### Non-negotiable rules
@@ -312,7 +312,7 @@ The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)
 7. Rate limiting: login strict (10/min), API reasonable (60/min)
 8. Generic errors to client, detailed logs server-side
 9. Dependencies pinned to exact versions/hashes — never unbounded ranges in production lockfiles
-10. Vulnerability scan (`Trivy`, `Grype`, or `pip-audit`/`npm audit`) on every build; block on critical/high findings
+10. Vulnerability scan (`Trivy`, `Grype`, or `pip-audit`/`npm audit`) on every build; block on critical/high findings. Two-tier strategy: fast production-only scan (e.g. `npm audit --omit=dev --audit-level=high`) gates every PR, while a scheduled full scan (including dev dependencies) runs weekly as a CI artifact — `npm audit` reads the GitHub Advisory Database, `pip-audit` reads OSV
 
 ### Domain-specific safety
 
@@ -371,6 +371,7 @@ Same interface as real adapter. Track state in memory. Enforce same rules (valid
 ### Deliverables
 - [ ] GitHub Actions workflow (still the dominant platform in 2026 for GitHub-hosted repos; GitLab CI/CD, Jenkins, CircleCI, or Argo CD/GitOps for Kubernetes-heavy deployments are the common alternatives)
 - [ ] Pipeline: lint → type check → test (with Docker services) → dependency/vulnerability scan → SBOM generation
+- [ ] Action allowlisting enabled on the repo/org — restricts workflows to an approved set of third-party Actions, closing off a major supply-chain attack surface
 - [ ] Pre-commit hooks: syntax, secret detection, stack-specific
 - [ ] Build fails automatically on critical/high vulnerability findings — security scanning lives INSIDE the pipeline, not as an afterthought
 - [ ] `Makefile` with common commands
@@ -483,4 +484,5 @@ Total: ~3-4 hours for a complete foundation.
 
 <!-- Updated: 2026-05-01 — Updated Docker images (postgres:18, mongo:8, rabbitmq:4), added PG 18 feature notes -->
 <!-- Updated: 2026-08-01 — Added SBOM generation (CycloneDX/SPDX), dependency pinning/lockfiles, automated dependency updates (Dependabot/Renovate), secret-scanning tool names (gitleaks/trufflehog/detect-secrets), vulnerability scanning (Trivy/Grype) in CI, MFA-on-publish-rights rule, postgres:18 Docker volume-path gotcha, and CI/CD platform landscape note -->
-Last updated: 2026-08-01
+<!-- Updated: 2026-09-01 — Added two-tier vulnerability-scan strategy (fast prod-only scan gates PRs, full scan incl. dev deps runs weekly); added GitHub Actions allowlisting to the CI/CD checklist; noted SBOM as a compliance-reporting prerequisite, not an add-on. Per maintenance policy (2026-08-19): rules only, no dated version/news content added -->
+Last updated: 2026-09-01
