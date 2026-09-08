@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a chain of sessions that hand work to each other. Generation 1 triages issues on HEAD and writes a roadmap; every later generation works through phases (plan / execute / verify) and keeps taking the next unclosed one while its context stays below the warn threshold, spawning its own successor via `claude --bg` and stopping only when a threshold fires or the next phase is excluded. In `ciągły` mode the chain does not end with the roadmap: the last generation spawns a curator that triages the next batch from the backlog by priority, skipping issues the repo defers, and the run stops on a STOP file or a wave cap. With `merge-lokalny` the generation closing verify merges the branch into local `main` under a five-condition gate — never a push. Durable state lives in a committed roadmap + append-only ledger, never in a session's context. Input: issue numbers or a backlog. Output: branches, ledger rows with evidence, and a status table."
+description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a chain of sessions that hand work to each other. Generation 1 triages issues on HEAD and writes a roadmap; every later generation works through phases (plan / execute / verify) and keeps taking the next unclosed one while its context stays below the warn threshold, spawning its own successor via `claude --bg` and stopping only when a threshold fires or the next phase is excluded. In `ciągły` mode the chain does not end with the roadmap: the last generation spawns a curator that triages the next batch from the backlog by priority, skipping issues the repo defers, and the run stops on a STOP file or a wave cap. The chain NEVER merges: a finished issue stays on `agent/issue-<nr>` with a label, because `git merge` from a background session is refused by the harness permission classifier — merging is the owner's step. Durable state lives in a committed roadmap + append-only ledger, never in a session's context. Input: issue numbers or a backlog. Output: branches, ledger rows with evidence, and a status table."
 ---
 
 # Roadmapa (łańcuch sesji rozwiązujący partię issues bez obecności właściciela)
@@ -138,7 +138,7 @@ Roadmapa nie musi być listą issues — może być listą faz dowolnego zadania
 - lista issues po triage'u, każdy z jednozdaniowym zakresem, szacunkiem faz i etykietą `cloud-safe`/`local-only` (kryterium w §4a);
 - kolejność (najpierw to, co odblokowuje resztę; nigdy dwa issues dotykające tej samej tabeli obok siebie);
 - **tor realizacji** — sztafeta (domyślny) / orkiestrator / chmura, wybrany wg kryterium z §4a i uzasadniony JEDNYM zdaniem;
-- **tryb zakończenia issue** — `gałąź` (domyślny) albo `merge-lokalny` (§4b);
+- **tryb zakończenia issue** — zawsze `gałąź` (§4b); tryb `merge-lokalny` został zniesiony i nie wolno go deklarować;
 - **tryb łańcucha** — `partia` (domyślny: łańcuch kończy się razem z roadmapą) albo `ciągły`
   (po wyczerpaniu roadmapy powstaje kurator kolejnej fali) — §4c;
 - czego łańcuchowi nie wolno: push na `origin`, deploy, `gh issue close`, wysyłka do KSeF.
@@ -170,7 +170,7 @@ Ledger jest prawdziwym przekazaniem. Prompt startowy następcy to tylko wskaźni
 
 **G1 — kurator.** Wybiera 5-6 issues i pisze roadmapę.
 
-**Tryby bierze z polecenia właściciela, nigdy z wnioskowania.** Domyślnie `tor: sztafeta`, `tryb zakończenia issue: gałąź`, `tryb łańcucha: partia`. `ciągły` i `merge-lokalny` włączasz **wyłącznie na wyraźne żądanie** — kształt zadania („dużo issues", „nie będzie mnie") żądaniem NIE jest. Domysł idzie tu w jedną stronę nieodwracalnie: łańcuch, który sam sobie włączył tryb ciągły, pracuje przez noc nad issues, których właściciel mu nie dał.
+**Tryby bierze z polecenia właściciela, nigdy z wnioskowania.** Domyślnie `tor: sztafeta`, `tryb łańcucha: partia`; `tryb zakończenia issue` jest STAŁY (`gałąź`, §4b) i nie podlega wyborowi. `ciągły` włączasz **wyłącznie na wyraźne żądanie** — kształt zadania („dużo issues", „nie będzie mnie") żądaniem NIE jest. Domysł idzie tu w jedną stronę nieodwracalnie: łańcuch, który sam sobie włączył tryb ciągły, pracuje przez noc nad issues, których właściciel mu nie dał.
 
 **Gdy właściciel NIE podał zestawu issues — zapytaj, zanim cokolwiek wybierzesz.** Pytanie brzmi: czy kurator ma dobrać issues autonomicznie (i w jakim trybie łańcucha), czy właściciel poda listę. To JEDYNY moment, w którym wolno stanąć pytaniem — właściciel dopiero co wydał polecenie, więc jest przy komputerze; od chwili powstania G2 obowiązuje **zakaz zatrzymania pytaniem** z §6 bez wyjątków. Nie odpalaj łańcucha „na próbę" z domyślnym zestawem: pierwsza faza zdąży założyć gałąź i commit, zanim właściciel zobaczy, co wybrałeś. Obowiązkowo **triage na HEAD**: otwarte issue nie znaczy niezrobione (zmierzone: dwa z pięciu były już w `main`). Dla każdego: `git log --oneline --all --grep "#<nr>"`, `gh issue view <nr>`, sprawdzenie, czy opisany defekt nadal istnieje w kodzie. Issue już zrobione → wiersz ledgera `ZAMKNIĘTE NA HEAD` z dowodem, bez wchodzenia w implementację. G1 **nie pisze planów ani kodu** — przy 40% rodzi G2.
 
@@ -224,80 +224,36 @@ Zmierzona zaleta sztafety u właściciela: pozwala domknąć kilka issues bez po
 
 Mechanika toru orkiestratora (co robi lead, co robi subagent, warunek domknięcia, jak wpisywać wiersze ledgera, czego lead NIE robi) → `references/tor-orkiestratora.md`. §1-§7 tego skilla opisują tor sztafety. Pod torem orkiestratora **nie stosuje się WYŁĄCZNIE tego, co dotyczy przekazania pracy między sesjami** — czyli mechaniki rodzenia następcy z §5, podziału fali na dwie równoległe sztafety z §6a **oraz trybu
 `ciągły` z §4c** (rodzenie kuratora JEST rodzeniem następcy, a pod tym torem kolejnych pokoleń nie ma —
-nową falę otwiera właściciel). **`merge-lokalny` (§4b) obowiązuje pod torem orkiestratora bez zmian**,
-z jedną poprawką aktora: scala lead po odebraniu dowodu z fazy `verify`, nie „pokolenie". **Pod torem
-chmurowym `merge-lokalny` jest ZAKAZANY** — sesja `claude --cloud` nie ma lokalnego `main` właściciela,
-a jej jedynym wyjściem jest push, czyli dokładnie ta akcja, której §4b zabrania. Wszystko inne obowiązuje bez zmian, a w szczególności dwie rzeczy, które łatwo uznać za nieaktualne, a nie są:
+nową falę otwiera właściciel). **Zakaz scalania z §4b obowiązuje pod każdym torem bez wyjątku** — lead orkiestratora scala tak samo
+mało jak pokolenie sztafety, czyli wcale, a sesja `claude --cloud` nie ma nawet lokalnego `main`
+właściciela, więc jej jedynym wyjściem byłby push, zakazany osobno. Wszystko inne obowiązuje bez zmian, a w szczególności dwie rzeczy, które łatwo uznać za nieaktualne, a nie są:
 
 - **Rozłączność plikowa z §6a obowiązuje TAK SAMO.** Subagenci mają własne worktree, ale lead pisze roadmapę i ledger w drzewie WSPÓLNYM — więc rozłączne slugi, osobne pliki ledgera i zakaz dwóch równoległych zapisów do tego samego pliku zostają w mocy.
 - **Właściciela powiadamiaj przez `PushNotification`, nigdy wiadomością do agenta** (§5). To reguła o kanale do CZŁOWIEKA, nie o sekwencyjności — pod tym torem jest tak samo wiążąca.
 
-## 4b. Tryb zakończenia issue — `gałąź` i `merge-lokalny`
+## 4b. Tryb zakończenia issue — wyłącznie `gałąź`
 
-Roadmapa deklaruje w §3 jeden z dwóch trybów. `gałąź` (domyślny) znaczy: łańcuch kończy pracę nad issue na `agent/issue-<nr>` i nie dotyka `main` — dokładnie tak działa `CLAUDE.md` §4c. `merge-lokalny` znaczy: pokolenie domykające fazę `verify` scala gałąź do **lokalnego** `main`. Zakaz pusha na `origin` zostaje w mocy bez zmian — scalenie jest lokalne i odwracalne, push nie jest.
+Łańcuch kończy pracę nad issue na `agent/issue-<nr>` i **nie dotyka `main`** — dokładnie tak, jak opisuje `CLAUDE.md` §4c. Scalenie należy do właściciela albo do sesji, przy której właściciel siedzi. Łańcuch dostarcza gałąź, dowód w ledgerze i etykietę; na tym jego rola się kończy.
 
-**Scala pokolenie domykające `verify`, nie osobna faza.** Scalenie bez świeżego dowodu z powierzchni użytkownika byłoby scaleniem na słowo; pokolenie, które ten dowód właśnie zebrało, jest jedynym, które go ma w kontekście.
+**Tryb `merge-lokalny` został ZNIESIONY (2026-09-08, decyzja właściciela).** Nie deklaruj go w roadmapie, nie proponuj go właścicielowi i nie odtwarzaj bramki pięciu warunków w żadnej postaci. Powód jest mechaniczny, nie stylistyczny:
 
-**Bramka — wszystkie pięć warunków naraz, każdy zmierzony PRZED `git merge`:**
+- `POMIAR` (fala E, wiersz G10 ledgera; niezależnie fala G): `git merge` wywołany z sesji tła **odbija się od klasyfikatora trybu auto** — warstwy uprawnień harnessu, całkowicie odrębnej od dyrektyw tekstowych i od zgody spisanej w `CLAUDE.md` §0. Pokolenie nie ma jak jej obejść: odblokowuje ją wyłącznie `! <komenda>` wpisana ręcznie przez właściciela.
+- `WNIOSEK`: bramka, której ostatni krok nie może się wykonać, nie jest bramką — jest kosztem ponoszonym pod nią przez każde pokolenie domykające `verify`. Łańcuch mierzył pięć warunków i stawał na szóstym, niezapisanym. Jawny zakaz jest stanem lepszym: pokolenie nie zużywa kontekstu na pomiary, które i tak kończą się wezwaniem człowieka.
 
-1. `verify` zielone — dowód na powierzchni użytkownika, nie „testy przechodzą".
-2. Pre-commit gate przeszedł (`CLAUDE.md` §4a): testy celowane, `php -l`, `code-reviewer` wg progów
-   z **`CLAUDE.md` §4** (nie §4 tego skilla — tam są role pokoleń). Dowód: **w ledgerze istnieje wiersz
-   fazy `exec` tego issue z polem `POMIAR` niosącym wynik gate'u**. Pokolenie scalające nie ma tego
-   zdarzenia we własnym kontekście, więc bez wiersza ledgera warunek jest niesprawdzalny — a warunek
-   niesprawdzalny domyślnie NIE jest spełniony.
-3. Recenzent bez findingów **`CRITICAL` ani `REQUIRED`** — to słownik, którym `code-reviewer` realnie
-   kończy raport (`.claude/agents/code-reviewer.md` §Output Format). **Nie pisz tu „P0/P1"**: `P0`..`P3` to
-   etykiety GitHuba, warstwa bez związku z wyjściem recenzenta, a warunek zapisany tym słownikiem jest
-   spełniony przez raport „❌ CHANGES REQUIRED, 3 × CRITICAL" — czyli bramka strzegąca `main` staje się
-   próżniowo zielona. Finding `PLAUSIBLE` nie jest tu rozstrzygany: zatrzymuje CAŁY łańcuch wg §6,
-   więc do pytania o merge w ogóle nie dochodzi.
-4. Drzewo czyste i wyłączne. Czyste: `git status --porcelain --untracked-files=no` puste **oraz**
-   `git stash list` puste. `POMIAR` (2026-09-06): samo `git status --porcelain` daje w tym repo **16 linii**
-   trwałych `??` (`dev-server/`, `.claude/worktrees/`, `report/`, `docs/hansetank/`) — warunek bez
-   `--untracked-files=no` wypada ZAWSZE i cicho degraduje `merge-lokalny` do trybu `gałąź`. Nieśledzone
-   pliki na merge nie wpływają. Wyłączne: żadna inna sesja/fala nie pisze w tym drzewie — mierz **mtime
-   transkryptów pokoleń oraz katalogu `<sesja>/subagents/`** wg §6; `status` z `claude agents` kłamie
-   (zmierzone tam). Scalenie przy cudzej niezastage'owanej pracy to klasa szkód z §5.
-5. Gałąź zawiera aktualny `main`: `git merge-base --is-ancestor main agent/issue-<nr>` → `0`. Jeśli `1` — najpierw `git merge main` **w gałęzi**, dopiero potem scalaj w drugą stronę.
-   **Konflikt przy TYM scaleniu również kończy się `git merge --abort`** — łańcuch nie rozstrzyga
-   konfliktów w żadnym kierunku, bo szkoda z akapitu „Konflikt" niżej jest identyczna niezależnie od
-   kierunku.
-
-Którykolwiek warunek niespełniony → **nie scalaj**, zostaw gałąź, wpisz do ledgera pole „Zostało: merge
-zablokowany — <który warunek, z pomiarem>". Zablokowany merge sam w sobie **nie** zatrzymuje łańcucha —
-z jednym wyjątkiem: gdy blokadą jest finding `PLAUSIBLE`, pierwszeństwo ma §6 i łańcuch **staje**.
-
-**Procedura (wszystkie warunki spełnione):**
+**Po zielonej fazie `verify`, w tej samej turze:**
 
 ```bash
-git merge --no-ff agent/issue-<nr> -m "fix(<moduł>): <opis po polsku> (#<nr>) [roadmapa]"
+gh issue edit <nr> --add-label "status:do-scalenia"
 ```
 
-`--no-ff` jest obowiązkowe: fast-forward gubi granicę issue w historii, a to jedyny ślad, po którym da się potem cofnąć jedno issue bez ruszania reszty fali.
+Etykieta `status:do-scalenia` („Zrobione i zweryfikowane na galezi agent/issue-<nr>, czeka na scalenie przez wlasciciela") jest **jedynym sygnałem, po którym kurator późniejszej fali rozpozna, że issue jest zrobione** — `gh issue list --state open` nadal je pokaże, bo łańcuchowi nie wolno zamykać issues. Pominięcie etykiety kosztuje pełny triage tego samego issue w kolejnej fali. Wiersz ledgera fazy `verify` MUSI podać **SHA czoła gałęzi**; bez niego właściciel nie wie, co dokładnie ma scalić.
 
-**Konflikt → `git merge --abort`, koniec.** Nie rozstrzygaj go w łańcuchu. Zmierzone: przy konflikcie w `docs/` odruch „weź moją wersję" (`--ours`/`--theirs`) cicho zjada cudzy akapit, a dokumentacja nie ma zapadki, która by to złapała. Po `--abort`: wiersz ledgera „merge zablokowany — konflikt w <pliki>", `PushNotification` do właściciela, następna faza.
+**Czego łańcuchowi nie wolno — lista zamknięta:** `git merge` do `main` (także `--ff`), `git push`, `gh issue close`, deploy, `npm run build`, zmiana `USE_BUNDLE`, wysyłka do KSeF. „Zweryfikowane na gałęzi" znaczy „gotowe do przejrzenia przez właściciela", nie „wdrożone" ani „scalone".
 
-**Po udanym scaleniu, w tej samej turze:**
+**Gdy właściciel scala sam — dwie rzeczy, o których łańcuch ma go uprzedzić w raporcie końcowym:**
 
-```bash
-php -l <zmienione pliki>            # sanity po scaleniu, nie zamiast pkt 2
-gh issue edit <nr> --add-label "status:zrobione-lokalnie"
-```
-
-Etykieta `status:zrobione-lokalnie` („Zaimplementowane + merge do lokalnego main, jeszcze NIE wdrozone na serwer") jest **jedynym sygnałem, po którym kurator późniejszej fali rozpozna, że issue jest zrobione** — `gh issue list --state open` nadal je pokaże, bo łańcuchowi nie wolno zamykać issues. Pominięcie etykiety kosztuje pełny triage tego samego issue w kolejnej fali.
-
-**Znacznik `[roadmapa]` w komunikacie scalenia jest obowiązkowy i ma jednego odbiorcę: krok PRZED
-pushem.** `POMIAR` (2026-09-06): `tests.yml` odpala się na push do `main`, `deploy.yml` na `workflow_run`
-z `conclusion == success` → webhook serwera; `CLAUDE.md` §2 autoryzuje push na GitHub z góry, bez pytania;
-`git log origin/main..main` → 18 commitów, czyli batchowanie pushy jest tu praktyką; `.git/hooks` pusto.
-`WNIOSEK`: scalenie jest odwracalne w drzewie, ale NIE w skutkach — zmienia to, co zrobi następny
-rutynowy push. Dlatego `CLAUDE.md` §2 wymaga sprawdzenia
-`git log origin/main..main --merges --grep '\[roadmapa\]'` przed pushem `main`, a niepusty wynik znosi
-zgodę udzieloną z góry. Znacznik pominięty = praca łańcucha nieodróżnialna od własnych commitów
-właściciela.
-
-Czego przy `merge-lokalny` nadal **nie wolno**: `git push`, `gh issue close`, deploy, `npm run build`, zmiana `USE_BUNDLE`. Scalone do lokalnego `main` znaczy „gotowe do przejrzenia przez właściciela", nie „wdrożone".
+1. **Znacznik `[roadmapa]` w komunikacie scalenia.** `POMIAR` (2026-09-06): `tests.yml` odpala się na push do `main`, `deploy.yml` na `workflow_run` z `conclusion == success` → webhook serwera; `CLAUDE.md` §2 autoryzuje push na GitHub z góry, bez pytania. `WNIOSEK`: scalenie jest odwracalne w drzewie, ale NIE w skutkach — zmienia to, co zrobi następny rutynowy push. Dlatego `CLAUDE.md` §2 wymaga sprawdzenia `git log origin/main..main --merges --grep '\[roadmapa\]'` przed pushem `main`, a niepusty wynik znosi zgodę udzieloną z góry. Znacznik pominięty = praca łańcucha nieodróżnialna od własnych commitów właściciela.
+2. **Kolejność scalania fali ma znaczenie i konflikt jest normalny.** `POMIAR` (fala G, 2026-09-08): sześć gałęzi, każda bezkonfliktowa wobec `main` **osobno**, dało konflikt przy drugim scaleniu — dwie gałęzie przesunęły niezależnie ten sam rejestr kotwic `plik:linia`. Rozstrzyga POMIAR na drzewie PO scaleniu (`grep -n` w scalonym pliku), nigdy wybór jednej ze stron: obie liczby były wtedy nieprawdziwe.
 
 ## 4c. Tryb łańcucha — `partia` i `ciągły`
 
@@ -329,8 +285,10 @@ Kurator nowej fali robi triage na HEAD wg §4 (to obowiązuje bez zmian) i dobie
 
 1. **Warunki stopu PRZED doborem** — sprawdź je, zanim cokolwiek policzysz (§6).
 2. **Zbiór kandydatów:** `gh issue list --state open` **minus** wszystko z etykietą
-   `status:zrobione-lokalnie` (scalone przez wcześniejsze fale, wciąż otwarte, bo łańcuchowi nie wolno
-   zamykać issues), `status:odlozone`, `tor:remediacja-danych` — **minus klasa pomysłów, wg sekcji niżej**.
+   `status:do-scalenia` (zrobione i zweryfikowane przez wcześniejszą falę, czeka na scalenie przez
+   właściciela), `status:zrobione-lokalnie` (scalone przez wcześniejsze fale, wciąż otwarte, bo
+   łańcuchowi nie wolno zamykać issues), `status:odlozone`, `tor:remediacja-danych` — **minus klasa
+   pomysłów, wg sekcji niżej**.
 3. **Kolejność wg priorytetu:** `P0` → `P1` → `P2` → `P3`, z przestarzałymi odpowiednikami
    (`priorytet:krytyczny|wysoki|sredni|niski`) traktowanymi na równi; na końcu issues **bez** etykiety
    priorytetu — nigdy jako domysł „pewnie średni". `POMIAR` (2026-09-06): 13 ze 148 otwartych nie ma
@@ -358,7 +316,7 @@ Odsiew idzie w dwóch krokach, bo etykiety same nie wystarczą:
    wpisane we własny opis (`gh label list`) — nie zgaduj mapowania z nazwy.
 2. **Po treści — przeczytaj resztę.** `POMIAR` (2026-09-06): ze 148 otwartych issues **89 nie ma żadnej etykiety typu** (i 105 nie ma `modul:*`); klasa naprawy oznaczona etykietą to 51, klasa pomysłu — 1, `typ:analysis` — 8. Próbka tych 89 to niemal wyłącznie znaleziska audytowe i dług (`[ARCH-*]`, `[DEP-*]`, `[TEST-*]`, martwy kod, niezastosowana migracja). `WNIOSEK`: reguła „bierz tylko oznaczone jako bug" wycięłaby ~60% realnej pracy naprawczej, więc brak etykiety **nie** wyklucza — wyklucza dopiero treść.
 
-**Błąd odsiewu jest niesymetryczny i to on ustala domyślną odpowiedź przy wątpliwości.** Wzięcie pomysłu = łańcuch buduje przez noc funkcjonalność, której nikt nie zamawiał, i scala ją do lokalnego `main`. Pominięcie naprawy = czeka jedną falę. Przy genuinie niejasnej treści **wyklucz** i wpisz issue do roadmapy w sekcji „do decyzji właściciela".
+**Błąd odsiewu jest niesymetryczny i to on ustala domyślną odpowiedź przy wątpliwości.** Wzięcie pomysłu = łańcuch buduje przez noc funkcjonalność, której nikt nie zamawiał, i podstawia właścicielowi gałąź do scalenia. Pominięcie naprawy = czeka jedną falę. Przy genuinie niejasnej treści **wyklucz** i wpisz issue do roadmapy w sekcji „do decyzji właściciela".
 
 Każde wykluczenie po treści **oznacz etykietą** (`enhancement` dla pomysłu) razem z krótkim komentarzem. Bez tego następna fala przeczyta to samo issue od nowa, a któraś w końcu przeczyta je pobieżnie.
 

@@ -83,6 +83,8 @@ baza obiektów jest wspólna dla wszystkich worktree tego repo. Lead odzyskuje p
 `git merge <gałąź-worktree>` albo `git cherry-pick <sha>` u siebie; **żaden fetch ani remote nie
 jest potrzebny**. Nazwy gałęzi i katalogu nadaje harness (`agent-<id>` / `worktree-agent-<id>`),
 lead ich nie wybiera — subagent MUSI je zwrócić w raporcie, inaczej lead nie wie, co scalać.
+**To scalenie idzie do gałęzi `agent/issue-<nr>` leada, nigdy do `main`** — zakaz z §4b SKILL.md
+obowiązuje pod tym torem bez wyjątku.
 
 **4. Izolacja realna:** plik zmieniony przez subagenta pozostał w drzewie leada nietknięty
 (`git status --short <plik>` u leada → pusto po zakończeniu subagenta).
