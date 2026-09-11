@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a chain of sessions that hand work to each other. Generation 1 triages issues on HEAD and writes a roadmap; every later generation works through phases (plan / execute / verify) and keeps taking the next unclosed one while its context stays below the warn threshold, spawning its own successor via `claude --bg` and stopping only when a threshold fires or the next phase is excluded. In `ciągły` mode the chain does not end with the roadmap: the last generation spawns a curator that triages the next batch from the backlog by priority, skipping issues the repo defers, and the run stops on a STOP file or a wave cap. The chain NEVER merges: a finished issue stays on `agent/issue-<nr>` with a label, because `git merge` from a background session is refused by the harness permission classifier — merging is the owner's step. Durable state lives in a committed roadmap + append-only ledger, never in a session's context. Input: issue numbers or a backlog. Output: branches, ledger rows with evidence, and a status table."
+description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a self-spawning chain of sessions, one phase each (triage / plan / execute / verify), handing work through a committed roadmap + append-only ledger rather than through context. Input: issue numbers or a backlog. Output: `agent/issue-<nr>` branches with evidence in the ledger and a status table; the chain never merges to main — that is the owner's step."
 ---
 
 # Roadmapa (łańcuch sesji rozwiązujący partię issues bez obecności właściciela)
@@ -180,6 +180,14 @@ Ledger jest prawdziwym przekazaniem. Prompt startowy następcy to tylko wskaźni
 - `verify` → `/verify-e2e` na powierzchni użytkownika → wiersz ledgera z dowodem.
 
 Jedno issue wymagające trzech-czterech pokoleń jest **normalne**, nie awarią.
+
+**Pełnej suity NIE uruchamiasz sam — zlecasz ją podagentowi i przyjmujesz podsumowanie.** Dotyczy `phpunit` bez `--filter`, `vitest run`, `npm test` i każdego przebiegu, którego wyjścia nie umiesz z góry ograniczyć do kilkudziesięciu linii. Dla siebie zostawiasz wyłącznie przebiegi celowane (`--filter <KlasaTestu>`) — ich wyjście jest krótkie i potrzebne do decyzji w tej samej turze.
+
+`POMIAR` (10–11.09, 213 sesji, 24 879 tur): pokolenie orkiestratora wykonuje średnio 73 wywołania `Bash` na sesję, w tym **10 uruchomień phpunit/vitest**; jeden pełny przebieg PHP to ~1,4 MB wyjścia. Koszt sesji to `start × N + przyrost × N²/2`, więc wyjście, które raz wpadnie do kontekstu, jest opłacane w KAŻDEJ kolejnej turze tego pokolenia. `WNIOSEK`: kontekst orkiestratora jest najdroższym miejscem, w jakim może wylądować wyjście suity — podagent czyta je raz i oddaje kilkanaście linii.
+
+Zlecenie dla podagenta podaje: komendę, wymóg wyłącznego slotu (§6) i **format raportu — linia podsumowania PHPUnit/Vitest, lista NAZW klas czerwonych, ścieżka do pełnego logu**. Nie proś o wklejenie wyjścia. Porównanie zbioru NAZW z tłem (nie liczby — `waski-oracle-testowy-slepy`) zostaje po Twojej stronie: robisz je na liście nazw, nie na logu.
+
+To reguła o tym, CZEGO nie wciągasz do kontekstu, nigdy o tym, czego nie mierzysz. Pominięcie pełnej suity dla oszczędności kontekstu jest błędem droższym niż sam przebieg.
 
 **Reguła końca fazy (deterministyczna, bez pytania właściciela).** Po dopisaniu wiersza ledgera i
 jego commicie przeczytaj ledger ponownie. Weź kolejną fazę **w tej samej sesji**, jeśli WSZYSTKIE

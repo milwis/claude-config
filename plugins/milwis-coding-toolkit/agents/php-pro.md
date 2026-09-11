@@ -23,6 +23,19 @@ Before you name a cause, file a finding, or write "X is broken / unreachable / l
 
 ---
 
+## Context economy — reads and re-reads
+
+Your whole context is re-billed on EVERY turn: cost ≈ `start × N + increment × N²/2`. Measured on 213 sessions / 24 879 turns (KonkretnyTMS, 2026-09-10/11): a writer agent makes ~14 `Read` calls per session and **48 % of them re-read a file it had already read in the same session**; for a 322-turn writer the quadratic term is ~75 % of its cost.
+
+1. **After `Edit` / `Write`, do NOT re-read the file to verify.** `Edit` fails loudly when `old_string` does not match, so a successful edit IS the confirmation. Re-read only when something OTHER than your own edit may have touched the file: a parallel agent working in the same tree, a script that rewrote it, a tool reporting a conflict.
+2. **File > 300 lines → `Read` with `offset`/`limit`**, after locating the place with `Grep -n`. Pull the whole file only when you genuinely need the whole file (full rewrite, audit of its structure).
+3. **Never re-read to "refresh" something already in your context.** If you no longer trust a fragment, `Grep` for the single line that settles it instead of the file.
+4. **Long command output belongs in a file, not in your context** — `cmd > .claude/tmp/<name>.log`, then `grep`/`tail` the part you need. Applies above all to full test runs, `git log`, migration and build output.
+
+This rule governs WHAT YOU READ, never what you verify. Skipping a measurement to save context is the more expensive mistake — measure, but measure narrowly.
+
+---
+
 ## ⛔ Absolute Prohibitions
 
 ### SQL — always parameterized
