@@ -108,7 +108,7 @@ Some phases **must not** be handed off halfway: a plan written to the middle is 
 **A non-atomic phase does NOT set a `hold`** — do not infer that a contrario from the list below. A commit that triggers six pre-commit guards takes a long time and looks like a hang, but it is not an atomic phase. A forgotten `rm -f $SID.hold` lifts thresholds 40 and 60 for the rest of the session's life, so a `hold` set "just in case" is worse than none.
 
 Atomic phases:
-- writing a plan via `/writingplans` **together with the specialist audit (Pass 2)** — a plan without Pass 2 is not a plan;
+- writing a plan via `/writingplans` **together with the specialist audit (Pass 2)** — a plan without Pass 2 is not a plan; this exists ONLY for issues classified **Large** at intake (§4) — the other classes have no plan phase to hold;
 - a mutation probe in progress (file mutated, not yet restored);
 - a review→fix round in flight (reviewer returned findings, fix not committed).
 
@@ -135,7 +135,7 @@ The roadmap does not have to be a list of issues — it can be a list of phases 
 **An artefact that grows over many generations** (report, inventory, aggregate file) is appended to only via `cat >>` or `Edit` — `cat >` will delete the predecessor's work, and the write will look fully successful. After writing check `git status --short -- <file>`: ` M` means appended, `??` means you have just created the file anew.
 
 **Roadmap** — `docs/plans/<date>-roadmapa-<slug>.md`, written by generation 1, then read-only:
-- the list of issues after triage, each with a one-sentence scope, an estimate of phases and a `cloud-safe`/`local-only` label (criterion in §4a);
+- the list of issues after triage, each with a one-sentence scope, a **size-class hint** (Trivial / Small / Standard / Large per `task-lifecycle` Step 0 — from the fresh anchors: expected diff, files, modules, whether it touches money/auth/regulated data), the phases that follow from it (`plan` only for Large) and a `cloud-safe`/`local-only` label (criterion in §4a). The hint is G1's estimate; the generation that opens the issue makes the final call at intake (§4) and records it in the ledger with the reason;
 - ordering (first what unblocks the rest; never two issues touching the same table next to each other);
 - **execution track** — relay (default) / orchestrator / cloud, chosen per the criterion in §4a and justified in ONE sentence;
 - **issue completion mode** — always `branch` (§4b); the `local-merge` mode has been abolished and must not be declared;
@@ -157,6 +157,7 @@ Row format:
 ```
 ## G<gen> · issue #<nr> · faza <triage|plan|exec|verify> · <date time>
 - Gałąź: agent/issue-<nr>
+- Klasa: <Trivial|Small|Standard|Large> — <one sentence why; in the `plan` row, then repeated unchanged>
 - Zrobione: <what actually went in, with commits>
 - POMIAR: <command → result; what was measured>
 - WNIOSEK: <what was inferred — separately, never mixed with POMIAR>
@@ -164,7 +165,7 @@ Row format:
 - Miny: <what the successor must NOT do and why>
 ```
 
-Field names (`faza`, `Gałąź`, `Zrobione`, `Zostało`, `Miny` = phase, branch, done, remaining, mines) stay in Polish on purpose — existing ledgers use them and later generations grep for them.
+Field names (`faza`, `Gałąź`, `Klasa`, `Zrobione`, `Zostało`, `Miny` = phase, branch, class, done, remaining, mines) stay in Polish on purpose — existing ledgers use them and later generations grep for them.
 
 The ledger is the real handoff. The successor's start prompt is just a pointer to it — this way the quality of the handoff does not depend on how much context the predecessor had left.
 
@@ -176,12 +177,17 @@ The ledger is the real handoff. The successor's start prompt is just a pointer t
 
 **When the owner did NOT provide a set of issues — ask before you pick anything.** The question is: should the curator select issues autonomously (and in which chain mode), or will the owner provide a list. This is the ONLY moment at which stopping with a question is allowed — the owner has just issued the instruction, so they are at the keyboard; from the moment G2 comes into existence, the **ban on stopping with a question** from §6 applies without exceptions. Do not launch the chain "as a trial" with a default set: the first phase will have created a branch and a commit before the owner sees what you picked. Mandatory **triage on HEAD**: an open issue does not mean unresolved (measured: two out of five were already in `main`). For each: `git log --oneline --all --grep "#<nr>"`, `gh issue view <nr>`, checking whether the described defect still exists in the code. Issue already done → ledger row `CLOSED ON HEAD` with evidence, without entering implementation. G1 **writes neither plans nor code** — at 40% it spawns G2.
 
-**G2..Gn — phase executors.** Read the roadmap and the ledger **with a single command** (`cat <roadmap> <ledger>`), not two — with a tight budget every tool call counts. Each generation takes the first unclosed phase from the ledger and does **only that**:
-- `plan` → `/writingplans` (atomic phase, `hold`) → commit the plan → handoff;
-- `exec` → `/executingplans` on `agent/issue-<nr>`, pre-commit gate per `CLAUDE.md` §4a → handoff;
-- `verify` → `/verify-e2e` on the user's surface → ledger row with evidence.
+**G2..Gn — phase executors.** Read the roadmap and the ledger **with a single command** (`cat <roadmap> <ledger>`), not two — with a tight budget every tool call counts. Each generation takes the first unclosed phase from the ledger and does **only that** (then applies the end-of-phase rule below).
 
-One issue requiring three or four generations is **normal**, not a failure.
+**One issue = one `task-lifecycle`, cut into relay phases at that skill's own step boundaries.** The generation IS the orchestrator of `task-lifecycle` (it writes no code; every unit of work is a fresh, named subagent spawned with an explicit `model:`, reporting back by `SendMessage` to the generation's name); the relay only decides where the lifecycle may be handed to the next session. The three phases:
+
+- `plan` = **intake, `task-lifecycle` Step 0.** Restate the issue from the fresh anchors, classify its size — **Trivial / Small / Standard / Large** by the criteria of that step (Large = multi-task, 3+ modules, needs design, or the project's own decision tree routes it to a written plan, e.g. more than 3 implementation steps or a regulated/financial domain) — write the task context block, create `agent/issue-<nr>`. Then:
+  - **Large** → `/writingplans` with Pass 2 (atomic phase, `hold`) → commit the plan → ledger row → handoff or continue per the end-of-phase rule.
+  - **any other class** → NO `/writingplans`, NO specialist audit — the ledger row records `Klasa: <class> — <why>` plus the context block, takes minutes, and the same generation proceeds to `exec` (the end-of-phase rule: headroom below `RELAY_WARN`, no exclusion). A plan for an issue that fits in one builder prompt is cost without a decision behind it — measured: two Opus specialists auditing the plan of a 20-line change.
+- `exec` = **`task-lifecycle` Steps 1-3** on `agent/issue-<nr>`: build in a specialist subagent (Large: `/executingplans` over the committed plan; the others: one builder prompt carrying the context block and acceptance criteria) → review loop with the skill's caps (Small: a single review pass, or the builder's self-audit where the project's review threshold exempts the diff) → security pass if the triggers match → pre-commit gate per the project's `CLAUDE.md` → commit on the branch. Targeted tests only inside the loop; the full suite once, at the gate, delegated to a subagent (below).
+- `verify` = **`task-lifecycle` Steps 4-5**: `/verify-e2e` in a fresh subagent, **mandatory for every class** — a change without a GUI still has a surface in the verify-e2e table (endpoint, CLI, consumer, DB); then the ledger row with evidence paths, the **tip SHA** and the done-label (§4b).
+
+A **Large** issue taking three or four generations is **normal**; a **Small** one should open and close within one generation — if it does not, the ledger `Miny` field says what ate the window.
 
 **You do NOT run the full suite yourself — you delegate it to a subagent and accept a summary.** This applies to `phpunit` without `--filter`, `vitest run`, `npm test` and any run whose output you cannot bound in advance to a few dozen lines. For yourself you keep only targeted runs (`--filter <TestClass>`) — their output is short and needed for a decision in the same turn.
 

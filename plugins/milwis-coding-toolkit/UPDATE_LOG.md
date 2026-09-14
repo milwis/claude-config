@@ -6,6 +6,21 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-14 (2) — roadmapa: jedno issue = jeden task-lifecycle, plan tylko dla klasy Large (v1.5.3)
+
+Źródło: decyzja właściciela po pomiarze kosztów (fala L: ~68 $/issue; partia issue-pipeline: ~70 $/issue — struktura kosztu identyczna) i dźwignia E planu kosztowego KonkretnyTMS (`docs/plans/zrealizowane/2026-09-11-koszt-tokenow-lancucha-roadmapy.md` §3: dwóch specjalistów na Opusie audytowało plan 20-liniowej zmiany; szacunek −40 % na takim issue).
+
+### Updated
+- **roadmapa §4:** faza `plan` = intake wg `task-lifecycle` Step 0 — generacja klasyfikuje issue (Trivial/Small/Standard/Large) ze świeżych kotwic i pisze blok kontekstu; `/writingplans` + Pass 2 WYŁĄCZNIE dla Large (kryteria Step 0 + drzewo decyzyjne projektu: >3 kroków, domena regulowana); pozostałe klasy przechodzą do `exec` w tej samej generacji. `exec` = Steps 1-3 (builder, pętla review z capami — Small: jedno przejście albo self-audit wg progu projektu — security, bramka pre-commit). `verify` = Steps 4-5, obowiązkowa dla KAŻDEJ klasy. Generacja jest orkiestratorem task-lifecycle (nie pisze kodu, świeży nazwany podagent na jednostkę pracy, `SendMessage` po nazwie).
+- **roadmapa §2:** faza atomowa `writingplans` istnieje tylko dla Large.
+- **roadmapa §3:** roadmapa niesie podpowiedź klasy z triage'u G1 (decyzja finalna przy intake); wiersz ledgera dostaje pole `Klasa:`.
+- **task-lifecycle Step 0:** klasa Large rozszerzona o „projektowe drzewo decyzyjne kieruje do planu" (np. >3 kroków implementacji), żeby roadmapa i pipeline klasyfikowały tym samym kryterium.
+
+### Issues
+- Nazwy faz `plan|exec|verify` zostają — istniejące ledgery i zapadka `tests/Config/RoadmapaSkillLatchTest.php` (KonkretnyTMS) grepują po nich. Zvendorowane ręcznie do KonkretnyTMS/.claude tego samego dnia.
+
+---
+
 ## Run: 2026-09-14 — issue-pipeline / task-lifecycle: równoległość, zasoby współdzielone, kadencja (v1.5.2)
 
 Źródło: przegląd obu skilli przed falą naprawy issues w KonkretnyTMS (141 otwartych). Sprzeczności wewnętrzne i luki zmierzone na tekście skilli + incydenty z pamięci sesji (checkout jednej gałęzi skasował niezacommitowaną pracę drugiego agenta; worktree bez `.env` dał fałszywy baseline; port :8080 serwował drzewo GŁÓWNE podczas weryfikacji gałęzi).
