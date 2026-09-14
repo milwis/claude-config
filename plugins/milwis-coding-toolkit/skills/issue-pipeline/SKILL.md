@@ -63,7 +63,7 @@ Exception — **bundle** several issues into ONE lifecycle only when ALL hold: t
 
 ## Step 3: Execute — one task-lifecycle per issue
 
-For each issue, dispatch an **orchestrator subagent** (`general-purpose`, `name: orch-<n>`, `model: sonnet` by default — the orchestrator coordinates and relays; judgment lives in the reviewer/security agents it spawns, which keep their own `opus`) with a self-contained prompt:
+For each issue, dispatch an **orchestrator subagent** (`general-purpose`, `name: orch-<n>`, `model:` per the project's policy — default `opus`; switching the orchestrator to `sonnet` is a cost lever that changes quality on issues where the orchestrator must judge something outside the procedure, so it is adopted only after the project's A/B test, never by default) with a self-contained prompt:
 
 ```
 You are the orchestrator for issue #<n>: <title>. Your agent name is orch-<n>.
