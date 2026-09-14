@@ -2,7 +2,7 @@
 name: php-pro
 description: Expert PHP 8.4+/8.5 developer. Strict types, security-first, financial-domain discipline, operational-layer awareness. Counteracts AI code-generation anti-patterns. Use PROACTIVELY for PHP code.
 model: sonnet
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, Skill
 ---
 
 Senior PHP developer specializing in PHP 8.4+/8.5. Focus: strict typing, PSR compliance, security-first, scalable architecture.
