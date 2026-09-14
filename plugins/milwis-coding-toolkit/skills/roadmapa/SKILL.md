@@ -158,6 +158,7 @@ Row format:
 ## G<gen> · issue #<nr> · faza <triage|plan|exec|verify> · <date time>
 - Gałąź: agent/issue-<nr>
 - Klasa: <Trivial|Small|Standard|Large> — <one sentence why; in the `plan` row, then repeated unchanged>
+- Okno: <% at phase start> → <% when writing this row> (measured, command below)
 - Zrobione: <what actually went in, with commits>
 - POMIAR: <command → result; what was measured>
 - WNIOSEK: <what was inferred — separately, never mixed with POMIAR>
@@ -165,7 +166,15 @@ Row format:
 - Miny: <what the successor must NOT do and why>
 ```
 
-Field names (`faza`, `Gałąź`, `Klasa`, `Zrobione`, `Zostało`, `Miny` = phase, branch, class, done, remaining, mines) stay in Polish on purpose — existing ledgers use them and later generations grep for them.
+Field names (`faza`, `Gałąź`, `Klasa`, `Okno`, `Zrobione`, `Zostało`, `Miny` = phase, branch, class, window, done, remaining, mines) stay in Polish on purpose — existing ledgers use them and later generations grep for them.
+
+`Okno` is measured with the hook's own function, not inferred from whether an injection has arrived (the WARN injection fires once and lags a turn; a generation that never saw it does not know whether it is at 20% or 34%):
+
+```bash
+bash -c 'source ~/.claude/hooks/relay-lib.sh; SID="$CLAUDE_CODE_SESSION_ID"; TP=$(ls ~/.claude/projects/*/"$SID".jsonl | head -1); relay_measure "$(jq -n --arg tp "$TP" --arg sid "$SID" "{transcript_path:\$tp,session_id:\$sid}")" && echo "OKNO ${PCT}% (${USED}/${LIMIT}, $MODEL)"'
+```
+
+The number is the input to the end-of-phase rule (§4, condition 2) and the calibration source for the per-phase costs quoted there — a wave whose rows carry `Okno` lets the next curator size phases from measurement instead of from this file.
 
 The ledger is the real handoff. The successor's start prompt is just a pointer to it — this way the quality of the handoff does not depend on how much context the predecessor had left.
 
@@ -175,17 +184,21 @@ The ledger is the real handoff. The successor's start prompt is just a pointer t
 
 **Modes come from the owner's instruction, never from inference.** Defaults: `track: relay`, `chain mode: batch`; the `issue completion mode` is FIXED (`branch`, §4b) and is not up for choice. You enable `continuous` **exclusively on explicit request** — the shape of the task ("lots of issues", "I'll be away") is NOT a request. A guess here goes one way irreversibly: a chain that switched itself into continuous mode works through the night on issues the owner never gave it.
 
-**When the owner did NOT provide a set of issues — ask before you pick anything.** The question is: should the curator select issues autonomously (and in which chain mode), or will the owner provide a list. This is the ONLY moment at which stopping with a question is allowed — the owner has just issued the instruction, so they are at the keyboard; from the moment G2 comes into existence, the **ban on stopping with a question** from §6 applies without exceptions. Do not launch the chain "as a trial" with a default set: the first phase will have created a branch and a commit before the owner sees what you picked. Mandatory **triage on HEAD**: an open issue does not mean unresolved (measured: two out of five were already in `main`). For each: `git log --oneline --all --grep "#<nr>"`, `gh issue view <nr>`, checking whether the described defect still exists in the code. Issue already done → ledger row `CLOSED ON HEAD` with evidence, without entering implementation. G1 **writes neither plans nor code** — at 40% it spawns G2.
+**When the owner did NOT provide a set of issues — ask before you pick anything.** The question is: should the curator select issues autonomously (and in which chain mode), or will the owner provide a list. This is the ONLY moment at which stopping with a question is allowed — the owner has just issued the instruction, so they are at the keyboard; from the moment G2 comes into existence, the **ban on stopping with a question** from §6 applies without exceptions. Do not launch the chain "as a trial" with a default set: the first phase will have created a branch and a commit before the owner sees what you picked. Mandatory **triage on HEAD**: an open issue does not mean unresolved (measured: two out of five were already in `main`). For each: `git log --oneline --all --grep "#<nr>"`, `gh issue view <nr>`, checking whether the described defect still exists in the code. **The code check is delegated, not done in G1's window:** one `Explore` subagent per issue, `model: sonnet`, `name: triage-<nr>`, all in parallel, with the triage prompt of `issue-pipeline` Step 1 (VALID / ALREADY-FIXED / NOT-A-BUG / NEEDS-CLARIFICATION, fresh `file:line` anchors, list of files a fix would touch, flags DB/GUI/shared-file, and the **size-class hint**). Six short reports land in G1's context instead of six explorations — the roadmap copies the anchors and the hint verbatim. Issue already done → ledger row `CLOSED ON HEAD` with evidence, without entering implementation. G1 **writes neither plans nor code** — at 40% it spawns G2.
 
 **G2..Gn — phase executors.** Read the roadmap and the ledger **with a single command** (`cat <roadmap> <ledger>`), not two — with a tight budget every tool call counts. Each generation takes the first unclosed phase from the ledger and does **only that** (then applies the end-of-phase rule below).
 
 **One issue = one `task-lifecycle`, cut into relay phases at that skill's own step boundaries.** The generation IS the orchestrator of `task-lifecycle` (it writes no code; every unit of work is a fresh, named subagent spawned with an explicit `model:`, reporting back by `SendMessage` to the generation's name); the relay only decides where the lifecycle may be handed to the next session. The three phases:
 
 - `plan` = **intake, `task-lifecycle` Step 0.** Restate the issue from the fresh anchors, classify its size — **Trivial / Small / Standard / Large** by the criteria of that step (Large = multi-task, 3+ modules, needs design, or the project's own decision tree routes it to a written plan, e.g. more than 3 implementation steps or a regulated/financial domain) — write the task context block, create `agent/issue-<nr>`. Then:
-  - **Large** → `/writingplans` with Pass 2 (atomic phase, `hold`) → commit the plan → ledger row → handoff or continue per the end-of-phase rule.
+  - **Large** → `/writingplans` with Pass 2 (atomic phase, `hold`) → commit the plan → ledger row → handoff or continue per the end-of-phase rule. `POMIAR` (wave L, 2026-09-11): a plan with Pass 2 costs the generation **12-16 points of window** (start ~14% → 26.2% / 29.7% after the plan), so it fits under `RELAY_WARN` only from a nearly fresh generation — a generation already past ~20% spawns a successor for it (exclusion list, item 3) instead of starting a plan that will be cut off.
   - **any other class** → NO `/writingplans`, NO specialist audit — the ledger row records `Klasa: <class> — <why>` plus the context block, takes minutes, and the same generation proceeds to `exec` (the end-of-phase rule: headroom below `RELAY_WARN`, no exclusion). A plan for an issue that fits in one builder prompt is cost without a decision behind it — measured: two Opus specialists auditing the plan of a 20-line change.
-- `exec` = **`task-lifecycle` Steps 1-3** on `agent/issue-<nr>`: build in a specialist subagent (Large: `/executingplans` over the committed plan; the others: one builder prompt carrying the context block and acceptance criteria) → review loop with the skill's caps (Small: a single review pass, or the builder's self-audit where the project's review threshold exempts the diff) → security pass if the triggers match → pre-commit gate per the project's `CLAUDE.md` → commit on the branch. Targeted tests only inside the loop; the full suite once, at the gate, delegated to a subagent (below).
-- `verify` = **`task-lifecycle` Steps 4-5**: `/verify-e2e` in a fresh subagent, **mandatory for every class** — a change without a GUI still has a surface in the verify-e2e table (endpoint, CLI, consumer, DB); then the ledger row with evidence paths, the **tip SHA** and the done-label (§4b).
+
+  **Classification is a decision on the anchors, not an exploration.** The generation classifies from the roadmap's hint, the issue text and the triage file list — it does not open the code to "make sure": every file read at intake lands in the orchestrator's window and is paid on every later turn. In doubt take the **cheaper** class (Small↔Standard → Standard; Standard↔Large → Standard) and let the builder produce the evidence: a builder that finds the task needs 3+ modules, more than 3 steps or a design decision **stops and reports that** instead of improvising; the generation then appends a ledger annex `Reklasyfikacja: Standard → Large — <builder's POMIAR>` and runs `/writingplans` (fresh generation if headroom is short). Escalation to Large is always triggered by measured evidence, never by the orchestrator's guess — the guess costs a plan, the evidence costs one aborted builder.
+
+  **Trivial** (copy, CSS, config, docs) keeps the `task-lifecycle` exception: the generation may make the DIRECT edit itself — a spawn for a three-line change costs more than the change — and goes straight to `verify`.
+- `exec` = **`task-lifecycle` Steps 1-3** on `agent/issue-<nr>`: build in a specialist subagent (Large: `/executingplans` over the committed plan; the others: one builder prompt carrying the context block and acceptance criteria) → review loop with the skill's caps (Small: a single review pass, or the builder's self-audit where the project's review threshold exempts the diff) → security pass if the triggers match → pre-commit gate per the project's `CLAUDE.md` → commit on the branch. Targeted tests only inside the loop; the full suite once, at the gate, delegated to a subagent (below). `POMIAR` (wave L): an `exec` with the plan already written cost the generation **~5-6 points** (G11: 29.7% → 34.8%; G12: 26.2% → ~32%), `verify` **~2-3 points**. `exec` is NOT atomic, but it has exactly one safe cut point: **after the builder's commit, before the reviewer is spawned.** If `RELAY_WARN` has fired by then, hand off there — ledger row `faza exec (CZĘŚCIOWA — <what is committed>, <what remains> → G<n+1>)`, the successor spawns the reviewer with the diff — instead of starting a review→fix round (atomic, §2) that will not fit before `RELAY_HANDOFF` blocks `Agent`. Three of wave L's exec phases were split exactly there, all because the plan had eaten the window first; with no plan for Small/Standard the split becomes the exception.
+- `verify` = **`task-lifecycle` Steps 4-5**: `/verify-e2e` in a fresh subagent, **mandatory for Small, Standard and Large** — a change without a GUI still has a surface in the verify-e2e table (endpoint, CLI, consumer, DB). For **Trivial** the fresh subagent is spawned only when a user-facing surface changed (copy, CSS — the project's `CLAUDE.md` §4c rule); docs/config changes are verified by the generation's own measurement written into the row (`git diff --stat`, the targeted test or latch that covers the file). Then the ledger row with evidence paths, the **tip SHA** and the done-label (§4b).
 
 A **Large** issue taking three or four generations is **normal**; a **Small** one should open and close within one generation — if it does not, the ledger `Miny` field says what ate the window.
 
@@ -201,7 +214,7 @@ This is a rule about WHAT you do not pull into context, never about what you do 
 committing it, re-read the ledger. Take the next phase **in the same session** if ALL
 three conditions hold at once:
 1. there is a next unclosed phase in the roadmap;
-2. current window usage is below `RELAY_WARN`;
+2. current window usage — measured with the `Okno` command from §3, not guessed — plus the phase's cost from §4 stays below `RELAY_HANDOFF`, and the usage itself is below `RELAY_WARN`;
 3. the next phase is not on the exclusion list below.
 
 Spawning a successor (§5) is reserved for the case where any of these three
@@ -209,10 +222,11 @@ conditions fails — not for the mere fact of closing a phase. The default move 
 window headroom is **to take the next phase**, not to pass it on.
 
 **Exclusion list** — do NOT take the next phase in the same session; spawn a successor instead:
-- the phase requires an exclusive slot for the full suite;
 - the phase touches the same file as the phase just closed, and the reviewer is to assess it independently;
-- the phase is atomic (§2, `hold`) and does not fit into the reserve up to `RELAY_WARN`;
+- the phase is atomic (§2, `hold`) and does not fit into the reserve up to `RELAY_WARN` — a Large `plan` (12-16 points) practically never fits into a generation that has already done something; an `exec` fits from ≤ ~28% (6 points + the review round that must not be cut);
 - the phase requires a different worktree than the current one.
+
+The full suite is deliberately NOT on this list: it runs in a subagent under the slot (below) and costs the generation a dozen lines, so "this phase ends with the full suite" — which every `exec` now does — is not a reason to hand off. A slot held by ANOTHER session is a stop condition (§6), not a handoff reason: a successor would wait on the same slot.
 
 `POMIAR` (event 2026-09-05): a generation closed a `verify` phase, used ~0.05% of the window, did not
 cross any threshold — and nevertheless stopped, asking the owner whether to take the next phase.
