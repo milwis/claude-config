@@ -44,7 +44,7 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
 ## Step 1: Build (in a subagent)
 
 - Select the builder per the `executing-plans` agent table (php-pro / javascript-pro / sql-pro / backend-security-coder / ...). When unsure → specialist agent, not DIRECT.
-- The builder prompt is self-contained: task block, exact files, acceptance criteria, canon references for variant paths, "do NOT touch X" where relevant.
+- The builder prompt is self-contained: task block, exact files, acceptance criteria, canon references for variant paths, "do NOT touch X" where relevant — and the orchestrator's own agent name, with the instruction to deliver the final report via `SendMessage` to that name (see hard rule 7).
 - Discipline skills apply inside the builder: `test-driven-development` for new behavior, `systematic-debugging` on failures.
 - **Verification-type briefs are two-sided.** "Establish whether X or not-X, and name what decides it" — never "check whether X". A confirmation-shaped brief was measured (2026-08-29/30) to make a subagent confirm a false thesis while holding its disproof in its own context. Every subagent report labels load-bearing claims MEASURED (command / file:line) or INFERRED; the orchestrator treats an INFERRED link under a CONFIRMED claim as unverified.
 - The builder returns: files changed, tests added/updated, verification commands it ran. Confirm with `git diff --stat` — a builder's success report is not evidence (`verification-before-completion`).
@@ -55,7 +55,7 @@ OUTPUT: verified change on a branch + evidence — user decides merge/push/deplo
    - diff **< 100 lines** → standard-depth review;
    - diff **≥ 100 lines** → thorough review (all 7 axes, tests first).
 2. Split findings by severity:
-   - **CRITICAL / HIGH / MEDIUM** → dispatch a builder subagent with the findings **verbatim** (file:line, description, suggested direction). Then re-review the touched areas.
+   - **CRITICAL / HIGH / MEDIUM** → dispatch a **NEW** builder subagent (fresh context — never resume the builder that produced the diff; hard rule 6) with the task context block + the findings **verbatim** (file:line, description, suggested direction) + the current `git diff --stat`. Then re-review the touched areas — the sign-off re-review is likewise a fresh reviewer fed the diff and the previous findings, not the previous reviewer resumed with its full exploration context.
    - A finding the reviewer labels PLAUSIBLE (chain has an unmeasured link) is NOT dispatched as a fix — it goes back as a two-sided brief ("establish whether X or not-X") and only a MEASURED result enters the fix loop.
    - **LOW / stylistic / uncertain ("plausible")** → collect for the final report. Do not auto-fix, do not silently drop.
 3. Repeat review→fix up to **2 iterations** (3 for Large tasks). Cap exhausted → STOP; report remaining findings and why they persist. Never loop indefinitely, never merge review debt silently.
@@ -100,6 +100,8 @@ Never merge, push to the deploy branch, or deploy — present the package and st
 3. **Fresh context for verification.** The verifier never shares context with any builder.
 4. **Evidence or it didn't happen** — `verification-before-completion` governs every claim in the report.
 5. **Manual step spotted twice → automate it.** If the user has to correct or remind you about a step of this lifecycle, propose adding it to this skill / project CLAUDE.md immediately.
+6. **One agent per unit of work — a finished agent is never resumed for the next unit.** Build, each review-fix iteration, each re-review, each security re-check and each verify run is its own fresh subagent whose prompt carries the task context block, the previous findings and the current diff state; the report of the previous agent is the compression point (200k of exploration → 2k of findings), so resuming carries ballast instead of trimming it. MEASURED (2026-09-13, batch of 5 issues, 32 subagents, 503M cache-read tokens): the builder resumed for three review iterations cost 94M input tokens over 497 turns and finally overflowed its context mid-iteration; the fresh builder spawned to finish that same iteration did more work for 24M. Resuming a 240k-context reviewer for a 15-tool-call sign-off cost ~25M; a fresh diff-only reviewer would cost ~3M. A resumed agent pays its whole accumulated context on every turn.
+7. **Every subagent reports by `SendMessage` to the orchestrator BY NAME.** Spawn subagents with an explicit `name:`, put the orchestrator's own agent name in their prompt, and require the final report to be sent to it. MEASURED (same batch): task-notifications of subagents spawned by a nested orchestrator landed with the top-level session, not the spawner — every builder report had to be relayed by hand, doubling the reading and stalling one issue for 3 h. Agents whose `tools:` list is restricted must include `SendMessage`.
 
 ---
 

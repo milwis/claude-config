@@ -62,6 +62,8 @@ Follow the task-lifecycle skill end-to-end:
 - security pass if [triggers]
 - verify-e2e in a fresh subagent; env facts: docs/VERIFICATION_ENV.md
 - commit on the branch; do NOT merge, do NOT push to <deploy branch>
+- one agent per unit of work: review fixes go to a NEW builder (fresh context), never the resumed one; re-reviews to a fresh reviewer
+- spawn every subagent with `name:` and instruct it to send its final report via SendMessage to you (your name: orch-<n>) — nested task-notifications may land with the top-level session instead of you
 Return the task-lifecycle report package. If blocked, return BLOCKED with the exact missing prerequisite — do not improvise around it.
 ```
 
