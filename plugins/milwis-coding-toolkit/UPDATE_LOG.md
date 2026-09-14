@@ -6,6 +6,20 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-14 — issue-pipeline / task-lifecycle: równoległość, zasoby współdzielone, kadencja (v1.5.2)
+
+Źródło: przegląd obu skilli przed falą naprawy issues w KonkretnyTMS (141 otwartych). Sprzeczności wewnętrzne i luki zmierzone na tekście skilli + incydenty z pamięci sesji (checkout jednej gałęzi skasował niezacommitowaną pracę drugiego agenta; worktree bez `.env` dał fałszywy baseline; port :8080 serwował drzewo GŁÓWNE podczas weryfikacji gałęzi).
+
+### Updated
+- **issue-pipeline:** (1) „równoległość ⇒ worktree, zawsze" — warunek „jeśli builderzy kolidowaliby w jednym drzewie" był logicznie pusty, bo gałąź per issue nie może dzielić drzewa z inną gałęzią; (2) reguła zasobów współdzielonych poza plikami (baza dev, port aplikacji serwujący drzewo główne, jeden sterowany Chrome, budżet CI) z decyzją per zasób: slot / własna instancja / sekwencyjnie; (3) kadencja: jeden przebieg = jedna partia ≤3 issues, kolejna partia = nowe wywołanie z nowym „go" (usunięta sprzeczność „tylko wyjątki" vs „check-in po 3" vs „kolejna partia po raporcie"); (4) triage: `Explore`, `model: sonnet`, `name: triage-<n>`, pytanie o listę plików + flagi (baza / GUI / plik wspólny z inną issue); (5) orkiestrator per issue: `general-purpose`, `name: orch-<n>`, `model: sonnet` domyślnie (osąd zostaje w reviewerach na `opus`), szablon promptu z worktree, zasobami współdzielonymi, odsyłaczem do lokalnych adaptacji projektu, done-label zamiast zamykania issue, „procedura W CAŁOŚCI"; (6) sekcja „Jedno lifecycle = jedno issue" z jedynym wyjątkiem (bundle: ten sam plik + każde Trivial/Small + wspólna powierzchnia; liczy się jako N do capu); (7) tabela statusów z kolumną Tip SHA i listą pozostawionych worktree; (8) odsyłacz `executing-plans` → `executingplans` (skill nazywa się bez myślnika).
+- **task-lifecycle:** (1) cap pętli review-fix ujednolicony: 2 Standard / 3 Large, sufit 3 (krok 2.3 mówił „2", hard rule 2 „3"); (2) reguła 7 / krok 1: `SendMessage` po nazwie tylko, gdy orkiestrator jest nazwanym podagentem — sesja główna dostaje task-notifications i nie ma nazwy; (3) jawny `model:` przy każdym spawnie (rejestr agentów bywa nieświeży); (4) klasa Small: próg recenzji z CLAUDE.md projektu wygrywa (self-audit zamiast reviewera); (5) strategia gałęzi: równoległe lifecycle → własny worktree, ścieżki absolutne, checklista worktree projektu przed pierwszym testem; (6) pełna suita = zasób współdzielony (slot, czytaj SWÓJ log); (7) verify: powierzchnia serwowana Z worktree + dyskryminator; (8) raport: tip SHA, done-label jako jedyny zapis do trackera; (9) odsyłacze `executingplans`.
+- **verify-e2e:** akapit „które drzewo weryfikujesz" (docroot = worktree + dyskryminator); odsyłacz `executingplans`.
+
+### Issues
+- Zvendorowane ręcznie do KonkretnyTMS/.claude tego samego dnia; tam dodatkowo `docs/claude-reference/lokalne-adaptacje-cykli.md` (checklista worktree, zasoby współdzielone, modele, etykieta `status:do-scalenia`, wytyczne 1 issue = 1 lifecycle) i tabela macOS w `docs/VERIFICATION_ENV.md`.
+
+---
+
 ## Run: 2026-08-30 — Klasa błędu „pomiar ≠ wniosek": procedura falsyfikacji u agentów piszących (v1.5.1)
 
 Źródło: diagnoza agenta po fali 11 issues w KonkretnyTMS (2026-08-29/30). Sześciu agentów piszących popełniło ten sam błąd (jeden trzykrotnie): dwie prawdziwe przesłanki zmierzone, trzecia niezmierzona, wniosek fałszywy (403 CSRF vs globalny interceptor; `--exclude-group` vs plik w ogóle niezbierany przez suitę; „sieroty" vs `FK ON DELETE SET NULL`; „zdarzenia przepadają" vs logger łapiący `PDOException` piętro niżej). Reguły kodowały WNIOSKI z incydentów, nie PROCEDURĘ; jedyne miejsce łapiące klasę systematycznie to wymóg dowodu mutacyjnego (procedura, nie przestroga). code-reviewer (krok weryfikacyjny w definicji) wyłapał 5/6 — brakowało odpowiednika u piszących.
