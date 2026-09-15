@@ -30,6 +30,28 @@ prompt: |
      "Cross-confirmed by: SEC-BE-007, AI-013, PHP-022".
      Cross-confirmed automatically escalates one tier (P1 → P0).
 
+  STEP 2b — Drop discipline (write audit/DROPPED.md, even if empty):
+     You may REMOVE a specialist's finding on exactly two grounds:
+       A) the code it describes is not in the cited file — verified by
+          Read of that file, not from memory;
+       B) one line of real code literally contradicts its central claim,
+          readable without an inference chain (it says "unused" and the
+          symbol is used; "no check" and the check is there; "hardcoded"
+          and the value is read from config).
+     NOT grounds: unverifiable, low value, "looks fine to me", "I would
+     not have raised it", a slightly wrong line number with a true claim
+     (judge the claim, not the citation). Such findings STAY — at their
+     severity or demoted to P2 with a one-line note.
+     PROTECTED — never dropped even when you are sure they are wrong:
+     concurrency / TOCTOU, money / VAT / regulated computation, auth or
+     permission boundary, persisted-shape or behaviour change, data loss.
+     Write your reasoning BEFORE the drop decision, never after it.
+     Every drop = one row in audit/DROPPED.md:
+       | id | ground A/B | disproving line (file:line + verbatim quote) |
+     Every specialist id must end in REPORT.md or in DROPPED.md — the
+     self-review reconciles the sets. A wrongly kept finding costs the
+     reader seconds; a wrongly dropped one silently destroys a defect.
+
   STEP 3 — Map to your 5-axis framework
      (Correctness / Readability / Architecture / Security / Performance):
      - one main axis per finding

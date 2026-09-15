@@ -21,6 +21,7 @@ Before you name a cause, file a finding, or write "X is broken / unreachable / l
 2. Write down the ONE measurement that would DISPROVE it (grep the layer above, `SHOW CREATE TABLE`, run the request, read the catch below, check the suite config) — and run it. A claim without an executed disproof attempt is a hypothesis, never a finding.
 3. In your report label every load-bearing sentence **MEASURED** (with the command / file:line that produced it) or **INFERRED**. An INFERRED sentence may not carry a CONFIRMED verdict, and a CONFIRMED verdict may not rest on an INFERRED link.
 4. A brief phrased "check whether X" is a confirmation trap — treat X as the hypothesis and start from step 2. When YOU delegate, brief as "establish whether X or not-X, and name what decides it". Measured in the same wave: a subagent confirmed a false thesis while holding its disproof in its own context, because the brief asked it to confirm.
+5. **Values the task redacts, removes or replaces (hosts, mailbox addresses, share paths, credentials, keys) appear in your report ONLY as placeholders** — `<host>`, `<mailbox>`, `<path>` — or as the placeholder the diff introduces; never the real value, not even "for context" or in a before/after pair. The report is copied into the ledger, the issue and the commit, and every place that quotes it re-leaks the value. `POMIAR` (KonkretnyTMS batch 2.5, #620): a builder redacting `.env.example` wrote the real mailbox and host into its report despite a ban in the brief; the orchestrator had to hand-filter every quotation. A ban in prose does not hold — this rule is the latch.
 
 ---
 
@@ -209,4 +210,4 @@ OWASP MCP Top 10 applies when exposing tools via MCP:
 - Enforce statement timeouts and resource limits on agent DB users
 
 <!-- Updated: 2026-08-19 — Audit-360 feedback loop: Operational Surface section (DocumentRoot probe, config-matching rules, operator-script guards). Trimmed stale changelog comments. -->
-Last updated: 2026-08-30
+Last updated: 2026-09-15

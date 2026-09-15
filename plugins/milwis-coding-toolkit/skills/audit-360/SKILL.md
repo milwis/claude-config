@@ -111,6 +111,8 @@ Required sections (adapt headings; never skip):
 
 This inventory lets specialist prompts stay short and generic — "audit the project described in `audit/INVENTORY.md`" instead of hardcoding domain names.
 
+13. **Cost estimate before dispatch** — from §2 LOC and the specialist table below, write the expected number of specialists, the ~50-call budget each, and a rough token figure (`POMIAR` reference: KonkretnyTMS 360° 2026-08-19 — see RUN_META of that run for per-specialist actuals; until a project has its own, assume 150–250k per Opus specialist on a 20–40k LOC codebase). If the estimate exceeds what the user's quota can carry today, say so BEFORE STEP 2 and propose the cut (fewer conditional specialists, `--path` scoping) — a run that stops partway with no warning is the failure RUN_META exists to prevent.
+
 ### STEP 2 — Spawn specialists in parallel (one tool block)
 
 **CRITICAL**: invoke all Task calls in a SINGLE message. That's the only way to get genuine parallelism in Claude Code. Pass `model: opus` on every Task call (see §1 model policy).
@@ -154,6 +156,7 @@ Read `prompts/10-consolidator.md`, substitute `<INVENTORY_PATH>`, spawn `code-re
 - **CHECK A (numeric consistency)**: counts in tables match executive summary — and every number corrected later in the document (self-review, measurements) must be propagated BACK to the header/summary; a resolution at the bottom with a stale number at the top is the same defect the audit reports in the project.
 - **CHECK B (fix-proposal hallucination)**: extract ALL symbols mechanically from FIX_PROPOSALS — every function/method call, class name, file path, and constant appearing in the proposed diffs (not a hand-curated list) — and verify each: symbol exists (`grep`, with the full SIGNATURE checked for functions you call with arguments), package exists (`npm view` / `composer show`), file path exists (`git ls-files`), and every cited `file:line` actually contains the quoted code (`sed -n '<line>p'`).
 - **Path fidelity**: the consolidator copies file paths VERBATIM from the source findings — never rewrites, normalizes, or "corrects" a path. Real-audit failure mode: source modules had the path right, the consolidation invented a plausible-looking wrong one, and it propagated into FIX_PROPOSALS.
+- **Drop discipline (`audit/DROPPED.md`)**: the consolidator may remove a specialist's finding on exactly two grounds — **A** the code it describes is not in the cited file (verified by Read, not by memory), or **B** one line of real code literally contradicts its central claim with no inference chain. "Unverifiable", "low value", "I would not have raised this", "looks fine to me" are NOT grounds — the finding stays (at its severity, or demoted to P2 with a note). Protected subjects are never dropped, even when the consolidator is sure they are wrong: concurrency/TOCTOU, money/VAT/regulated computations, auth/permission boundaries, persisted-shape or behaviour changes, data loss. Every drop is a row in `audit/DROPPED.md` — `id | ground A/B | the disproving line (file:line + quote)`; a finding missing from REPORT and from DROPPED is a consolidation defect the self-review flags. Rationale (measured by alibaba/open-code-review on its fact-check filter): a wrongly kept finding costs a reviewer seconds; a wrongly dropped one silently destroys a real defect and nobody learns it was dropped.
 
 Skipping these checks has produced miscounts of 30%+, recommendations calling non-existent methods, a three-arg call to a four-arg logger signature (production TypeError), and a hallucinated path in real audits.
 
@@ -163,7 +166,7 @@ For each P0 in the consolidated report, read `prompts/11-debugger-repro.md`, sub
 
 ### STEP 6 — Self-review (forked code-reviewer, opus)
 
-Read `prompts/12-self-review.md`, substitute `<INVENTORY_PATH>`, spawn a FRESH `code-reviewer` with `model: opus`. The self-reviewer checks the consolidator's work — verifies P0 PoC completeness, evidence grounding, fix safety, hallucinated APIs in fix proposals, executive summary numeric accuracy, missed cross-confirmations, and strengths claims. Verdict (`PASS` / `PASS-WITH-NOTES` / `FAIL`) appended to `REPORT.md` as `## Self-review`.
+Read `prompts/12-self-review.md`, substitute `<INVENTORY_PATH>`, spawn a FRESH `code-reviewer` with `model: opus`. The self-reviewer checks the consolidator's work — verifies P0 PoC completeness, evidence grounding, fix safety, hallucinated APIs in fix proposals, executive summary numeric accuracy, missed cross-confirmations, strengths claims, and the drop log (every specialist id is in REPORT or in `audit/DROPPED.md` with a ground A/B line; no protected-subject finding was dropped). Verdict (`PASS` / `PASS-WITH-NOTES` / `FAIL`) appended to `REPORT.md` as `## Self-review`.
 
 ### STEP 7 — Verification before claiming done
 
@@ -178,7 +181,7 @@ grep -c '^| P2-'  audit/REPORT.md
 
 Show output to the user. Without this, the audit is not "done".
 
-Also write `audit/RUN_META.md`: start/end timestamps, number of Task invocations per step, models used, tool-call budget overruns per specialist, and any lost/failed/restarted passes **with their approximate cost**. A consolidation pass that fails or is redone MUST be recorded here — "run 1 lost without record" must never happen again. This file is how the user learns what the audit cost and where the budget went.
+Also write `audit/RUN_META.md`: start/end timestamps, number of Task invocations per step, models used, and a **per-specialist state table** — `specialist | state | calls | tokens (if known) | note` with state ∈ `completed` / `truncated(budget)` (checkpoint present in its findings file) / `failed(<class>: timeout, context, tool, other)` / `reused` (resumed from a previous run). The audit's terminal state derives from that table: all `completed` → complete; any `truncated` → complete-with-gaps (list the Pending sections); any `failed` → the step is re-run or the gap is named in REPORT §1 — never "done" over a failed specialist. Any lost/failed/restarted pass is recorded **with its approximate cost**; a consolidation pass that fails or is redone MUST be here — "run 1 lost without record" must never happen again. Compare the actuals against the STEP 1 estimate (item 13) — that delta is the next audit's estimate. This file is how the user learns what the audit cost and where the budget went.
 
 ### STEP 8 — Feedback loop: propose agent updates
 
@@ -210,7 +213,7 @@ Every Task call's prompt (already encoded in the `prompts/` files) tells the spe
 3. **Output format**: every finding has the §7 structure (`id`, `severity`, `file:line`, `evidence`, `impact`, `recommendation`).
 4. **Anti-hallucination**: if no problems in a category, write `none found` — never invent.
 5. **Quote real code**: every finding cites a snippet read via Read/Grep, never assumed.
-6. **Tool-call budget**: ~50 tool calls per specialist. On overrun, stop with `truncated: true` + list of unexplored areas.
+6. **Tool-call budget**: ~50 tool calls per specialist. On overrun, stop and END the findings file with a `## Checkpoint` in five fixed sections — `Identified issues` (already written above, by id), `Tool-call conclusions` (one line per decisive command: what it established, e.g. `code_search("lastInsertId") → 21 hits, none cast`), `Completed`, `Pending` (areas not reached), `Current focus` (one sentence) — and set `truncated: true` in the header. The conclusions section is what makes a resumed or second specialist NOT re-run the same greps; a bare list of unexplored areas throws the run's measurements away. Budget exhaustion is coverage truncation, never a failed specialist — the orchestrator records it as `truncated(budget)` in RUN_META, not as a lost run.
 7. **No nested subagents**: specialists do not spawn further Task calls (Anthropic SDK limit).
 8. **Verify recommendations**: any class / method / package suggested in a fix proposal must be confirmed to exist (`grep` / `npm view` / `composer show`) before being written into the report.
 9. **Hard-rules from INVENTORY §9**: grep the codebase for direct violations of every project hard-rule. Each violation = at least P1, automatic P0 if the rule concerns financial / regulated / PII data.
@@ -347,6 +350,8 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 - audit/repro/P0-*.md
 - audit/INVENTORY.md
 - audit/AGENT_UPDATES.md (STEP 8 output)
+- audit/DROPPED.md (STEP 4 drop log — may be empty, must exist)
+- audit/RUN_META.md
 
 ## 12. Numerical self-check (STEP 4 CHECK A)
 
@@ -373,6 +378,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 9. **PoC reproduction is mandatory**: STEP 5 — P0 without reproduction = P1 with note.
 10. **Self-review is mandatory**: STEP 6 — fresh forked `code-reviewer` checks the consolidator's work.
 11. **Both self-checks are mandatory**: STEP 4 CHECK A (numeric) + STEP 6 (d) (hallucinated APIs). Both have caught 30%+ defects in the report itself in real audits.
+11a. **Nothing disappears silently**: a specialist finding ends in REPORT or in DROPPED.md — the self-review reconciles the id sets. Budget overrun ends in a `## Checkpoint`, not in a shrug.
 12. **Feedback loop is the deliverable**: STEP 8 — without `audit/AGENT_UPDATES.md` the audit doesn't help future code.
 13. **Skill announcement**: the main agent says "Running the audit-360 skill..." at start (marketplace skill convention).
 
@@ -408,6 +414,6 @@ The main agent:
 
 ---
 
-**Skill version**: 1.1 (refactored to skill+references pattern; SKILL.md kept under 500 lines per Anthropic guidance)
+**Skill version**: 1.2 (1.1: skill+references pattern; 1.2: drop discipline + DROPPED.md, budget checkpoint, pre-dispatch estimate, per-specialist state table in RUN_META — adapted from alibaba/open-code-review, 2026-09-15)
 **Required Claude Code version**: ≥ 2.0.65 (CVE-fixed)
 **Required plugin**: milwis-coding-toolkit (any version with the agents listed in §1)

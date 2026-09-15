@@ -15,11 +15,26 @@ Operating alongside `verification-before-completion` and `test-driven-developmen
 - **Flag as CRITICAL** symptom fixes — patches that make the error go away without explaining the root cause. If the PR doesn't answer "*why* did this happen?", push back and reference `systematic-debugging`.
 - **Test-only diff (latch entries, fixtures, deleted assertions) → re-run the mutants yourself.** Take a copy of the tested file (never the tracked one), apply at least one mutant the builder claims RED and at least one CONTROL mutant you choose **on a step the diff did NOT touch** (the sibling branch / neighbouring tree / untouched leg of the same pattern — this is the standing requirement, not an option: `POMIAR` batch 2.4, both findings that changed code came from exactly such control mutants), run the targeted test against the copy (`--bootstrap` with the mutant required first, or the project's `scripts/mutation-probe.sh`), and report each as `mutant <sed> → RED|GREEN (<command>)`. A `sed` that changed nothing (hits a comment, misses the anchor) is a no-op and its GREEN proves nothing — check the diff of the copy before reading the result. Your report is the verification of record for such a diff; nobody re-verifies after you.
 - **Flag as CRITICAL** a diff that changes a persisted or public shape (schema, stored data, API contract, config keys, dependency major) without a named rollback path, or that performs a destructive Contract step (`DROP`, column/field removal, data deletion) the task did not explicitly request as its own stage. Reference the `migration` skill: expand → migrate → verify → contract, destructive steps authorized separately.
+- **A `0 hits` is a measurement only after a positive control.** Before reporting "no call site / no guard / not referenced", run the same pattern against a line you KNOW matches (a hit visible in the diff, or the definition itself); a control that also returns 0 means the tool is broken, not the code. Rewrite any regex the brief handed you into fixed strings (`git grep -nF -e <literal>` or `-f <file>`) before trusting its result — `\b`, double-escaped ERE and an unexpanded `$FILES` under zsh all return the same `0` as a clean file. `POMIAR` (batch 2.5, #620): three consecutive "0 hits" were tooling failures, a dozen calls before the first real measurement.
 - **Every number in a finding cites the command that produced it** — a count, a line number, a percentage, a token figure. `"6 assertions" (grep -c 'self::assert' file)`, not `"6 assertions"`. A number without its command is labelled INFERRED and cannot carry a CONFIRMED verdict; a number copied from a builder's report keeps the builder's label until you re-run it.
 
 These checks come *before* the 7-axis review.
 
 ---
+
+## Effort tier — size the review before starting
+
+`git diff --stat` (staged / PR equivalent) decides the tier; never guess it from the description. A diff touching a sensitive path (money/VAT/auth/session, migrations, `.github/workflows/`, `composer.json`/`package.json`, `.htaccess`/nginx) moves one tier up regardless of size.
+
+| Tier | Diff | Risk plan (§2) | Passes | Coverage (output) |
+|---|---|---|---|---|
+| **S** | ≤ 3 files and < 100 changed lines | skip | 1 | one line `N/N files reviewed` |
+| **M** | ≤ 10 files and ≤ 400 lines | yes | 1 | table |
+| **L** | above M, or one file > 200 changed lines | per unit | 2 | table per unit |
+
+S is the common case (fix-up, latch, one-method change): all seven axes still apply, the output is findings + coverage line, no plan, Strengths in one line. Process added to a small diff costs tokens and finds nothing the axes don't.
+
+**L tier — review units.** Split the diff into units of ≤ 10 files that belong together (producer ↔ consumer, interface + implementation, i18n/config variants of one resource, one feature directory); the rest of the changed-file list is context, not review scope. Review unit by unit. Then one second pass per unit, diff only (no re-reading files already read), with your own findings for that unit in front of you and the question "what do these findings NOT cover?" — the risk plan of pass 1 is a coverage ceiling, pass 2 runs without it. Stop the unit when pass 2 adds nothing. `POMIAR` source: alibaba/open-code-review runs the same loop (rounds 1/2/3 by effort, stop-on-no-new-findings) and attributes its benchmark gap over general agents to coverage enforcement, not to the model.
 
 ## Review Process
 
@@ -29,11 +44,22 @@ These checks come *before* the 7-axis review.
 - Check `git diff` or staged changes for full scope
 - Identify tests vs implementation files
 
-### 2. Variant-of-canonical diff
+### 2. Risk plan (tiers M/L) — each risk with the measurement that would disprove it
+
+Before the axes, list the risk points of the diff, highest first, in this shape:
+
+```
+[high|medium|low] <where> — <what could be wrong> — <impact>
+   → <command / file to read> — <what it confirms or refutes>
+```
+
+Then run those measurements. A risk whose planned measurement you did not run stays PLAUSIBLE, whatever the prose says (see Principles, "Disproof before verdict"). `(none)` is a valid plan — never invent risks to fill the list. The plan is a floor for the review, not a ceiling: axes 5A–5G still run on the whole diff.
+
+### 3. Variant-of-canonical diff
 
 When the change is a VARIANT of an existing operation (correction vs invoice, batch vs single, offline-queue vs sync, second-of-kind, import-update, PWA/analytics consumer), FIRST locate the canonical path (grep it), list its guards and formulas, then diff the variant against them. Every deviation must be reused or explicitly justified. Audit fact: 1/3 of confirmed bugs had the correct pattern already in-repo on the primary path (per-rate VAT split, edit-lock, mark-first).
 
-### 3. Review tests FIRST
+### 4. Review tests FIRST
 - Do tests exist for new/changed behavior?
 - Do they verify **behavior** (what it does), not **implementation** (how it does it)?
 - Edge cases covered? (null, empty, boundary, invalid input)
@@ -42,7 +68,7 @@ When the change is a VARIANT of an existing operation (correction vs invoice, ba
 - **Tautological test → CRITICAL:** the expected value is recomputed the way the code computes it, a snapshot derived by the same path, or a constant compared with itself. Such a test cannot disagree with the code and stays GREEN under every mutant — treat it as no test (it fails the mutation rule in the discipline overlay).
 - **No tests → CRITICAL**
 
-### 4. Review implementation — 7 axes
+### 5. Review implementation — 7 axes
 
 **A. Correctness**
 - Fulfills specification/intent?
@@ -107,13 +133,15 @@ Cross-file / cross-layer defects: each file looks correct in isolation — the b
 | Cross-consumer inconsistency | Is the invariant enforced at the WRITE/entry point, or only in one lucky consumer? | Payment matching filters by currency, but correction `save()` accepts request currency unchecked and a total-subquery sums without a currency filter |
 | Regulated logic "from memory" | Every VAT/FA(3)/106j/561 computation must cite an in-repo source (`docs/ksef/`, `docs/fable_specs/`); diff the implementation against the cited XSD/example | Hardcoded correction annotations contradict the source `transaction_type`; missing `Podmiot2K` required by the XSD |
 
-### 5. Categorize and report
+### 6. Categorize and report
 
 Every finding MUST have:
-- **Severity label**
-- **File:line reference**
+- **Severity label** + confidence (CONFIRMED / PLAUSIBLE / LATENT)
+- **File:line reference** AND the verbatim `+` line(s) it targets, copied from the diff — line numbers drift between the review and the fix, a quoted line does not; a finding whose quoted line is not in the diff targets code that is not under review
 - **Description**
 - **Suggested fix** (specific)
+
+**Coverage ledger.** Every file in `git diff --stat` ends as `reviewed` or `skipped(<reason>)`. Legitimate skip reasons: generated (`*.pb.*`, `*.generated.*`, `__snapshots__/`, `*.snap`, lockfiles), vendored, binary, secret-bearing (`.env*`, `.npmrc`, `.netrc`, `id_*` — never quote their contents into a finding). Reviewing an implementation file does not cover its interface, config, template or test counterpart, and a file being the smaller member of the group is not a reason to skip it. A file absent from the ledger was not reviewed.
 
 Severity:
 
@@ -125,7 +153,7 @@ Severity:
 | ⚪ **NIT** | Minor style/naming | Author may ignore |
 | ℹ️ **FYI** | Informational context | No action |
 
-### 6. Verify completion — a green result is a claim about SCOPE, not about the code
+### 7. Verify completion — a green result is a claim about SCOPE, not about the code
 - [ ] Build/lint/static analysis passes — **and report what the tool actually covered**: read `paths` in the analyzer config (directories outside it were NOT analyzed; check declared language version vs runtime) and the lint script + flat-config `files`/`ignores` in `package.json`. Files outside the configured scope are *unexamined*, not clean — say so explicitly.
 - [ ] Existing tests still pass — **report BOTH counts: passed AND skipped**. A test skipped for a missing DB/network/key is a test the gate does not have. Format: "3 210 passed, **1 409 skipped** (no DB on CI) — DB layer unverified", never "tests green".
 - [ ] Parity/property gates: state what they prove — a gate comparing two implementations proves their AGREEMENT, not their correctness; a shared bug passes.
@@ -133,6 +161,17 @@ Severity:
 - [ ] New behavior has test coverage?
 - [ ] No debug statements (console.log, print, breakpoint)?
 - [ ] Dependencies justified and audited?
+
+### By file type — checks the axes above do not name
+
+Apply only to files of that type present in the diff (the reason such a file lifts the tier: their defects are invisible to a logic-focused pass).
+
+| File | Check |
+|---|---|
+| `.github/workflows/*.yml` | `pull_request_target` combined with a checkout of the PR head (untrusted code with write token); `${{ github.event.* }}` / `${{ inputs.* }}` interpolated inside `run:` (script injection — pass via `env:`); third-party action not pinned to a full SHA; no `permissions:` block (defaults to broad); `echo ${{ secrets.X }}`; job without `timeout-minutes` |
+| `composer.json` | `config.allow-plugins` wildcard or a new plugin without an explicit decision; production class reachable only through `autoload-dev`; `config.platform` masking a runtime/extension mismatch with CI or deploy; `secure-http: false`, plaintext or credential-bearing repository URL; `*` / `dev-*` constraint without a committed lock; a newly used `ext-*` missing from `require`; `minimum-stability` lowered without `prefer-stable` |
+| `package.json` | tool used in `scripts` (eslint, jest, prettier, tsc) absent from `devDependencies`; `latest` / `*` on a newly added line; same package in `dependencies` and `devDependencies`; lifecycle script (`postinstall`) running network or shell code |
+| PHP (`*.php`, `*.phtml`) | `isset()` where a present-but-`null` key must differ from a missing one (`array_key_exists`); `foreach` by reference without `unset()` after the loop; `@` suppression turning a failure into invalid state; transaction with an early `return`/throw path that leaves it open; session lock held across a slow HTTP/DB call (`session_write_close` first); `ORDER BY` / column / table identifiers from input — cannot be bound, need an allowlist; `.phtml` value printed raw — confirm the view helper does not already escape before flagging AND before approving |
 
 ---
 
@@ -173,31 +212,41 @@ Before approving any recommendation, verify:
 
 ## Output Format
 
+The verdict is the LAST line, not the first: writing it before the findings commits you to a verdict the findings then have to justify (measured on the same loop by alibaba/open-code-review — with the decision field serialized before the reasoning field, the model wrote "I should not remove this" in the reasoning while the id stayed in the decision). Findings, coverage, then verdict.
+
 ```markdown
 ## Code Review Summary
 
-**Scope:** [files, feature]
-**Verdict:** ✅ APPROVE / ⚠️ APPROVE WITH CHANGES / ❌ CHANGES REQUIRED
+**Scope:** [files, feature] — tier S/M/L (`git diff --stat`: N files, +A/−B)
 
 ### Findings
 
-🔴 **CRITICAL** — `path/to/file.py:145`
-Description of the issue.
+🔴 **CRITICAL** (CONFIRMED) — `path/to/file.py:145`
+> `+    total = amount * rate ?? 0`
+Description of the issue, with the measurement that disproved the alternative.
 **Fix:** Specific suggestion with code if needed.
 
-🟡 **REQUIRED** — `path/to/file.js:230`
+🟡 **REQUIRED** (PLAUSIBLE — unmeasured link: <which>) — `path/to/file.js:230`
+> `+  const rows = await db.query(sql + id)`
 Description.
 **Fix:** Specific suggestion.
 
-🔵 **OPTIONAL** — `path/to/service.php:88`
-Description.
-**Fix:** Consider alternative.
-
-### Strengths
-- [Specific, not generic]
+### Coverage
+S tier: `3/3 files reviewed`.
+M/L tier:
+| File | Status |
+|---|---|
+| `src/Invoice/Save.php` | reviewed |
+| `src/Invoice/SaveInterface.php` | reviewed |
+| `composer.lock` | skipped(lockfile) |
 
 ### Test Coverage
-- [Assessment]
+- [Assessment — passed AND skipped counts]
+
+### Strengths
+- [Specific, not generic — one line on tier S]
+
+**Verdict:** ✅ APPROVE / ⚠️ APPROVE WITH CHANGES / ❌ CHANGES REQUIRED
 ```
 
 ---
@@ -205,6 +254,7 @@ Description.
 ## Principles
 
 - **Approve when it improves overall code health, even if not perfect** — don't block on style preferences
+- **Don't report what the project's deterministic tooling already reports** — PHPStan/Psalm/ESLint/tsc/PHP-CS-Fixer/the compiler — unless the diff shows a consequence the tool does not express. Formatting, import order, naming taste and modern-syntax preferences are never blocking. A security finding needs BOTH attacker control of the input AND the output/execution context established before it is filed — framework validation and auto-escaping make many dangerous-looking calls safe, and a finding filed without that check costs a fix-up round on nothing
 - **Facts > opinions** — cite the specific rule, pattern, or risk
 - **Tests review first** — understanding intent through tests makes implementation review faster
 - **Acknowledge strengths** — good work deserves recognition alongside issues
@@ -214,5 +264,5 @@ Description.
 - **Label finding confidence** — CONFIRMED (evidence in hand) vs PLAUSIBLE (needs verification) vs LATENT (real bug, current data doesn't trigger it). Never report speculation as certainty, and never recommend a class/method you haven't grepped for — see "When reviewing fix proposals or audit reports"
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
-<!-- Updated: 2026-08-19 — Audit-360 feedback loop: step 6 rewritten as scope-reporting gate (analyzer paths, SKIPPED counts, parity-gate semantics, workflow last-run dates), 2 new AI-scrutiny rows (config matching rules, dead documentation references). Trimmed stale changelog comments. -->
+<!-- Updated: 2026-09-15 — Adapted from alibaba/open-code-review: effort tier S/M/L from `git diff --stat` (S = no plan, one pass, one-line coverage), risk plan with disproof measurement (M/L), L-tier review units + second pass without the plan, coverage ledger, verbatim `+` line per finding, verdict last, deterministic-tooling noise rule, by-file-type table (workflows / composer.json / package.json / PHP). History in UPDATE_LOG.md. -->
 Last updated: 2026-09-15

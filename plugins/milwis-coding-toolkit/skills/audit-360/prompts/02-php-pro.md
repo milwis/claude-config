@@ -55,6 +55,21 @@ prompt: |
      version drift (multiple APP_VERSION definitions); silent 1:1 fallback
      in financial conversion functions.
 
+  G2) Semantics the compiler and PHPStan do not catch (P1; P0 when the
+     value is money / regulated / auth):
+     isset() where a present-but-null key must differ from a missing one
+     (array_key_exists); foreach by reference without unset() after the
+     loop; `@` suppression that turns a failure into invalid state; a
+     transaction with an early return / throw path that leaves it open;
+     session lock held across a slow HTTP or DB call; ORDER BY / column /
+     table identifiers from input (cannot be bound — allowlist); curl or
+     stream call without a timeout on a request path.
+     Do NOT duplicate what `vendor/bin/phpstan` / psalm already report
+     unless you show a concrete consequence the tool does not express —
+     link the tool's own output instead. For every escaping finding,
+     confirm attacker control AND the output context (does the view
+     helper already escape?) before writing it.
+
   H) PDO config:
      PDO::ATTR_EMULATE_PREPARES => false?
      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION?

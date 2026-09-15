@@ -46,6 +46,20 @@ prompt: |
      CI uses `npm ci` (not `npm install`)?
      vendor/ committed = P1 (usually wrong).
 
+  A.7a Manifest and CI semantics (per file present):
+     composer.json — config.allow-plugins wildcard; production class
+       reachable only via autoload-dev; config.platform masking a
+       runtime/extension mismatch with CI/deploy; secure-http false or a
+       credential-bearing repository URL; ext-* used in code but missing
+       from require; minimum-stability lowered without prefer-stable.
+     package.json — tool in `scripts` (eslint/jest/prettier/tsc) missing
+       from devDependencies; `latest`/`*`; same package in dependencies
+       and devDependencies; postinstall running network/shell code.
+     .github/workflows — pull_request_target + checkout of the PR head;
+       `${{ github.event.* }}` interpolated in `run:`; third-party action
+       not pinned to a SHA; no `permissions:` block; secrets echoed;
+       job without timeout-minutes.
+
   A.7 SRI for CDN scripts in HTML:
      Every <script src="https://..."> without `integrity=` and `crossorigin` = P1.
 

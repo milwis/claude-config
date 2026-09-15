@@ -38,6 +38,8 @@ History: on 2026-08-17 a uniform-Opus policy was adopted based on API list prici
 
 Revisit with data, not intuition: `task-lifecycle` reports review iterations per task — if work that used to pass review in one round starts needing 2-3, that is the signal the smaller writer model is not carrying the task. Do not silently flip models back in a maintenance run (see UPDATE_LOG maintenance policy).
 
+Ground truth for the reviewer itself: [AACR-Bench](https://huggingface.co/datasets/Alibaba-Aone/aacr-bench) (Alibaba, 200 real PRs, 10 languages, 1 505 engineer-annotated defects) — the reference set for measuring `code-reviewer` precision/recall before and after a prompt change; a rule that raises tokens without moving precision on it does not stay.
+
 ## Skills
 
 ### Workflow skills (slash commands)

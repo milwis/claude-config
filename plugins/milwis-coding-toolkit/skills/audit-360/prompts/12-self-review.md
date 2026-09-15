@@ -55,10 +55,19 @@ prompt: |
      "100% strict_types coverage" is verifiable: `find -name '*.php' | wc -l`
      vs `grep -l 'declare(strict_types=1)' | wc -l`. Don't accept naive claims.
 
+  (h) Drop-log reconciliation:
+     collect every finding id from audit/findings/*.md (grep the id
+     prefixes); every id appears in REPORT.md or in audit/DROPPED.md —
+     list the ones in neither (silent drop = FAIL). For every DROPPED row:
+     the ground is A or B, the disproving line is quoted and exists
+     (`sed -n '<line>p'`), and the subject is not protected (concurrency,
+     money/VAT/regulated, auth boundary, persisted-shape/behaviour change,
+     data loss) — a protected drop is reinstated, whatever the ground.
+
   Verdict — append to REPORT.md as `## Self-review`:
      PASS               — all checks green, ship.
      PASS-WITH-NOTES    — issues exist but don't block; list them.
-     FAIL               — at least one (a)/(c)/(d)/(e) failure; block report
+     FAIL               — at least one (a)/(c)/(d)/(e)/(h) failure; block report
                           finalization until fixed.
 
   Operate under `verification-before-completion`. Cite real evidence —
