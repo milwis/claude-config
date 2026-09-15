@@ -53,7 +53,7 @@ Before the axes, list the risk points of the diff, highest first, in this shape:
    → <command / file to read> — <what it confirms or refutes>
 ```
 
-Then run those measurements. A risk whose planned measurement you did not run stays PLAUSIBLE, whatever the prose says (see Principles, "Disproof before verdict"). `(none)` is a valid plan — never invent risks to fill the list. The plan is a floor for the review, not a ceiling: axes 5A–5G still run on the whole diff.
+Then run those measurements. A risk whose planned measurement you did not run stays PLAUSIBLE, whatever the prose says (see Principles, "Disproof before verdict"). `(none)` is a valid plan — never invent risks to fill the list. The plan is a floor for the review, not a ceiling: axes 5A–5G still run on the whole diff. The plan is working material, not output: it never goes into the report (the report contract bans arrow chains in prose — hard rule 8(d)); what reaches the report is each measurement's result as `path:line` + command, inside the finding it confirmed or as the line that cleared a risk.
 
 ### 3. Variant-of-canonical diff
 
@@ -212,9 +212,11 @@ Before approving any recommendation, verify:
 
 ## Output Format
 
-The verdict is the LAST line, not the first: writing it before the findings commits you to a verdict the findings then have to justify (measured on the same loop by alibaba/open-code-review — with the decision field serialized before the reasoning field, the model wrote "I should not remove this" in the reasoning while the id stayed in the decision). Findings, coverage, then verdict.
+Decide before you write, not while you write: the verdict is settled in your reasoning after the last measurement, and the report only records it. When you run as a subagent, the FIRST line of your report is the terminal token the orchestrator greps (`task-lifecycle` hard rule 8: `No issues.` or the verdict line) — that contract stands. The full verdict with its justification closes the summary; a verdict written first and justified afterwards is the failure alibaba/open-code-review measured on its filter (decision field serialized before the reasoning field → "I should not remove this" in the reasoning while the id stayed in the decision). The risk plan (§2) stays in your working context — the report carries the results of its measurements, not the plan itself.
 
 ```markdown
+❌ CHANGES REQUIRED            ← first line, subagent contract (or `No issues.`)
+
 ## Code Review Summary
 
 **Scope:** [files, feature] — tier S/M/L (`git diff --stat`: N files, +A/−B)
@@ -246,7 +248,7 @@ M/L tier:
 ### Strengths
 - [Specific, not generic — one line on tier S]
 
-**Verdict:** ✅ APPROVE / ⚠️ APPROVE WITH CHANGES / ❌ CHANGES REQUIRED
+**Verdict:** ✅ APPROVE / ⚠️ APPROVE WITH CHANGES / ❌ CHANGES REQUIRED — one sentence naming the finding(s) that decided it
 ```
 
 ---
@@ -264,5 +266,5 @@ M/L tier:
 - **Label finding confidence** — CONFIRMED (evidence in hand) vs PLAUSIBLE (needs verification) vs LATENT (real bug, current data doesn't trigger it). Never report speculation as certainty, and never recommend a class/method you haven't grepped for — see "When reviewing fix proposals or audit reports"
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
-<!-- Updated: 2026-09-15 — Adapted from alibaba/open-code-review: effort tier S/M/L from `git diff --stat` (S = no plan, one pass, one-line coverage), risk plan with disproof measurement (M/L), L-tier review units + second pass without the plan, coverage ledger, verbatim `+` line per finding, verdict last, deterministic-tooling noise rule, by-file-type table (workflows / composer.json / package.json / PHP). History in UPDATE_LOG.md. -->
+<!-- Updated: 2026-09-15 (v1.5.12: first line = subagent terminal token, plan stays out of the report) — Adapted from alibaba/open-code-review: effort tier S/M/L from `git diff --stat` (S = no plan, one pass, one-line coverage), risk plan with disproof measurement (M/L), L-tier review units + second pass without the plan, coverage ledger, verbatim `+` line per finding, verdict last, deterministic-tooling noise rule, by-file-type table (workflows / composer.json / package.json / PHP). History in UPDATE_LOG.md. -->
 Last updated: 2026-09-15

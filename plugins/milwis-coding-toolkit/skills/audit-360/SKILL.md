@@ -111,7 +111,7 @@ Required sections (adapt headings; never skip):
 
 This inventory lets specialist prompts stay short and generic — "audit the project described in `audit/INVENTORY.md`" instead of hardcoding domain names.
 
-13. **Cost estimate before dispatch** — from §2 LOC and the specialist table below, write the expected number of specialists, the ~50-call budget each, and a rough token figure (`POMIAR` reference: KonkretnyTMS 360° 2026-08-19 — see RUN_META of that run for per-specialist actuals; until a project has its own, assume 150–250k per Opus specialist on a 20–40k LOC codebase). If the estimate exceeds what the user's quota can carry today, say so BEFORE STEP 2 and propose the cut (fewer conditional specialists, `--path` scoping) — a run that stops partway with no warning is the failure RUN_META exists to prevent.
+13. **Cost estimate before dispatch** — from §2 LOC and the specialist table below, write the expected number of specialists, the ~50-call budget each, and a rough token figure (no measured per-specialist figure exists yet — the 2026-08-19 KonkretnyTMS audit predates RUN_META; until the first RUN_META with actuals lands, use the ASSUMPTION 150–250k tokens per Opus specialist on a 20–40k LOC codebase, labelled as such in the estimate, and replace it with the measured delta after the first run). If the estimate exceeds what the user's quota can carry today, say so BEFORE STEP 2 and propose the cut (fewer conditional specialists, `--path` scoping) — a run that stops partway with no warning is the failure RUN_META exists to prevent.
 
 ### STEP 2 — Spawn specialists in parallel (one tool block)
 
