@@ -3,357 +3,359 @@ name: roadmapa
 description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a self-spawning chain of sessions, one phase each (triage / plan / execute / verify), handing work through a committed roadmap + append-only ledger rather than through context. Input: issue numbers or a backlog. Output: `agent/issue-<nr>` branches with evidence in the ledger and a status table; the chain never merges to main — that is the owner's step."
 ---
 
-# Roadmapa (łańcuch sesji rozwiązujący partię issues bez obecności właściciela)
+# Roadmapa (a chain of sessions that resolves a batch of issues without the owner present)
 
-> **Źródłem prawdy tego pliku jest `milwis/claude-config`** (`plugins/milwis-coding-toolkit/skills/roadmapa/`).
-> Workflow `sync-claude-toolkit` kopiuje go stamtąd co poniedziałek przez `cp -rf`, więc **edycja kopii
-> w `.claude/skills/` zostanie cicho nadpisana** — zmiany wprowadzaj upstream. Sync przenosi wyłącznie
-> `agents/` i `skills/`: hooki sztafety (`~/.claude/hooks/relay-*.sh`), na których stoją progi z §1, **nie
-> jadą z nim** i w nowym repo trzeba je wpiąć osobno.
+> **The source of truth for this file is `milwis/claude-config`** (`plugins/milwis-coding-toolkit/skills/roadmapa/`).
+> The `sync-claude-toolkit` workflow copies it from there every Monday via `cp -rf`, so **editing the copy
+> in `.claude/skills/` will be silently overwritten** — make changes upstream. The sync carries only
+> `agents/` and `skills/`: the relay hooks (`~/.claude/hooks/relay-*.sh`) on which the thresholds in §1 stand **do not
+> travel with it** and must be wired up separately in a new repo.
 
-**Rdzeń:** kontekst jest zasobem zużywalnym, a jakość pracy spada, zanim okno się zapełni. Zamiast jednej sesji dobijającej do ściany — **łańcuch sesji, z których każda robi JEDNĄ fazę i przekazuje pracę następnej**, którą sama rodzi. Właściciela nie ma przy komputerze; wszystko, co ma przetrwać, musi być w repo, nie w kontekście.
+**Core idea:** context is a consumable resource, and the quality of work degrades before the window fills up. Instead of one session grinding until it hits the wall — **a chain of sessions, each of which does ONE phase and hands the work to the next one**, which it spawns itself. The owner is not at the keyboard; everything that must survive has to live in the repo, not in context.
 
-**Zapowiedz na starcie:** „Używam skilla roadmapa, pokolenie N."
+**Announce at start:** "Using the roadmapa skill, generation N."
 
-**Pierwszy wiersz ledgera zawiera ZMIERZONE progi**, nie założone:
+**The first ledger row contains MEASURED thresholds**, not assumed ones:
 ```bash
 bash -c 'source ~/.claude/hooks/relay-lib.sh; echo "WARN=$RELAY_WARN HANDOFF=$RELAY_HANDOFF CEILING=$RELAY_CEILING HARD=$RELAY_HARD_CAP"'
 ```
-Wpięty hook z progami innymi niż zakładasz wygląda identycznie jak działający mechanizm i **milczy przez cały przebieg** — to próżniowo zielona ochrona. Zmierz i zapisz.
+A wired-up hook with thresholds different from what you assume looks identical to a working mechanism and **stays silent for the whole run** — that is vacuously green protection. Measure it and write it down.
 
-**Wymaga wpiętych hooków sztafety** (`~/.claude/hooks/relay-{lib,post,pre}.sh` w `settings.json`). Bez nich progi nie zadziałają i łańcuch nie ruszy sam z siebie — sprawdź `jq '.hooks' ~/.claude/settings.json` i przerwij, jeśli `null`.
+**Requires the relay hooks to be wired up** (`~/.claude/hooks/relay-{lib,post,pre}.sh` in `settings.json`). Without them the thresholds will not fire and the chain will not move on its own — check `jq '.hooks' ~/.claude/settings.json` and abort if it is `null`.
 
 ---
 
-## 1. Progi i to, co przy nich robisz
+## 1. Thresholds and what you do at each of them
 
-| % okna | Co się dzieje | Egzekwuje |
+| % of window | What happens | Enforced by |
 |---|---|---|
-| 35 | uzupełnij handoff w ledgerze; nowe wątki tylko domykalne | wtrysk `PostToolUse` |
-| 40 | koniec brania nowych wątków; `Agent` zablokowany; zrodź następcę | `deny` + wtrysk |
-| 60 | odcięte wszystko poza `Bash`, `Write`, `SendMessage`, `TodoWrite`, `ListAgents` — w tym `Read`, `Grep`, `Glob`, `Edit` | `deny` |
-| 80 | twardy sufit — `hold` go NIE znosi | `deny` |
+| 35 | complete the handoff in the ledger; only closable threads from now on | `PostToolUse` injection |
+| 40 | stop taking on new threads; `Agent` blocked; spawn a successor | `deny` + injection |
+| 60 | everything cut off except `Bash`, `Write`, `SendMessage`, `TodoWrite`, `ListAgents` — including `Read`, `Grep`, `Glob`, `Edit` | `deny` |
+| 80 | hard ceiling — `hold` does NOT lift it | `deny` |
 
-**Progi są SIATKĄ BEZPIECZEŃSTWA, nie harmonogramem.** Zmierzone w przebiegu 1 (pięć przekazań):
-4 z 5 nastąpiły z powodu **granicy fazy z §4**, przy 31,5% / 38,6% / 26,8% / 37,0% — czyli PONIŻEJ
-progu 40, który nie zapalił się wcale. Tylko piąte (44,4%) prowadził próg. Nie planuj więc pracy „do
-progu": przekazuj na granicy fazy, a progi traktuj jako to, co Cię złapie, gdy faza okaże się dłuższa,
-niż zakładałeś.
+**The thresholds are a SAFETY NET, not a schedule.** Measured in run 1 (five handoffs):
+4 out of 5 happened because of the **phase boundary from §4**, at 31.5% / 38.6% / 26.8% / 37.0% — i.e. BELOW
+the 40 threshold, which never fired at all. Only the fifth (44.4%) was driven by the threshold. So do not plan work "up
+to the threshold": hand off at the phase boundary, and treat the thresholds as what catches you when a phase turns out longer
+than you assumed.
 
-Liczba jest o turę spóźniona i liczona wobec limitu **wyprowadzonego z modelu** (§1b).
-Opóźnienie zmierzone: **jedna runda narzędziowa (~27 s)** — hook po PIERWSZYM narzędziu ponad progiem
-czyta jeszcze zużycie POPRZEDNIEJ tury, więc wtrysk dociera ok. 0,5 pp za progiem (G2: przekroczenie
-35% przy 352 880, wtrysk przy 355 042). `RELAY_LIMIT` NIE ma wartości domyślnej — jest awaryjnym nadpisaniem; domyślne 1e6 pochodzi z `RELAY_LIMIT_DEFAULT`. Ustawienie `RELAY_LIMIT` na wartość niebędącą dodatnią liczbą jest odrzucane z ostrzeżeniem, nie po cichu. Świeża sesja w tym repo startuje z ok. 14% (`CLAUDE.md` + `incident-lessons.md`; zmierzone: G2 = 143 729,
-G3 = 143 860, G6 = ok. 144 000 — wartość jest stabilna).
+The number lags by one turn and is computed against a limit **derived from the model** (§1b).
+Measured delay: **one tool round (~27 s)** — the hook after the FIRST tool over the threshold
+still reads the usage of the PREVIOUS turn, so the injection arrives ~0.5 pp past the threshold (G2: crossing
+35% at 352,880, injection at 355,042). `RELAY_LIMIT` has NO default value — it is an emergency override; the default 1e6 comes from `RELAY_LIMIT_DEFAULT`. Setting `RELAY_LIMIT` to something that is not a positive number is rejected with a warning, not silently. A fresh session in this repo starts at ~14% (`CLAUDE.md` + `incident-lessons.md`; measured: G2 = 143,729,
+G3 = 143,860, G6 = ~144,000 — the value is stable).
 
-`POMIAR`: punkty przekazania w przebiegu 1 wypadły na 31,5% / 38,6% / 26,8% / 37,0% / 44,4%, średnio
-33,5%, a różnica między kolejnymi przekazaniami to ok. 19 punktów. `WNIOSEK` (skorygowany 2026-09-05):
-ta liczba **nie mierzy pojemności okna** — mierzy skutek reguły „jedna faza na pokolenie" z
-ówczesnego §4, która kazała przekazywać na granicy fazy niezależnie od zużycia. Trzecia przesłanka
-(„czy pokolenie mogło pracować dalej") nie była zmierzona, więc etykieta „realne pasmo" była
-fałszywym uogólnieniem — instancja `§Klasa nadrzędna` z `incident-lessons.md` (dwie przesłanki
-zmierzone, trzecia nie, wniosek fałszywy). §4 usuwa to sprzężenie: pokolenie z zużyciem poniżej
-`RELAY_WARN` bierze kolejną niedomkniętą fazę zamiast przekazywać automatycznie na granicy fazy, więc
-„19 punktów" przestaje być podstawą do krojenia etapów roadmapy na ~19-punktowe kawałki.
+`POMIAR`: handoff points in run 1 fell at 31.5% / 38.6% / 26.8% / 37.0% / 44.4%, on average
+33.5%, and the difference between consecutive handoffs is ~19 points. `WNIOSEK` (corrected 2026-09-05):
+this number **does not measure window capacity** — it measures the effect of the "one phase per generation" rule from
+the §4 of that time, which mandated handing off at the phase boundary regardless of usage. The third premise
+("could the generation have kept working") was not measured, so the label "real bandwidth" was a
+false generalisation — an instance of `§Parent class` from `incident-lessons.md` (two premises
+measured, the third not, false conclusion). §4 removes that coupling: a generation with usage below
+`RELAY_WARN` takes the next unclosed phase instead of automatically handing off at the phase boundary, so
+"19 points" is no longer a basis for slicing roadmap stages into ~19-point pieces.
 
-## 1a. Podagenci mają własne progi
+## 1a. Subagents have their own thresholds
 
-Podagent nie jest małą sesją — **nie może nikomu przekazać pracy**, jego jedynym wyjściem jest oddanie raportu rodzicowi. Ma za to własne okno i własny transkrypt (`<projekt>/<session-id>/subagents/agent-<agent_id>.jsonl`), więc hooki mierzą go osobno:
+A subagent is not a small session — **it cannot hand work off to anyone**; its only exit is returning a report to its parent. It does have its own window and its own transcript (`<project>/<session-id>/subagents/agent-<agent_id>.jsonl`), so the hooks measure it separately:
 
-| % własnego okna | Co się dzieje |
+| % of its own window | What happens |
 |---|---|
-| 45 | „zwijaj się, domknij wątek, oddaj raport" |
-| 65 | **każde** narzędzie dostaje `deny` — zostaje wyłącznie napisanie raportu |
+| 45 | "wrap up, close the thread, return the report" |
+| 65 | **every** tool gets `deny` — the only thing left is writing the report |
 
-Odcięcie narzędzi jest tu mechanizmem wymuszającym, nie karą: podagent bez narzędzi musi odpowiedzieć.
+Cutting off tools here is an enforcing mechanism, not a punishment: a subagent without tools has to answer.
 
-Ta sama zasada rządzi sufitem sesji: od 60% odcięte jest **czytanie** (`Read`, `Grep`, `Glob`, `Edit`), bo to cztery największe konsumenty okna — sufit, który je przepuszcza, nie chroni przed niczym. `Bash` zostaje otwarty, bo bez niego nie zrobisz `git` ani `claude --bg`; **sufit odcina narzędzia, nie zamiary**, więc to na Tobie leży, żeby nie czytać plików przez `cat`. Niepełny raport jest użyteczny, przerwany podagent bez raportu nie jest.
+The same principle governs the session ceiling: from 60% **reading** is cut off (`Read`, `Grep`, `Glob`, `Edit`), because those are the four largest consumers of the window — a ceiling that lets them through protects against nothing. `Bash` stays open, because without it you cannot do `git` or `claude --bg`; **the ceiling cuts off tools, not intentions**, so it is on you not to read files via `cat`. An incomplete report is useful; an interrupted subagent without a report is not.
 
-Wnioski dla zlecającego: **deleguj wąsko**. Zadanie w rodzaju „przejrzyj cały moduł" zjada okno podagenta, zanim cokolwiek zaraportuje. Zleceń weryfikacyjnych udzielaj dwustronnie („ustal, czy X czy nie-X, i podaj, co rozstrzyga") — i tak jest to wymóg `CLAUDE.md`, a przy okazji ogranicza zbieranie materiału.
+Conclusions for the delegator: **delegate narrowly**. A task like "review the whole module" eats the subagent's window before it reports anything. Give verification assignments two-sidedly ("determine whether X or not-X, and state what settles it") — that is a `CLAUDE.md` requirement anyway, and it also limits material gathering.
 
-**Podagent nigdy nie przekazuje pracy w bok.** Nie rodzi drugiego podagenta (większość definicji nie ma narzędzia `Agent` — `php-pro` to `Read, Write, Edit, Bash, Glob, Grep`) i nie zakłada sesji przez `claude --bg` z Basha.
+**A subagent never hands work off sideways.** It does not spawn a second subagent (most definitions lack the `Agent` tool — `php-pro` has `Read, Write, Edit, Bash, Glob, Grep`) and does not start a session via `claude --bg` from Bash.
 
-Hook blokuje typowe formy tego wywołania, ale to **obrona w głąb, nie zapadka** — i trzeba to wiedzieć, zanim się na niej oprzesz. Czarna lista komend jest z definicji niepełna: `sudo claude`, `nohup claude`, `timeout 600 claude`, `bash -c 'claude …'` oraz nazwa binarki podana zmienną **przechodzą** (zmierzone). Pierwsza wersja guarda przepuszczała nawet `KTMS_RELAY_GEN=2 claude --bg …`, czyli dosłownie formę, której uczy §5 tego skilla i którą hook sam wstrzykuje w kontekst — zakaz dawał się pokonać skopiowaniem instrukcji, którą podagent dostał od tego samego mechanizmu. Domknięte, ale reszta luk zostaje: realnie trzyma tu treść wstrzykniętego polecenia, nie regex.
+The hook blocks the typical forms of that call, but this is **defence in depth, not a latch** — and you need to know that before relying on it. The command blacklist is by definition incomplete: `sudo claude`, `nohup claude`, `timeout 600 claude`, `bash -c 'claude …'` and a binary name passed via a variable **get through** (measured). The first version of the guard even let through `KTMS_RELAY_GEN=2 claude --bg …`, i.e. literally the form §5 of this skill teaches and which the hook itself injects into context — the ban could be defeated by copying the instruction the subagent received from the very same mechanism. Closed, but the remaining gaps stay: what really holds here is the content of the injected instruction, not the regex.
 
-**Dlaczego NIE ma tu reguły `permissions.deny` z `Bash(claude:*)`** — rozważone i odrzucone 2026-09-05 po pomiarze, nie z przeoczenia. Reguła jest mocniejsza od regexa: `POMIAR` (`claude -p --disallowedTools "Bash(claude:*)"`) pokazał, że blokuje `nohup claude …` i `C=claude; $C …`, czyli warianty, których regexem złapać się nie da, i **nie ma fałszywych trafień** na komendach jedynie cytujących `claude` (`echo`, `grep`, `git log --grep`). Wspólną dziurą obu jest `bash -c '…'`.
+**Why there is NO `permissions.deny` rule with `Bash(claude:*)` here** — considered and rejected 2026-09-05 after measurement, not by oversight. The rule is stronger than the regex: `POMIAR` (`claude -p --disallowedTools "Bash(claude:*)"`) showed that it blocks `nohup claude …` and `C=claude; $C …`, i.e. variants no regex can catch, and **there are no false positives** on commands merely quoting `claude` (`echo`, `grep`, `git log --grep`). The shared hole of both is `bash -c '…'`.
 
-Blokerem jest **zasięg**: reguły z `settings.json` obowiązują SESJĘ, a nie wybiórczo jej podagentów. Wpisanie tam `Bash(claude:*)` odcięłoby `claude --bg` także orkiestratorowi — czyli zabiłoby mechanizm, na którym stoi cała sztafeta (§5 krok 4). Nie ma zakresu „tylko podagent", a `.claude/agents/*.md` jest nadpisywane przez workflow `sync-claude-toolkit` (`cp -f "${SRC}/agents/"*.md`), więc frontmatter agenta też nie jest trwałym nośnikiem. Zostaje regex w hooku jako obrona w głąb — świadomie słabsza, bo mocniejsza wersja kosztowałaby więcej, niż daje. Ciągłość ma wyłącznie lead: raport wraca do niego, a on decyduje, czy zlecić resztę świeżemu podagentowi z węższym zadaniem. Raport jest przy okazji **punktem kompresji** — 200k eksploracji zamienia się w 2k ustaleń; przekazywanie kontekstu bezpośrednio między podagentami przenosiłoby balast zamiast go ścinać.
+The blocker is **scope**: rules in `settings.json` apply to the SESSION, not selectively to its subagents. Putting `Bash(claude:*)` there would cut `claude --bg` off from the orchestrator too — which would kill the mechanism the whole relay stands on (§5 step 4). There is no "subagent only" scope, and `.claude/agents/*.md` is overwritten by the `sync-claude-toolkit` workflow (`cp -f "${SRC}/agents/"*.md`), so an agent's frontmatter is not a durable carrier either. What remains is the regex in the hook as defence in depth — deliberately weaker, because the stronger version would cost more than it gives. Continuity belongs solely to the lead: the report returns to them, and they decide whether to assign the rest to a fresh subagent with a narrower task. The report is also a **compression point** — 200k of exploration turns into 2k of findings; passing context directly between subagents would carry ballast instead of trimming it.
 
-Koszt, o którym trzeba pamiętać: raport ląduje w oknie **leada**. Każda runda podagenta go pogrubia, więc podagent ucięty na sufcie przyspiesza zmianę pokolenia u rodzica. Progi stroisz przez `RELAY_SUB_WARN` / `RELAY_SUB_CAP`.
+A cost to keep in mind: the report lands in the **lead's** window. Every subagent round fattens it, so a subagent cut off at the ceiling accelerates the generation change at the parent. Tune the thresholds via `RELAY_SUB_WARN` / `RELAY_SUB_CAP`.
 
-## 1b. Skąd bierze się mianownik — limit wyprowadzany z modelu
+## 1b. Where the denominator comes from — a model-derived limit
 
-Procent nie ma sensu bez okna, a okno **zależy od modelu, nie od stałej**. Hook czyta `.message.model` z mierzonego transkryptu i dobiera limit: `haiku` → 200 000, każdy inny model → 1 000 000 (rozstrzygnięcie właściciela, 2026-09-05). Nadpiszesz przez `RELAY_LIMIT_HAIKU` / `RELAY_LIMIT_DEFAULT`, a awaryjnie przez `RELAY_LIMIT` (wymusza wartość niezależnie od modelu).
+A percentage means nothing without a window, and the window **depends on the model, not on a constant**. The hook reads `.message.model` from the measured transcript and picks the limit: `haiku` → 200,000, any other model → 1,000,000 (owner's ruling, 2026-09-05). Override via `RELAY_LIMIT_HAIKU` / `RELAY_LIMIT_DEFAULT`, and in an emergency via `RELAY_LIMIT` (forces the value regardless of model).
 
-**Dlaczego to jest osobna sekcja, a nie szczegół implementacyjny:** zły mianownik psuje mechanizm w OBIE strony i za każdym razem po cichu. Za duży — próg nie odpala się nigdy, ochrona jest próżniowo zielona (dokładnie ten stan, w którym podagent dobija do 800k). Za mały — narzędzia zostają odcięte przy ułamku realnego okna i **niszczą poprawną pracę**. To drugie zdarzyło się naprawdę 2026-09-05: przyjęty z obciętej próbki (`find -size +200k | head -40`) limit 200k dla sonneta uciął żywego podagenta przy 459 849 tokenach, w połowie zadania.
+**Why this is a separate section and not an implementation detail:** a wrong denominator breaks the mechanism in BOTH directions, and silently each time. Too large — the threshold never fires, the protection is vacuously green (exactly the state in which a subagent reaches 800k). Too small — tools are cut off at a fraction of the real window and **destroy correct work**. The latter really happened on 2026-09-05: a 200k limit for sonnet, taken from a truncated sample (`find -size +200k | head -40`), cut off a live subagent at 459,849 tokens, mid-task.
 
-Pomiar rozstrzygający, na **pełnym** zbiorze 975 transkryptów podagentów — maksymalny zaobserwowany kontekst per model:
+The decisive measurement, on the **full** set of 975 subagent transcripts — maximum observed context per model:
 
-| model | max zaobserwowany | co to dowodzi |
+| model | max observed | what it proves |
 |---|---|---|
-| claude-sonnet-5 | 981 531 | okno ≥ 1M |
-| claude-opus-5 | 503 833 | okno ≥ 504k |
-| claude-opus-4-7 | 273 157 | okno ≥ 273k |
-| claude-sonnet-4-6 | 125 583 | nic ponad 126k |
-| claude-haiku-4-5 | 88 458 | nic ponad 89k |
+| claude-sonnet-5 | 981,531 | window ≥ 1M |
+| claude-opus-5 | 503,833 | window ≥ 504k |
+| claude-opus-4-7 | 273,157 | window ≥ 273k |
+| claude-sonnet-4-6 | 125,583 | nothing above 126k |
+| claude-haiku-4-5 | 88,458 | nothing above 89k |
 
-To są **dolne ograniczenia**, nie rozmiary okien — „max zaobserwowany" nigdy nie dowodzi, gdzie kończy się okno. Dlatego obok procentu stoją progi **absolutne** (`RELAY_SUB_WARN_ABS` 500k, `RELAY_SUB_CAP_ABS` 700k, `RELAY_HANDOFF_ABS` 450k, `RELAY_CEILING_ABS` 650k): odpala się to, co wypadnie **wcześniej**. Przy oknie 1M procent zawsze wyprzedza, więc progi absolutne są niewidoczne — ujawniają się dopiero wtedy, gdy limit modelu zgadliśmy za wysoko, i wtedy ratują przed runawayem. Dodając nowy model, nie zgaduj okna: zostaw domyślne 1M i pozwól pracować siatce absolutnej.
+These are **lower bounds**, not window sizes — "max observed" never proves where the window ends. That is why **absolute** thresholds stand next to the percentage ones (`RELAY_SUB_WARN_ABS` 500k, `RELAY_SUB_CAP_ABS` 700k, `RELAY_HANDOFF_ABS` 450k, `RELAY_CEILING_ABS` 650k): whichever comes **first** fires. With a 1M window the percentage always wins, so the absolute thresholds are invisible — they surface only when we guessed the model limit too high, and then they save you from a runaway. When adding a new model, do not guess its window: leave the default 1M and let the absolute net do its work.
 
-**Liczba, którą widzisz w TUI przy działającym podagencie („↓ 456.5k tokens"), to TA SAMA wielkość, którą mierzy hook** — zmierzone: 459 396 wobec 456.5k. To NIE jest suma kumulatywna (ta dla tego samego podagenta wynosiła 54,6 mln, czyli 119×). Możesz więc kalibrować progi po tym, co widzisz na ekranie.
+**The number you see in the TUI for a running subagent ("↓ 456.5k tokens") is THE SAME quantity the hook measures** — measured: 459,396 vs 456.5k. It is NOT a cumulative sum (that one, for the same subagent, was 54.6 million, i.e. 119×). So you can calibrate thresholds by what you see on screen.
 
-## 2. Fazy atomowe — `hold`
+## 2. Atomic phases — `hold`
 
-Niektórych faz **nie wolno** przekazać w połowie: plan dopisany do połowy jest gorszy niż plan dokończony o dziesięć punktów drożej, a sonda mutacyjna porzucona w locie zostawia zmutowany plik w drzewie.
+Some phases **must not** be handed off halfway: a plan written to the middle is worse than a plan finished at ten points more cost, and a mutation probe abandoned in flight leaves a mutated file in the tree.
 
-**Faza nieatomowa `hold`-a NIE zakłada** — nie wywnioskowuj tego a contrario z listy poniżej. Commit odpalający sześć guardów pre-commit trwa długo i wygląda jak zawieszenie, ale nie jest fazą atomową. Zapomniany `rm -f $SID.hold` znosi progi 40 i 60 do końca życia sesji, więc `hold` zakładany „na wszelki wypadek" jest gorszy niż niezakładany.
+**A non-atomic phase does NOT set a `hold`** — do not infer that a contrario from the list below. A commit that triggers six pre-commit guards takes a long time and looks like a hang, but it is not an atomic phase. A forgotten `rm -f $SID.hold` lifts thresholds 40 and 60 for the rest of the session's life, so a `hold` set "just in case" is worse than none.
 
-Fazy atomowe:
-- pisanie planu przez `/writingplans` **razem z audytem specjalistów (Pass 2)** — plan bez Pass 2 nie jest planem;
-- sonda mutacyjna w toku (plik zmutowany, jeszcze nieprzywrócony);
-- runda review→fix w locie (recenzent oddał findingi, fix niezacommitowany).
+Atomic phases:
+- writing a plan via `/writingplans` **together with the specialist audit (Pass 2)** — a plan without Pass 2 is not a plan;
+- a mutation probe in progress (file mutated, not yet restored);
+- a review→fix round in flight (reviewer returned findings, fix not committed).
 
-Własny `session-id` bierz ze środowiska — **nie wyprowadzaj go z nazwy sesji**:
+Take your own `session-id` from the environment — **do not derive it from the session name**:
 ```bash
 SID="$CLAUDE_CODE_SESSION_ID"
 mkdir -p ~/.claude/relay-state
 ```
-Wariant przez `claude agents --json | jq 'select(.name==…)'` ma dwa ciche tryby zaniku, oba zmierzone: nazwy `<slug>-g<n>` są generowane deterministycznie, więc powtórzone pokolenie daje dwie sesje o tej samej nazwie, `$SID` staje się dwuliniowy i plik `hold` powstaje pod nazwą ze znakiem nowej linii; a pokolenie 1 nie ma nazwy w ogóle, więc `$SID` jest pusty i powstaje `~/.claude/relay-state/.hold`, którego hook nigdy nie znajdzie. W obu przypadkach `hold` **nie działa i nic o tym nie mówi** — faza atomowa zostaje przerwana progiem, czyli dokładnie ta szkoda, przed którą ta sekcja powstała.
+The variant via `claude agents --json | jq 'select(.name==…)'` has two silent failure modes, both measured: names `<slug>-g<n>` are generated deterministically, so a repeated generation yields two sessions with the same name, `$SID` becomes two-line and the `hold` file is created under a name containing a newline; and generation 1 has no name at all, so `$SID` is empty and `~/.claude/relay-state/.hold` is created, which the hook will never find. In both cases the `hold` **does not work and says nothing about it** — the atomic phase is interrupted by a threshold, i.e. exactly the harm this section was created to prevent.
 
-Wejście i wyjście:
+Entry and exit:
 ```bash
-echo "writingplans #<nr>" > ~/.claude/relay-state/$SID.hold   # wejście
-rm -f ~/.claude/relay-state/$SID.hold                        # wyjście — OBOWIĄZKOWE
+echo "writingplans #<nr>" > ~/.claude/relay-state/$SID.hold   # entry
+rm -f ~/.claude/relay-state/$SID.hold                        # exit — MANDATORY
 ```
-`hold` zawiesza progi 40 i 60 (razem z ich wariantami absolutnymi), **nie zawiesza twardego sufitu — ani procentowego (80%), ani absolutnego (`RELAY_HARD_CAP_ABS`, domyślnie 850 000)**. Do 2026-09-05 sufit absolutny w ogóle nie istniał, a `hold` gasił całą siatkę ABS — czyli dokładnie w scenariuszu, dla którego ta siatka powstała (okno zgadnięte za wysoko), faza atomowa zostawała bez jakiegokolwiek sufitu. Furtka bez limitu przestaje być furtką i staje się obejściem mechanizmu. Po dojściu do twardego sufitu w trakcie fazy atomowej: zapisz, co masz, oznacz w ledgerze fazę jako `PRZERWANA` z dokładnym punktem przerwania i przekaż — następca **wznawia fazę od początku**, nie od środka.
+`hold` suspends thresholds 40 and 60 (together with their absolute variants), **it does not suspend the hard ceiling — neither the percentage one (80%) nor the absolute one (`RELAY_HARD_CAP_ABS`, default 850,000)**. Until 2026-09-05 the absolute ceiling did not exist at all, and `hold` switched off the whole ABS net — i.e. exactly in the scenario the net was built for (window guessed too high), an atomic phase was left without any ceiling whatsoever. An escape hatch without a limit stops being a hatch and becomes a bypass of the mechanism. After reaching the hard ceiling during an atomic phase: save what you have, mark the phase in the ledger as `INTERRUPTED` with the exact interruption point, and hand off — the successor **restarts the phase from the beginning**, not from the middle.
 
-## 3. Trwały stan — roadmapa i ledger
+## 3. Durable state — roadmap and ledger
 
-Kontekst ginie razem z sesją; repo nie. Dwa pliki, oba **commitowane**:
+Context dies with the session; the repo does not. Two files, both **committed**:
 
-Roadmapa nie musi być listą issues — może być listą faz dowolnego zadania. Wtedy `issue #<nr>` w nagłówku wiersza ledgera zastąp `etap N`, a pola o gałęzi `agent/issue-<nr>` i triage'u na HEAD pomiń.
+The roadmap does not have to be a list of issues — it can be a list of phases of any task. In that case replace `issue #<nr>` in the ledger row header with `stage N`, and skip the fields about the `agent/issue-<nr>` branch and triage on HEAD.
 
-**Artefakt narastający przez wiele pokoleń** (raport, inwentarz, plik zbiorczy) dopisuj wyłącznie przez `cat >>` albo `Edit` — `cat >` skasuje pracę poprzednika, a zapis wygląda na w pełni udany. Sprawdź po zapisie `git status --short -- <plik>`: ` M` znaczy dopisane, `??` znaczy, że właśnie stworzyłeś plik na nowo.
+**An artefact that grows over many generations** (report, inventory, aggregate file) is appended to only via `cat >>` or `Edit` — `cat >` will delete the predecessor's work, and the write will look fully successful. After writing check `git status --short -- <file>`: ` M` means appended, `??` means you have just created the file anew.
 
-**Roadmapa** — `docs/plans/<data>-roadmapa-<slug>.md`, pisze ją pokolenie 1, potem tylko do odczytu:
-- lista issues po triage'u, każdy z jednozdaniowym zakresem, szacunkiem faz i etykietą `cloud-safe`/`local-only` (kryterium w §4a);
-- kolejność (najpierw to, co odblokowuje resztę; nigdy dwa issues dotykające tej samej tabeli obok siebie);
-- **tor realizacji** — sztafeta (domyślny) / orkiestrator / chmura, wybrany wg kryterium z §4a i uzasadniony JEDNYM zdaniem;
-- **tryb zakończenia issue** — zawsze `gałąź` (§4b); tryb `merge-lokalny` został zniesiony i nie wolno go deklarować;
-- **tryb łańcucha** — `partia` (domyślny: łańcuch kończy się razem z roadmapą) albo `ciągły`
-  (po wyczerpaniu roadmapy powstaje kurator kolejnej fali) — §4c;
-- czego łańcuchowi nie wolno: push na `origin`, deploy, `gh issue close`, wysyłka do KSeF.
+**Roadmap** — `docs/plans/<date>-roadmapa-<slug>.md`, written by generation 1, then read-only:
+- the list of issues after triage, each with a one-sentence scope, an estimate of phases and a `cloud-safe`/`local-only` label (criterion in §4a);
+- ordering (first what unblocks the rest; never two issues touching the same table next to each other);
+- **execution track** — relay (default) / orchestrator / cloud, chosen per the criterion in §4a and justified in ONE sentence;
+- **issue completion mode** — always `branch` (§4b); the `local-merge` mode has been abolished and must not be declared;
+- **chain mode** — `batch` (default: the chain ends together with the roadmap) or `continuous`
+  (after the roadmap is exhausted, a curator of the next wave is created) — §4c;
+- what the chain must not do: push to `origin`, deploy, `gh issue close`, sending to KSeF.
 
-**Ledger** — `docs/plans/<ten-sam-slug>-ledger.md`, **append-only**, jeden wiersz na zakończoną fazę.
+**Ledger** — `docs/plans/<the-same-slug>-ledger.md`, **append-only**, one row per completed phase.
 
-Jedyny wyjątek od append-only to **tabela kolejki faz** w nagłówku (jeśli ją prowadzisz): jej kolumna
-`status` z definicji wymaga edycji w miejscu i wolno ją nadpisywać. Wszystko poniżej nagłówka jest
-dopisywane i nietykalne. Zmierzone w przebiegu 1: commit ledgera G2 to 47 wstawek i **2 skasowane
-linie** — obie w tej tabeli; G2 musiał sam rozstrzygnąć, że to wolno, bo poprzednia wersja tej sekcji
-mówiła tylko „append-only" i nie przewidywała tabeli w ogóle. Wiersz fazy, raz dopisany, nie jest
-poprawiany — nowe ustalenia idą jako aneks z własnym nagłówkiem.
+The only exception to append-only is the **phase queue table** in the header (if you keep one): its
+`status` column by definition requires in-place editing and may be overwritten. Everything below the header is
+appended and untouchable. Measured in run 1: G2's ledger commit was 47 insertions and **2 deleted
+lines** — both in that table; G2 had to decide on its own that this was allowed, because the previous version of this section
+only said "append-only" and did not foresee a table at all. A phase row, once appended, is not
+corrected — new findings go as an annex with its own header.
 
-Format wiersza:
+Row format:
 
 ```
-## G<gen> · issue #<nr> · faza <triage|plan|exec|verify> · <data godzina>
+## G<gen> · issue #<nr> · faza <triage|plan|exec|verify> · <date time>
 - Gałąź: agent/issue-<nr>
-- Zrobione: <co realnie weszło, z commitami>
-- POMIAR: <komenda → wynik; to, co zmierzone>
-- WNIOSEK: <to, co wywnioskowane — osobno, nigdy zmieszane z POMIAREM>
-- Zostało: <następny krok, konkretnie>
-- Miny: <czego następca ma NIE robić i dlaczego>
+- Zrobione: <what actually went in, with commits>
+- POMIAR: <command → result; what was measured>
+- WNIOSEK: <what was inferred — separately, never mixed with POMIAR>
+- Zostało: <the next step, concretely>
+- Miny: <what the successor must NOT do and why>
 ```
 
-Ledger jest prawdziwym przekazaniem. Prompt startowy następcy to tylko wskaźnik na niego — dzięki temu jakość przekazania nie zależy od tego, ile kontekstu zostało poprzednikowi.
+Field names (`faza`, `Gałąź`, `Zrobione`, `Zostało`, `Miny` = phase, branch, done, remaining, mines) stay in Polish on purpose — existing ledgers use them and later generations grep for them.
 
-## 4. Role pokoleń
+The ledger is the real handoff. The successor's start prompt is just a pointer to it — this way the quality of the handoff does not depend on how much context the predecessor had left.
 
-**G1 — kurator.** Wybiera 5-6 issues i pisze roadmapę.
+## 4. Generation roles
 
-**Tryby bierze z polecenia właściciela, nigdy z wnioskowania.** Domyślnie `tor: sztafeta`, `tryb łańcucha: partia`; `tryb zakończenia issue` jest STAŁY (`gałąź`, §4b) i nie podlega wyborowi. `ciągły` włączasz **wyłącznie na wyraźne żądanie** — kształt zadania („dużo issues", „nie będzie mnie") żądaniem NIE jest. Domysł idzie tu w jedną stronę nieodwracalnie: łańcuch, który sam sobie włączył tryb ciągły, pracuje przez noc nad issues, których właściciel mu nie dał.
+**G1 — curator.** Picks 5-6 issues and writes the roadmap.
 
-**Gdy właściciel NIE podał zestawu issues — zapytaj, zanim cokolwiek wybierzesz.** Pytanie brzmi: czy kurator ma dobrać issues autonomicznie (i w jakim trybie łańcucha), czy właściciel poda listę. To JEDYNY moment, w którym wolno stanąć pytaniem — właściciel dopiero co wydał polecenie, więc jest przy komputerze; od chwili powstania G2 obowiązuje **zakaz zatrzymania pytaniem** z §6 bez wyjątków. Nie odpalaj łańcucha „na próbę" z domyślnym zestawem: pierwsza faza zdąży założyć gałąź i commit, zanim właściciel zobaczy, co wybrałeś. Obowiązkowo **triage na HEAD**: otwarte issue nie znaczy niezrobione (zmierzone: dwa z pięciu były już w `main`). Dla każdego: `git log --oneline --all --grep "#<nr>"`, `gh issue view <nr>`, sprawdzenie, czy opisany defekt nadal istnieje w kodzie. Issue już zrobione → wiersz ledgera `ZAMKNIĘTE NA HEAD` z dowodem, bez wchodzenia w implementację. G1 **nie pisze planów ani kodu** — przy 40% rodzi G2.
+**Modes come from the owner's instruction, never from inference.** Defaults: `track: relay`, `chain mode: batch`; the `issue completion mode` is FIXED (`branch`, §4b) and is not up for choice. You enable `continuous` **exclusively on explicit request** — the shape of the task ("lots of issues", "I'll be away") is NOT a request. A guess here goes one way irreversibly: a chain that switched itself into continuous mode works through the night on issues the owner never gave it.
 
-**G2..Gn — wykonawcy faz.** Roadmapę i ledger czytaj **jedną komendą** (`cat <roadmapa> <ledger>`), nie dwoma — przy ciasnym paśmie każde wywołanie narzędzia się liczy. Każde pokolenie bierze z ledgera pierwszą niedomkniętą fazę i robi **tylko ją**:
-- `plan` → `/writingplans` (faza atomowa, `hold`) → commit planu → przekazanie;
-- `exec` → `/executingplans` na `agent/issue-<nr>`, pre-commit gate wg `CLAUDE.md` §4a → przekazanie;
-- `verify` → `/verify-e2e` na powierzchni użytkownika → wiersz ledgera z dowodem.
+**When the owner did NOT provide a set of issues — ask before you pick anything.** The question is: should the curator select issues autonomously (and in which chain mode), or will the owner provide a list. This is the ONLY moment at which stopping with a question is allowed — the owner has just issued the instruction, so they are at the keyboard; from the moment G2 comes into existence, the **ban on stopping with a question** from §6 applies without exceptions. Do not launch the chain "as a trial" with a default set: the first phase will have created a branch and a commit before the owner sees what you picked. Mandatory **triage on HEAD**: an open issue does not mean unresolved (measured: two out of five were already in `main`). For each: `git log --oneline --all --grep "#<nr>"`, `gh issue view <nr>`, checking whether the described defect still exists in the code. Issue already done → ledger row `CLOSED ON HEAD` with evidence, without entering implementation. G1 **writes neither plans nor code** — at 40% it spawns G2.
 
-Jedno issue wymagające trzech-czterech pokoleń jest **normalne**, nie awarią.
+**G2..Gn — phase executors.** Read the roadmap and the ledger **with a single command** (`cat <roadmap> <ledger>`), not two — with a tight budget every tool call counts. Each generation takes the first unclosed phase from the ledger and does **only that**:
+- `plan` → `/writingplans` (atomic phase, `hold`) → commit the plan → handoff;
+- `exec` → `/executingplans` on `agent/issue-<nr>`, pre-commit gate per `CLAUDE.md` §4a → handoff;
+- `verify` → `/verify-e2e` on the user's surface → ledger row with evidence.
 
-**Pełnej suity NIE uruchamiasz sam — zlecasz ją podagentowi i przyjmujesz podsumowanie.** Dotyczy `phpunit` bez `--filter`, `vitest run`, `npm test` i każdego przebiegu, którego wyjścia nie umiesz z góry ograniczyć do kilkudziesięciu linii. Dla siebie zostawiasz wyłącznie przebiegi celowane (`--filter <KlasaTestu>`) — ich wyjście jest krótkie i potrzebne do decyzji w tej samej turze.
+One issue requiring three or four generations is **normal**, not a failure.
 
-`POMIAR` (10–11.09, 213 sesji, 24 879 tur): pokolenie orkiestratora wykonuje średnio 73 wywołania `Bash` na sesję, w tym **10 uruchomień phpunit/vitest**; jeden pełny przebieg PHP to ~1,4 MB wyjścia. Koszt sesji to `start × N + przyrost × N²/2`, więc wyjście, które raz wpadnie do kontekstu, jest opłacane w KAŻDEJ kolejnej turze tego pokolenia. `WNIOSEK`: kontekst orkiestratora jest najdroższym miejscem, w jakim może wylądować wyjście suity — podagent czyta je raz i oddaje kilkanaście linii.
+**You do NOT run the full suite yourself — you delegate it to a subagent and accept a summary.** This applies to `phpunit` without `--filter`, `vitest run`, `npm test` and any run whose output you cannot bound in advance to a few dozen lines. For yourself you keep only targeted runs (`--filter <TestClass>`) — their output is short and needed for a decision in the same turn.
 
-Zlecenie dla podagenta podaje: komendę, wymóg wyłącznego slotu (§6) i **format raportu — linia podsumowania PHPUnit/Vitest, lista NAZW klas czerwonych, ścieżka do pełnego logu**. Nie proś o wklejenie wyjścia. Porównanie zbioru NAZW z tłem (nie liczby — `waski-oracle-testowy-slepy`) zostaje po Twojej stronie: robisz je na liście nazw, nie na logu.
+`POMIAR` (10–11 Sep, 213 sessions, 24,879 turns): an orchestrator generation performs on average 73 `Bash` calls per session, including **10 phpunit/vitest runs**; one full PHP run is ~1.4 MB of output. The cost of a session is `start × N + increment × N²/2`, so output that once enters the context is paid for in EVERY subsequent turn of that generation. `WNIOSEK`: the orchestrator's context is the most expensive place suite output can land — a subagent reads it once and returns a dozen or so lines.
 
-To reguła o tym, CZEGO nie wciągasz do kontekstu, nigdy o tym, czego nie mierzysz. Pominięcie pełnej suity dla oszczędności kontekstu jest błędem droższym niż sam przebieg.
+The assignment for the subagent states: the command, the requirement of an exclusive slot (§6) and **the report format — the PHPUnit/Vitest summary line, the list of NAMES of red classes, the path to the full log**. Do not ask for the output to be pasted. Comparing the set of NAMES against the baseline (not the count — `narrow-test-oracle-is-blind`) stays on your side: you do it on the list of names, not on the log.
 
-**Reguła końca fazy (deterministyczna, bez pytania właściciela).** Po dopisaniu wiersza ledgera i
-jego commicie przeczytaj ledger ponownie. Weź kolejną fazę **w tej samej sesji**, jeśli WSZYSTKIE
-trzy warunki zachodzą naraz:
-1. istnieje kolejna niedomknięta faza w roadmapie;
-2. bieżące zużycie okna jest poniżej `RELAY_WARN`;
-3. kolejna faza nie jest na liście wykluczeń poniżej.
+This is a rule about WHAT you do not pull into context, never about what you do not measure. Skipping the full suite to save context is a mistake more expensive than the run itself.
 
-Zrodzenie następcy (§5) jest zarezerwowane dla przypadku, w którym którykolwiek z tych trzech
-warunków nie zachodzi — nie dla samego faktu domknięcia fazy. Domyślnym ruchem pokolenia z zapasem
-okna jest **wziąć kolejną fazę**, nie przekazać ją dalej.
+**End-of-phase rule (deterministic, without asking the owner).** After appending the ledger row and
+committing it, re-read the ledger. Take the next phase **in the same session** if ALL
+three conditions hold at once:
+1. there is a next unclosed phase in the roadmap;
+2. current window usage is below `RELAY_WARN`;
+3. the next phase is not on the exclusion list below.
 
-**Lista wykluczeń** — kolejnej fazy NIE bierz w tej samej sesji, tylko zródź następcę:
-- faza wymaga wyłącznego slotu na pełną suitę;
-- faza dotyka tego samego pliku co faza właśnie domknięta, a recenzent ma ją oceniać niezależnie;
-- faza jest atomowa (§2, `hold`) i nie mieści się w rezerwie do `RELAY_WARN`;
-- faza wymaga innego worktree niż bieżący.
+Spawning a successor (§5) is reserved for the case where any of these three
+conditions fails — not for the mere fact of closing a phase. The default move of a generation with
+window headroom is **to take the next phase**, not to pass it on.
 
-`POMIAR` (zdarzenie 2026-09-05): pokolenie domknęło fazę `verify`, zużyło ~0,05% okna, nie
-przekroczyło żadnego progu — i mimo to zatrzymało się, pytając właściciela, czy wziąć następną fazę.
-Poprzednia wersja tej sekcji nakazywała wyłącznie „zrób TYLKO ją" i nie opisywała żadnego ruchu dla
-stanu „faza domknięta, próg niezapalony, roadmapa niewyczerpana". `WNIOSEK`: zachowanie pokolenia
-było zgodne z ówczesnym skillem — wada była w skillu, nie w agencie; reguła wyżej ją zamyka.
+**Exclusion list** — do NOT take the next phase in the same session; spawn a successor instead:
+- the phase requires an exclusive slot for the full suite;
+- the phase touches the same file as the phase just closed, and the reviewer is to assess it independently;
+- the phase is atomic (§2, `hold`) and does not fit into the reserve up to `RELAY_WARN`;
+- the phase requires a different worktree than the current one.
 
-**Pod torem orkiestratora role pokoleń z tabeli wyżej nie obowiązują** — nie ma kolejnych pokoleń, tylko jedna długowieczna sesja-lead (nie czyta plików, nie pisze kodu) i subagenci per faza z `isolation: worktree`. Mechanika, format `/goal` i to, czego lead nie robi → `references/tor-orkiestratora.md`.
+`POMIAR` (event 2026-09-05): a generation closed a `verify` phase, used ~0.05% of the window, did not
+cross any threshold — and nevertheless stopped, asking the owner whether to take the next phase.
+The previous version of this section only mandated "do ONLY it" and described no move for
+the state "phase closed, threshold not fired, roadmap not exhausted". `WNIOSEK`: the generation's behaviour
+was consistent with the skill of that time — the defect was in the skill, not in the agent; the rule above closes it.
 
-## 4a. Wybór toru
+**Under the orchestrator track the generation roles from the table above do not apply** — there are no successive generations, only one long-lived lead session (does not read files, does not write code) and subagents per phase with `isolation: worktree`. Mechanics, the `/goal` format and what the lead does not do → `references/tor-orkiestratora.md`.
 
-Trzy tory, wybór na G1, zapisany w roadmapie (§3) i uzasadniony JEDNYM zdaniem:
+## 4a. Choosing the track
 
-| Tor | Kiedy | Kto pracuje |
+Three tracks, chosen at G1, recorded in the roadmap (§3) and justified in ONE sentence:
+
+| Track | When | Who works |
 |---|---|---|
-| **Sztafeta** (domyślny, §1-§7 niżej) | wszystko poza dwoma wierszami niżej — w tym fazy długie/atomowe (§2, `hold`) i partie, gdzie fazy nachodzą na te same pliki | kolejne sesje, jedna na raz |
-| **Orkiestrator** | fazy KRÓTKIE i ROZŁĄCZNE PLIKOWO — subagenci mogą biec równolegle w osobnych worktree bez kolizji | jedna sesja-lead + subagenci (`isolation: worktree`) |
-| **Chmura** | partia oznaczona `cloud-safe` | `claude --cloud`, jedna sesja na issue |
+| **Relay** (default, §1-§7 below) | everything except the two rows below — including long/atomic phases (§2, `hold`) and batches where phases overlap on the same files | successive sessions, one at a time |
+| **Orchestrator** | phases that are SHORT and FILE-DISJOINT — subagents can run in parallel in separate worktrees without collision | one lead session + subagents (`isolation: worktree`) |
+| **Cloud** | a batch labelled `cloud-safe` | `claude --cloud`, one session per issue |
 
-Zmierzona zaleta sztafety u właściciela: pozwala domknąć kilka issues bez podchodzenia do komputera i zużywa wyraźnie mniej tokenów niż poprzedni układ — dlatego zostaje domyślna, a dwa pozostałe tory są wyjątkiem dla konkretnego kształtu partii, nie równorzędną alternatywą wybieraną swobodnie.
+The measured advantage of the relay for the owner: it lets several issues be closed without approaching the computer and uses noticeably fewer tokens than the previous arrangement — which is why it stays the default, and the other two tracks are an exception for a specific batch shape, not an equal alternative chosen freely.
 
-**Triage G1 etykietuje KAŻDE issue `cloud-safe` albo `local-only`.** `local-only` to co najmniej: zależność od lokalnej bazy MySQL, od dev servera (`localhost:8080`), od sandboxa KSeF, od plików spoza repo (udziały sieciowe, `Z:\`, `Y:\`). Issue etykietowalne `cloud-safe` może iść torem chmurowym niezależnie od tego, którym torem idzie reszta partii — etykieta jest per issue, tor bazowy jest per partia.
+**G1 triage labels EVERY issue `cloud-safe` or `local-only`.** `local-only` is at minimum: a dependency on the local MySQL database, on the dev server (`localhost:8080`), on the KSeF sandbox, on files outside the repo (network shares, `Z:\`, `Y:\`). An issue labellable `cloud-safe` may go via the cloud track regardless of which track the rest of the batch takes — the label is per issue, the base track is per batch.
 
-> **Pułapka zmierzona suchą próbą (2026-09-05):** worktree subagenta odgałęzia się od `origin/<gałąź domyślna>`, **nie** od lokalnego HEAD leada — praca leada sprzed pusha jest dla subagenta niewidoczna, a jego raport i tak wygląda poprawnie. W worktree nie ma też `.env`, więc „testy zielone" jako kryterium odbioru da SKIP zamiast wyniku. Szczegóły i pozostałe pomiary → `references/tor-orkiestratora.md`.
+> **A trap measured in a dry run (2026-09-05):** a subagent's worktree branches off from `origin/<default branch>`, **not** from the lead's local HEAD — the lead's pre-push work is invisible to the subagent, and its report still looks correct. There is also no `.env` in the worktree, so "tests green" as an acceptance criterion yields SKIP instead of a result. Details and the remaining measurements → `references/tor-orkiestratora.md`.
 
-Mechanika toru orkiestratora (co robi lead, co robi subagent, warunek domknięcia, jak wpisywać wiersze ledgera, czego lead NIE robi) → `references/tor-orkiestratora.md`. §1-§7 tego skilla opisują tor sztafety. Pod torem orkiestratora **nie stosuje się WYŁĄCZNIE tego, co dotyczy przekazania pracy między sesjami** — czyli mechaniki rodzenia następcy z §5, podziału fali na dwie równoległe sztafety z §6a **oraz trybu
-`ciągły` z §4c** (rodzenie kuratora JEST rodzeniem następcy, a pod tym torem kolejnych pokoleń nie ma —
-nową falę otwiera właściciel). **Zakaz scalania z §4b obowiązuje pod każdym torem bez wyjątku** — lead orkiestratora scala tak samo
-mało jak pokolenie sztafety, czyli wcale, a sesja `claude --cloud` nie ma nawet lokalnego `main`
-właściciela, więc jej jedynym wyjściem byłby push, zakazany osobno. Wszystko inne obowiązuje bez zmian, a w szczególności dwie rzeczy, które łatwo uznać za nieaktualne, a nie są:
+The mechanics of the orchestrator track (what the lead does, what the subagent does, the completion condition, how to write ledger rows, what the lead does NOT do) → `references/tor-orkiestratora.md`. §1-§7 of this skill describe the relay track. Under the orchestrator track **ONLY what concerns handing work between sessions does not apply** — i.e. the successor-spawning mechanics from §5, splitting a wave into two parallel relays from §6a **and the
+`continuous` mode from §4c** (spawning a curator IS spawning a successor, and under this track there are no further generations —
+a new wave is opened by the owner). **The merge ban from §4b applies under every track without exception** — the orchestrator lead merges
+just as little as a relay generation, i.e. not at all, and a `claude --cloud` session does not even have the owner's local `main`,
+so its only exit would be a push, banned separately. Everything else applies unchanged, and in particular two things that are easy to consider outdated but are not:
 
-- **Rozłączność plikowa z §6a obowiązuje TAK SAMO.** Subagenci mają własne worktree, ale lead pisze roadmapę i ledger w drzewie WSPÓLNYM — więc rozłączne slugi, osobne pliki ledgera i zakaz dwóch równoległych zapisów do tego samego pliku zostają w mocy.
-- **Właściciela powiadamiaj przez `PushNotification`, nigdy wiadomością do agenta** (§5). To reguła o kanale do CZŁOWIEKA, nie o sekwencyjności — pod tym torem jest tak samo wiążąca.
+- **File-disjointness from §6a applies JUST THE SAME.** Subagents have their own worktrees, but the lead writes the roadmap and the ledger in the SHARED tree — so disjoint slugs, separate ledger files and the ban on two parallel writes to the same file remain in force.
+- **Notify the owner via `PushNotification`, never with a message to an agent** (§5). This is a rule about the channel to the HUMAN, not about sequentiality — under this track it is just as binding.
 
-## 4b. Tryb zakończenia issue — wyłącznie `gałąź`
+## 4b. Issue completion mode — `branch` only
 
-Łańcuch kończy pracę nad issue na `agent/issue-<nr>` i **nie dotyka `main`** — dokładnie tak, jak opisuje `CLAUDE.md` §4c. Scalenie należy do właściciela albo do sesji, przy której właściciel siedzi. Łańcuch dostarcza gałąź, dowód w ledgerze i etykietę; na tym jego rola się kończy.
+The chain finishes its work on an issue on `agent/issue-<nr>` and **does not touch `main`** — exactly as `CLAUDE.md` §4c describes. Merging belongs to the owner or to a session the owner is sitting at. The chain delivers a branch, evidence in the ledger and a label; that is where its role ends.
 
-**Tryb `merge-lokalny` został ZNIESIONY (2026-09-08, decyzja właściciela).** Nie deklaruj go w roadmapie, nie proponuj go właścicielowi i nie odtwarzaj bramki pięciu warunków w żadnej postaci. Powód jest mechaniczny, nie stylistyczny:
+**The `local-merge` mode has been ABOLISHED (2026-09-08, owner's decision).** Do not declare it in the roadmap, do not propose it to the owner and do not recreate the five-condition gate in any form. The reason is mechanical, not stylistic:
 
-- `POMIAR` (fala E, wiersz G10 ledgera; niezależnie fala G): `git merge` wywołany z sesji tła **odbija się od klasyfikatora trybu auto** — warstwy uprawnień harnessu, całkowicie odrębnej od dyrektyw tekstowych i od zgody spisanej w `CLAUDE.md` §0. Pokolenie nie ma jak jej obejść: odblokowuje ją wyłącznie `! <komenda>` wpisana ręcznie przez właściciela.
-- `WNIOSEK`: bramka, której ostatni krok nie może się wykonać, nie jest bramką — jest kosztem ponoszonym pod nią przez każde pokolenie domykające `verify`. Łańcuch mierzył pięć warunków i stawał na szóstym, niezapisanym. Jawny zakaz jest stanem lepszym: pokolenie nie zużywa kontekstu na pomiary, które i tak kończą się wezwaniem człowieka.
+- `POMIAR` (wave E, ledger row G10; independently wave G): `git merge` invoked from a background session **bounces off the auto-mode classifier** — a permissions layer of the harness, entirely separate from textual directives and from the consent written down in `CLAUDE.md` §0. A generation has no way around it: only a `! <command>` typed manually by the owner unlocks it.
+- `WNIOSEK`: a gate whose last step cannot execute is not a gate — it is a cost paid under it by every generation closing `verify`. The chain measured five conditions and stalled on the sixth, unwritten one. An explicit ban is the better state: a generation does not spend context on measurements that end in calling a human anyway.
 
-**Po zielonej fazie `verify`, w tej samej turze:**
+**After a green `verify` phase, in the same turn:**
 
 ```bash
 gh issue edit <nr> --add-label "status:do-scalenia"
 ```
 
-Etykieta `status:do-scalenia` („Zrobione i zweryfikowane na galezi agent/issue-<nr>, czeka na scalenie przez wlasciciela") jest **jedynym sygnałem, po którym kurator późniejszej fali rozpozna, że issue jest zrobione** — `gh issue list --state open` nadal je pokaże, bo łańcuchowi nie wolno zamykać issues. Pominięcie etykiety kosztuje pełny triage tego samego issue w kolejnej fali. Wiersz ledgera fazy `verify` MUSI podać **SHA czoła gałęzi**; bez niego właściciel nie wie, co dokładnie ma scalić.
+The `status:do-scalenia` ("to be merged") label ("Done and verified on branch agent/issue-<nr>, waiting to be merged by the owner") is **the only signal by which a curator of a later wave will recognise that an issue is done** — `gh issue list --state open` will still show it, because the chain is not allowed to close issues. Omitting the label costs a full triage of the same issue in the next wave. The ledger row of the `verify` phase MUST give the **SHA of the branch tip**; without it the owner does not know what exactly to merge.
 
-**Czego łańcuchowi nie wolno — lista zamknięta:** `git merge` do `main` (także `--ff`), `git push`, `gh issue close`, deploy, `npm run build`, zmiana `USE_BUNDLE`, wysyłka do KSeF. „Zweryfikowane na gałęzi" znaczy „gotowe do przejrzenia przez właściciela", nie „wdrożone" ani „scalone".
+**What the chain must not do — closed list:** `git merge` into `main` (also `--ff`), `git push`, `gh issue close`, deploy, `npm run build`, changing `USE_BUNDLE`, sending to KSeF. "Verified on the branch" means "ready for the owner's review", not "deployed" nor "merged".
 
-**Gdy właściciel scala sam — dwie rzeczy, o których łańcuch ma go uprzedzić w raporcie końcowym:**
+**When the owner merges themselves — two things the chain must warn them about in the final report:**
 
-1. **Znacznik `[roadmapa]` w komunikacie scalenia.** `POMIAR` (2026-09-06): `tests.yml` odpala się na push do `main`, `deploy.yml` na `workflow_run` z `conclusion == success` → webhook serwera; `CLAUDE.md` §2 autoryzuje push na GitHub z góry, bez pytania. `WNIOSEK`: scalenie jest odwracalne w drzewie, ale NIE w skutkach — zmienia to, co zrobi następny rutynowy push. Dlatego `CLAUDE.md` §2 wymaga sprawdzenia `git log origin/main..main --merges --grep '\[roadmapa\]'` przed pushem `main`, a niepusty wynik znosi zgodę udzieloną z góry. Znacznik pominięty = praca łańcucha nieodróżnialna od własnych commitów właściciela.
-2. **Kolejność scalania fali ma znaczenie i konflikt jest normalny.** `POMIAR` (fala G, 2026-09-08): sześć gałęzi, każda bezkonfliktowa wobec `main` **osobno**, dało konflikt przy drugim scaleniu — dwie gałęzie przesunęły niezależnie ten sam rejestr kotwic `plik:linia`. Rozstrzyga POMIAR na drzewie PO scaleniu (`grep -n` w scalonym pliku), nigdy wybór jednej ze stron: obie liczby były wtedy nieprawdziwe.
+1. **The `[roadmapa]` marker in the merge message.** `POMIAR` (2026-09-06): `tests.yml` fires on push to `main`, `deploy.yml` on `workflow_run` with `conclusion == success` → server webhook; `CLAUDE.md` §2 authorises pushing to GitHub up front, without asking. `WNIOSEK`: a merge is reversible in the tree, but NOT in its effects — it changes what the next routine push will do. That is why `CLAUDE.md` §2 requires checking `git log origin/main..main --merges --grep '\[roadmapa\]'` before pushing `main`, and a non-empty result revokes the consent granted up front. Marker omitted = the chain's work is indistinguishable from the owner's own commits.
+2. **The merge order of a wave matters, and a conflict is normal.** `POMIAR` (wave G, 2026-09-08): six branches, each conflict-free against `main` **individually**, produced a conflict at the second merge — two branches independently shifted the same `file:line` anchor register. It is settled by a MEASUREMENT on the tree AFTER the merge (`grep -n` in the merged file), never by picking one side: both numbers were false at that point.
 
-## 4c. Tryb łańcucha — `partia` i `ciągły`
+## 4c. Chain mode — `batch` and `continuous`
 
-Roadmapa deklaruje też, co się dzieje po wyczerpaniu listy issues:
+The roadmap also declares what happens after the list of issues is exhausted:
 
-- **`partia`** (domyślny) — łańcuch kończy się razem z roadmapą, wg §6.
-- **`ciągły`** — pokolenie domykające ostatnią fazę nie kończy łańcucha, tylko rodzi następcę z rolą **kuratora**: nowa fala, nowa roadmapa, nowy ledger, ten sam łańcuch.
+- **`batch`** (default) — the chain ends together with the roadmap, per §6.
+- **`continuous`** — the generation closing the last phase does not end the chain, but spawns a successor in the role of **curator**: a new wave, a new roadmap, a new ledger, the same chain.
 
-Tryb ciągły wprowadza jedną zmianę nazewniczą, bez której fale nie dają się policzyć: slug ma postać `<baza>-w<k>`, a pliki to `docs/plans/<data>-roadmapa-<baza>-w<k>.md` i `…-w<k>-ledger.md`. Numer fali **wyprowadzasz z historii gita**, nigdy z pamięci, z promptu ani z listingu katalogu:
+Continuous mode introduces one naming change without which waves cannot be counted: the slug has the form `<baza>-w<k>` (`baza` = base name), and the files are `docs/plans/<date>-roadmapa-<baza>-w<k>.md` and `…-w<k>-ledger.md`. You **derive the wave number from git history**, never from memory, from the prompt, nor from a directory listing:
 
 ```bash
 k=$(( $(git log --diff-filter=A --name-only --pretty=format: -- 'docs/plans/*-roadmapa-<baza>-w[0-9]*.md' \
         | grep -v -- '-ledger\.md$' | grep -c . ) + 1 ))
 ```
 
-Dwie pułapki, obie zmierzone 2026-09-06, obie dające liczbę wyglądającą na poprawną:
+Two traps, both measured 2026-09-06, both yielding a number that looks correct:
 
-- **Glob łapie ledger.** Fala zostawia `…-w1.md` **i** `…-w1-ledger.md`, więc `ls | wc -l` liczy każdą falę dwa razy: po pierwszej fali `k=3` zamiast `2`, po drugiej `k=5` zamiast `3`. Numery w nazwach plików kłamią (w1, w3, w5…), a cap „30 fal" odpala po szesnastu. Stąd `grep -v -- '-ledger\.md$'`.
-- **`-w*` łapie zwykłe słowa.** `POMIAR`: wzorzec `*-roadmapa-*-w*.md` zwraca w tym repo
-  `2026-09-05-roadmapa-fala-**w**rzesniowa.md` — falę z trybu `partia`, która numeru nie ma. Stąd
-  `-w[0-9]*`, zweryfikowane dwoma narzędziami (`git log` i `ls | grep -E`): oba dają dziś `0`.
-- **Listing katalogu gubi zarchiwizowane.** `POMIAR`: `docs/plans/zrealizowane/` ma 273 pliki — przenoszenie domkniętych planów jest tu ustaloną praktyką. Glob nie schodzi rekurencyjnie, więc archiwizacja **obniża `k`**: cap odsuwa się w nieskończoność, a nowa fala dostaje numer już użyty. Historia gita przenoszenia nie gubi.
+- **The glob catches the ledger.** A wave leaves `…-w1.md` **and** `…-w1-ledger.md`, so `ls | wc -l` counts every wave twice: after the first wave `k=3` instead of `2`, after the second `k=5` instead of `3`. The numbers in file names lie (w1, w3, w5…), and the "30 waves" cap fires after sixteen. Hence `grep -v -- '-ledger\.md$'`.
+- **`-w*` catches ordinary words.** `POMIAR`: the pattern `*-roadmapa-*-w*.md` returns in this repo
+  `2026-09-05-roadmapa-fala-**w**rzesniowa.md` — a `batch`-mode wave, which has no number. Hence
+  `-w[0-9]*`, verified with two tools (`git log` and `ls | grep -E`): both give `0` today.
+- **A directory listing loses archived files.** `POMIAR`: `docs/plans/zrealizowane/` has 273 files — moving completed plans there is an established practice here. The glob does not descend recursively, so archiving **lowers `k`**: the cap recedes indefinitely, and a new wave gets a number already used. Git history does not lose moves.
 
-Licznik trzymany w kontekście albo w `relay-state/` ginie razem z sesją i wygląda przy tym na działający — a to jest dokładnie ten stan, w którym cap na fale przestaje odpalać po cichu. Policz `k` **dwoma różnymi narzędziami**, zanim nazwiesz pliki fali.
+A counter kept in context or in `relay-state/` dies with the session and looks like it is working meanwhile — and that is exactly the state in which the wave cap silently stops firing. Count `k` **with two different tools** before you name the wave's files.
 
-### Dobór partii przez kuratora
+### Batch selection by the curator
 
-Kurator nowej fali robi triage na HEAD wg §4 (to obowiązuje bez zmian) i dobiera 5-6 issues, w tej kolejności kroków:
+The curator of a new wave does triage on HEAD per §4 (this applies unchanged) and selects 5-6 issues, in this order of steps:
 
-1. **Warunki stopu PRZED doborem** — sprawdź je, zanim cokolwiek policzysz (§6).
-2. **Zbiór kandydatów:** `gh issue list --state open` **minus** wszystko z etykietą
-   `status:do-scalenia` (zrobione i zweryfikowane przez wcześniejszą falę, czeka na scalenie przez
-   właściciela), `status:zrobione-lokalnie` (scalone przez wcześniejsze fale, wciąż otwarte, bo
-   łańcuchowi nie wolno zamykać issues), `status:odlozone`, `tor:remediacja-danych` — **minus klasa
-   pomysłów, wg sekcji niżej**.
-3. **Kolejność wg priorytetu:** `P0` → `P1` → `P2` → `P3`, z przestarzałymi odpowiednikami
-   (`priorytet:krytyczny|wysoki|sredni|niski`) traktowanymi na równi; na końcu issues **bez** etykiety
-   priorytetu — nigdy jako domysł „pewnie średni". `POMIAR` (2026-09-06): 13 ze 148 otwartych nie ma
-   priorytetu, a `P0`..`P3` i `priorytet:*` nie współwystępują ani na jednym issue z 625, więc mapowanie
-   jest jednoznaczne.
-4. **Odsiej odłożone:** `--label status:odlozone` wypada ze zbioru kandydatów. Dla reszty — kontrola
-   odłożenia per issue wg dwóch sekcji niżej; to najdroższy krok tego skilla do pominięcia.
-5. **Rozłączność plikowa w partii** wg §3: nigdy dwa issues dotykające tej samej tabeli ani tego samego pliku obok siebie.
+1. **Stop conditions BEFORE selection** — check them before you count anything (§6).
+2. **Candidate set:** `gh issue list --state open` **minus** everything labelled
+   `status:do-scalenia` (done and verified by an earlier wave, waiting to be merged by the
+   owner), `status:zrobione-lokalnie` (merged by earlier waves, still open because
+   the chain is not allowed to close issues), `status:odlozone` (deferred), `tor:remediacja-danych` (data remediation track) — **minus the class of
+   ideas, per the section below**.
+3. **Order by priority:** `P0` → `P1` → `P2` → `P3`, with the deprecated equivalents
+   (`priorytet:krytyczny|wysoki|sredni|niski`) treated as equal; at the end issues **without** a priority
+   label — never as a guess "probably medium". `POMIAR` (2026-09-06): 13 of 148 open issues have no
+   priority, and `P0`..`P3` and `priorytet:*` do not co-occur on any of the 625 issues, so the mapping
+   is unambiguous.
+4. **Sift out the deferred:** `--label status:odlozone` drops out of the candidate set. For the rest — a deferral
+   check per issue per the two sections below; this is the most expensive step of this skill to skip.
+5. **File-disjointness within the batch** per §3: never two issues touching the same table or the same file next to each other.
 
-### Autonomicznie WYŁĄCZNIE naprawy — o nowej funkcjonalności decyduje właściciel
+### Autonomously ONLY fixes — new functionality is the owner's decision
 
-Kurator dobiera samodzielnie tylko issues opisujące **defekt, dług albo regresję**: błąd, znalezisko audytowe, martwy kod, brakująca zapadka, niezastosowana migracja, podatność. **Pomysł na nową funkcjonalność jest decyzją właściciela** i nie wchodzi do żadnej fali dobranej autonomicznie — nawet oznaczony `P1`, nawet gdy stoi na szczycie listy priorytetów. Właściciel może go wskazać wprost; kurator nie może go wybrać za niego.
+The curator picks on its own only issues describing a **defect, debt or regression**: a bug, an audit finding, dead code, a missing latch, an unapplied migration, a vulnerability. **An idea for new functionality is the owner's decision** and does not enter any autonomously selected wave — even labelled `P1`, even when it sits at the top of the priority list. The owner may point to it explicitly; the curator may not choose it on their behalf.
 
-Odsiew idzie w dwóch krokach, bo etykiety same nie wystarczą:
+The sifting goes in two steps, because labels alone are not enough:
 
-1. **Po etykiecie — wyklucz bezwarunkowo:** `typ:pomysl` oraz jego przestarzałe odpowiedniki na starych
-   issues (`enhancement`, `new_idea`, `request`), a także `typ:analysis` („analiza/decyzja, bez zmian
-   kodu" — z definicji rozstrzygnięcie człowieka).
+1. **By label — exclude unconditionally:** `typ:pomysl` (idea) and its deprecated equivalents on old
+   issues (`enhancement`, `new_idea`, `request`), as well as `typ:analysis` ("analysis/decision, no code changes"
+   — by definition a human's ruling).
 
-   Etykiety w tym repo mają od 2026-09-06 trzy osie i **nowe** issue nosi po jednej z każdej:
-   `modul:*` (czego dotyczy), `P0`..`P3` (priorytet), `typ:*` (`typ:bug`, `typ:point-fix`,
-   `typ:structural`, `typ:test`, `typ:analysis`, `typ:pomysl`). Stare issues zostały jak były, więc
-   kurator musi rozumieć OBA słowniki: `bug` ≈ `typ:bug`, `enhancement`/`new_idea`/`request` ≈
-   `typ:pomysl`, `priorytet:krytyczny|wysoki|sredni|niski` ≈ `P0`..`P3`. Przestarzałe warianty mają to
-   wpisane we własny opis (`gh label list`) — nie zgaduj mapowania z nazwy.
-2. **Po treści — przeczytaj resztę.** `POMIAR` (2026-09-06): ze 148 otwartych issues **89 nie ma żadnej etykiety typu** (i 105 nie ma `modul:*`); klasa naprawy oznaczona etykietą to 51, klasa pomysłu — 1, `typ:analysis` — 8. Próbka tych 89 to niemal wyłącznie znaleziska audytowe i dług (`[ARCH-*]`, `[DEP-*]`, `[TEST-*]`, martwy kod, niezastosowana migracja). `WNIOSEK`: reguła „bierz tylko oznaczone jako bug" wycięłaby ~60% realnej pracy naprawczej, więc brak etykiety **nie** wyklucza — wyklucza dopiero treść.
+   Labels in this repo have had three axes since 2026-09-06 and a **new** issue carries one of each:
+   `modul:*` (what it concerns), `P0`..`P3` (priority), `typ:*` (`typ:bug`, `typ:point-fix`,
+   `typ:structural`, `typ:test`, `typ:analysis`, `typ:pomysl`). Old issues were left as they were, so
+   the curator must understand BOTH vocabularies: `bug` ≈ `typ:bug`, `enhancement`/`new_idea`/`request` ≈
+   `typ:pomysl`, `priorytet:krytyczny|wysoki|sredni|niski` ≈ `P0`..`P3`. Deprecated variants have this
+   written into their own description (`gh label list`) — do not guess the mapping from the name.
+2. **By content — read the rest.** `POMIAR` (2026-09-06): of 148 open issues **89 have no type label at all** (and 105 have no `modul:*`); the fix class marked with a label is 51, the idea class — 1, `typ:analysis` — 8. A sample of those 89 is almost exclusively audit findings and debt (`[ARCH-*]`, `[DEP-*]`, `[TEST-*]`, dead code, unapplied migration). `WNIOSEK`: a rule "take only what is labelled as a bug" would cut out ~60% of the real fix work, so a missing label does **not** exclude — only the content does.
 
-**Błąd odsiewu jest niesymetryczny i to on ustala domyślną odpowiedź przy wątpliwości.** Wzięcie pomysłu = łańcuch buduje przez noc funkcjonalność, której nikt nie zamawiał, i podstawia właścicielowi gałąź do scalenia. Pominięcie naprawy = czeka jedną falę. Przy genuinie niejasnej treści **wyklucz** i wpisz issue do roadmapy w sekcji „do decyzji właściciela".
+**The sifting error is asymmetric, and it sets the default answer in case of doubt.** Taking an idea = the chain builds overnight functionality nobody ordered and hands the owner a branch to merge. Skipping a fix = it waits one wave. With genuinely unclear content, **exclude** and enter the issue in the roadmap under "for the owner's decision".
 
-Każde wykluczenie po treści **oznacz etykietą** (`enhancement` dla pomysłu) razem z krótkim komentarzem. Bez tego następna fala przeczyta to samo issue od nowa, a któraś w końcu przeczyta je pobieżnie.
+**Mark every exclusion by content with a label** (`enhancement` for an idea) together with a short comment. Without it the next wave reads the same issue from scratch, and eventually one of them reads it cursorily.
 
-### Kontrola odłożenia
+### Deferral check
 
-**Odłożenie opisuje się W SAMYM ISSUE** — etykieta `status:odlozone` plus komentarz mówiący, *co* je odblokuje. Etykieta jest sygnałem maszynowym (kurator odsiewa nią kandydatów jednym `gh issue list`), komentarz jest sygnałem dla człowieka. Sama proza bez etykiety nie wystarcza: kurator czyta listę, nie każdy komentarz.
+**A deferral is described IN THE ISSUE ITSELF** — the `status:odlozone` label plus a comment stating *what* unblocks it. The label is the machine signal (the curator sifts candidates with it in a single `gh issue list`), the comment is the signal for a human. Prose alone without the label is not enough: the curator reads the list, not every comment.
 
-Obowiązek jest po stronie tego, kto odkłada — właściciela albo pokolenia łańcucha, które napotka warunek z listy niżej. Odłożenie zapisane wyłącznie w planie albo w runbooku jest odłożeniem, o którym GitHub nie wie.
+The obligation lies with whoever defers — the owner, or the chain generation that encounters a condition from the list below. A deferral recorded only in a plan or a runbook is a deferral GitHub does not know about.
 
 ```bash
 gh label create status:odlozone --color C5DEF5 \
-  --description "Wstrzymane decyzja/oknem obserwacji — kurator roadmapy NIE bierze" 2>/dev/null || true
+  --description "On hold by decision/observation window — the roadmap curator does NOT take it" 2>/dev/null || true
 gh issue edit <nr> --add-label "status:odlozone"
-gh issue comment <nr> --body "Odłożone: <powód>. Odblokuje: <warunek>. Źródło: <plik:linia>."
+gh issue comment <nr> --body "Deferred: <reason>. Unblocked by: <condition>. Source: <file:line>."
 ```
 
-Powody, dla których issue jest odłożone:
+Reasons an issue is deferred:
 
-- świadoma decyzja właściciela o wyłączeniu z fali;
-- okno obserwacji / pomiarowe, które musi upłynąć — czasu nie da się nadrobić pracą agenta;
-- plan etapu czekający na rozstrzygnięcie człowieka;
-- etykieta `tor:remediacja-danych` (z definicji „decyzja czlowieka") — odkłada samodzielnie, bez `status:odlozone`;
-- wymóg czegoś zabronionego z §6 (push, deploy, produkcja, KSeF).
+- a deliberate decision by the owner to exclude it from the wave;
+- an observation / measurement window that must elapse — time cannot be made up with agent work;
+- a stage plan awaiting a human's ruling;
+- the `tor:remediacja-danych` label (by definition "a human's decision") — defers on its own, without `status:odlozone`;
+- a requirement for something forbidden by §6 (push, deploy, production, KSeF).
 
-### Zapadka na zastane issues — grep po repo
+### Latch for pre-existing issues — grep across the repo
 
-Konwencja etykiety obowiązuje od 2026-09-06 i **nie działa wstecz**. `POMIAR` (2026-09-06, issue #592): stan `OPEN`, etykiety `P1`, `typ:structural`, `modul:security`, zero komentarzy o wstrzymaniu — a odłożenie jest zapisane w repo, w dwóch miejscach naraz: `docs/plans/2026-09-05-czas-blokady-edycji-z-serwera-664.md:182` („#592 jest ŚWIADOMIE wyłączone z tej fali decyzją właściciela") oraz `docs/runbook/23-okno-obserwacji-write-route-enforce-592.md` (okno obserwacji). `WNIOSEK`: dla issue założonego przed tą datą GitHub nie jest źródłem prawdy o tym, czy wolno je teraz wziąć.
+The label convention has applied since 2026-09-06 and **does not work retroactively**. `POMIAR` (2026-09-06, issue #592): state `OPEN`, labels `P1`, `typ:structural`, `modul:security`, zero comments about a hold — yet the deferral is recorded in the repo, in two places at once: `docs/plans/zrealizowane/2026-09-05-czas-blokady-edycji-z-serwera-664.md:182` ("#592 is DELIBERATELY excluded from this wave by the owner's decision") and `docs/runbook/23-okno-obserwacji-write-route-enforce-592.md` (observation window). `WNIOSEK`: for an issue created before that date, GitHub is not the source of truth about whether it may be taken now.
 
-Dlatego dla KAŻDEGO kandydata bez `status:odlozone`, przed wciągnięciem do partii:
+Therefore for EVERY candidate without `status:odlozone`, before pulling it into the batch:
 
 ```bash
 grep -rlnE "#<nr>\b" docs/plans docs/runbook --include='*.md' \
@@ -361,165 +363,167 @@ grep -rlnE "#<nr>\b" docs/plans docs/runbook --include='*.md' \
   | xargs grep -lE 'ŚWIADOMIE wyłączon|świadomie wyłączon|odłożon|wstrzyman|okno obserwacji|decyzj[ai] właściciela'
 ```
 
-Filtr jest tu częścią reguły, nie optymalizacją. `POMIAR` (2026-09-06): goły `grep -rln "#592"` daje **26 plików**, bo wiersze ledgera mają format `## G<gen> · issue #<nr> · faza …` i leżą w `docs/plans` — każde issue tknięte przez jakąkolwiek falę gwarantuje trafienia. Nakaz „przeczytaj KAŻDE trafienie" przy 5-6 kandydatach oznaczałby ponad sto plików, a od 60 % okna `Read`/`Grep`/`Glob` dostają `deny` (§1). Krok nazwany „najdroższym do pominięcia" byłby wtedy zaprojektowany tak, że pominięcie go jest jedynym sposobem zmieszczenia się w oknie. `\b` odcina przy okazji `#5921` przy szukaniu `#592`.
+(The grep terms are Polish: "DELIBERATELY excluded", "deferred", "on hold", "observation window", "owner's decision".)
 
-Trafienie opisujące odłożenie → **wyklucz z partii, wpisz do roadmapy jako `ODŁOŻONE` z `plik:linia`, i dopisz brakującą etykietę razem z komentarzem** wg bloku wyżej. Retro-etykietowanie jest częścią kroku, nie uprzejmością: bez niego następna fala zapłaci za ten sam grep od nowa, a któraś w końcu go pominie.
+The filter is part of the rule here, not an optimisation. `POMIAR` (2026-09-06): a bare `grep -rln "#592"` gives **26 files**, because ledger rows have the format `## G<gen> · issue #<nr> · phase …` and live in `docs/plans` — every issue touched by any wave guarantees hits. A mandate "read EVERY hit" with 5-6 candidates would mean over a hundred files, and from 60% of the window `Read`/`Grep`/`Glob` get `deny` (§1). The step called "the most expensive to skip" would then be designed so that skipping it is the only way to fit into the window. `\b` also cuts off `#5921` when searching for `#592`.
 
-`grep` bez trafień jest pomiarem, że **repo nic o odłożeniu nie mówi** — nie pomiarem, że issue jest gotowe. Trafienie przeczytane pobieżnie jest gorsze niż brak grepa, bo daje fałszywą pewność.
+A hit describing a deferral → **exclude from the batch, enter into the roadmap as `DEFERRED` with `file:line`, and add the missing label together with a comment** per the block above. Retro-labelling is part of the step, not a courtesy: without it the next wave pays for the same grep again, and eventually one of them skips it.
 
-### Kurator NIE jest zwykłym pokoleniem
+A `grep` with no hits is a measurement that **the repo says nothing about a deferral** — not a measurement that the issue is ready. A hit read cursorily is worse than no grep, because it gives false certainty.
 
-Kurator pisze roadmapę i ledger nowej fali, i **na tym kończy** — planów ani kodu nie pisze (§4, G1). Pierwszy wiersz nowego ledgera zawiera zmierzone progi i numer fali. Następcę rodzi wg §5 bez zmian.
+### The curator is NOT an ordinary generation
 
-## 5. Protokół przekazania
+The curator writes the roadmap and the ledger of the new wave, and **stops there** — it writes neither plans nor code (§4, G1). The first row of the new ledger contains the measured thresholds and the wave number. It spawns a successor per §5 unchanged.
 
-Kolejność jest istotna — każdy krok chroni przed konkretną, zmierzoną szkodą:
+## 5. Handoff protocol
 
-1. **Zacommituj WSZYSTKO z pathspec** (`git commit -m "..." -- <ścieżki>`). Następca pracuje w tym samym drzewie i nie zobaczy niczego, co masz tylko w kontekście. Commituj z pathspec: `git commit -m "..." -- <ścieżki>` — w drzewie wielosesyjnym samo `git add` nie chroni, bo indeks jest wspólny.
-2. **Dopisz wiersz do ledgera i zacommituj go.**
-3. **Zrodź następcę.** Prompt startowy JEST dostarczeniem handoffu **następcy** — osobny `SendMessage` do niego zbędny. Nie myl tego z **raportem do właściciela**: raport idzie przez `SendMessage` i jest osobnym obowiązkiem każdego pokolenia. Handoff → prompt, raport → SendMessage, a plik na dysku bez wysłania to notatka, nie przekazanie:
-   **Spawn i zapis `.gen` MUSZĄ być JEDNYM wywołaniem Bash** — rozdzielone na dwa kroki dają się
-   pominąć. Zmierzone 2026-09-05, przebieg 1: G5 zrodził G6 i **nie zapisał `.gen`**; sesja wiedziała
-   z promptu, że jest szósta, a hook liczył ją jako drugą. G2, G3 i G4 ten sam krok wykonały — czyli
-   nie chroni tu nic poza pamięcią pokolenia:
+The order matters — each step protects against a specific, measured harm:
+
+1. **Commit EVERYTHING with a pathspec** (`git commit -m "..." -- <paths>`). The successor works in the same tree and will not see anything you have only in context. Commit with a pathspec: `git commit -m "..." -- <paths>` — in a multi-session tree `git add` alone does not protect, because the index is shared.
+2. **Append a row to the ledger and commit it.**
+3. **Spawn the successor.** The start prompt IS the delivery of the handoff to the **successor** — a separate `SendMessage` to it is unnecessary. Do not confuse this with the **report to the owner**: the report goes via `SendMessage` and is a separate duty of every generation. Handoff → prompt, report → SendMessage, and a file on disk without being sent is a note, not a handoff:
+   **The spawn and the `.gen` write MUST be ONE Bash call** — split into two steps they can be
+   skipped. Measured 2026-09-05, run 1: G5 spawned G6 and **did not write `.gen`**; the session knew
+   from its prompt that it was the sixth, and the hook counted it as the second. G2, G3 and G4 performed that same step — so
+   nothing protects here except the generation's memory:
    ```bash
    OUT=$(claude --bg -n '<slug>-g<n+1>' \
-     "Jesteś pokoleniem <n+1> łańcucha roadmapa. Roadmapa: <ścieżka>. Ledger: <ścieżka>.
-      Przeczytaj OBA. PRZED wzięciem fazy sprawdź sygnał STOP wg §6 (dwie komendy, gałąź i worktree).
-      Potem weź pierwszą niedomkniętą fazę i zrób TYLKO ją.
-      Poprzednik: <id> — NIE zdejmuj go." 2>&1); echo "$OUT"
+     "You are generation <n+1> of the roadmapa chain. Roadmap: <path>. Ledger: <path>.
+      Read BOTH. BEFORE taking a phase check the STOP signal per §6 (two commands, branch and worktree).
+      Then take the first unclosed phase and do ONLY that.
+      Predecessor: <id> — do NOT remove it." 2>&1); echo "$OUT"
    NEW=$(printf '%s' "$OUT" | grep -oE '\b[0-9a-f]{8}\b' | head -1)
    echo <n+1> > ~/.claude/relay-state/$NEW.gen
    touch ~/.claude/relay-state/$CLAUDE_CODE_SESSION_ID.spawned
-   cat ~/.claude/relay-state/$NEW.gen   # potwierdzenie zwrotne — bez niego pominięcie wygląda jak wykonanie
+   cat ~/.claude/relay-state/$NEW.gen   # read-back confirmation — without it a skip looks like execution
    ```
-   Plik `<własny-sid>.spawned` mówi hookowi, że TA sesja już przekazała pracę — dzięki temu próg 40,
-   który wypadnie później, nie każe jej zrodzić następcy po raz drugi (zmierzone: u G2 wtrysk „zródź
-   następcę" przyszedł 2,5 minuty PO tym, jak G2 następcę już zrodził).
-   **Zdejmowanie poprzednika jest krokiem OPCJONALNYM, nie domyślnym.** Domyślnie następca ma go zostawić. Wpisz `zdejmij go: claude rm <id>` tylko wtedy, gdy jednocześnie: poprzednik jest sesją tła (pokolenie ≥ 2), jego transkrypt nie będzie już potrzebny, i nikt nie jest do niego podłączony. Odwrotna kolejność — domyślne zdejmowanie z wyjątkiem na pokolenie 1 — zmusza KAŻDE pokolenie do rozstrzygania tego z pamięci, a pomyłka w jedną stronę jest nieodwracalna (ubija okno terminala właściciela). Zmierzone w suchym przebiegu: oba pokolenia musiały przepisać to zdanie na zaprzeczenie.
-   `$NEW` to id, które wypisał `claude --bg`. `KTMS_RELAY_GEN` w linii poleceń **nie działa**: `POMIAR` 2026-09-05 — `claude --bg` dziedziczy środowisko *demona tła*, przechwycone przy jego pierwszym starcie, a nie komendy rodzącej; `KTMS_RELAY_GEN=42` dało w sesji `2`, a dodatkowa zmienna nie dotarła wcale. Ta sama pułapka dotyczy prób strojenia progów przez env w spawnowanej sesji — nie zadziała.
+   The `<own-sid>.spawned` file tells the hook that THIS session has already handed off work — thanks to that the 40
+   threshold, which fires later, does not tell it to spawn a successor a second time (measured: at G2 the "spawn
+   a successor" injection arrived 2.5 minutes AFTER G2 had already spawned one).
+   **Removing the predecessor is an OPTIONAL step, not the default.** By default the successor leaves it in place. Write `remove it: claude rm <id>` only when all of the following hold: the predecessor is a background session (generation ≥ 2), its transcript will no longer be needed, and nobody is attached to it. The reverse order — removal by default with an exception for generation 1 — forces EVERY generation to settle this from memory, and a mistake in one direction is irreversible (it kills the owner's terminal window). Measured in the dry run: both generations had to rewrite that sentence into its negation.
+   `$NEW` is the id printed by `claude --bg`. `KTMS_RELAY_GEN` on the command line **does not work**: `POMIAR` 2026-09-05 — `claude --bg` inherits the environment of the *background daemon*, captured at its first start, not of the spawning command; `KTMS_RELAY_GEN=42` gave `2` in the session, and an extra variable did not arrive at all. The same trap applies to attempts to tune thresholds via env in the spawned session — it will not work.
 
-   `<id>` to **pierwsze 8 znaków twojego `session_id`** (zmierzone: `claude --bg` drukuje `65dd6e14`, `agents --json` pokazuje `65dd6e14-7d01-...`). **Pokolenia 1 nie zdejmuj nigdy** — to okno terminala właściciela.
-4. **Potwierdź start** (`claude agents --json`), powiadom właściciela i **zatrzymaj się NATYCHMIAST**.
+   `<id>` is **the first 8 characters of your `session_id`** (measured: `claude --bg` prints `65dd6e14`, `agents --json` shows `65dd6e14-7d01-...`). **Never remove generation 1** — that is the owner's terminal window.
+4. **Confirm the start** (`claude agents --json`), notify the owner and **stop IMMEDIATELY**.
 
-   **„Zatrzymaj się" znaczy: następne wywołanie narzędzia po potwierdzeniu startu jest złamaniem
-   protokołu.** Nie „dokończ jeszcze jedną rzecz", nie „dopisz aneks". Zmierzone w przebiegu 1, DWA
-   RAZY, tak samo: G2 zrodził G3 o 11:52:46 i pracował do 11:55:30, robiąc po drodze commit
-   `ea8321625` do wspólnego drzewa; G3 zrodził G4 o 12:07:50 i pracował jeszcze 5 minut. O 12:12
-   trzy pokolenia miały żywe transkrypty w jednym drzewie — dokładnie ta klasa szkód, którą ta
-   sekcja zamyka.
+   **"Stop" means: the next tool call after confirming the start is a breach of
+   protocol.** Not "finish one more thing", not "add an annex". Measured in run 1, TWICE,
+   the same way: G2 spawned G3 at 11:52:46 and kept working until 11:55:30, making along the way commit
+   `ea8321625` to the shared tree; G3 spawned G4 at 12:07:50 and kept working for 5 more minutes. At 12:12
+   three generations had live transcripts in one tree — exactly the class of harm this
+   section closes.
 
-   **Właściciela powiadamiaj przez `PushNotification`, nigdy przez `SendMessage`.** Zmierzone: trzy
-   pokolenia (G2, G3, G4) wysłały raport na `SendMessage` do id poprzednika i **wszystkie trzy
-   dostały `success:false`** („No agent named '9b01d99a' is reachable") — sesja pokolenia 1 zdążyła
-   się zamknąć. Id poprzednika, które dostajesz w prompcie, jest adresem DO SPRZĄTANIA, nie adresem
-   właściciela; właściciel nie ma stałej nazwy sesji, więc jedynym pewnym kanałem jest push.
+   **Notify the owner via `PushNotification`, never via `SendMessage`.** Measured: three
+   generations (G2, G3, G4) sent their report via `SendMessage` to the predecessor's id and **all three
+   got `success:false`** ("No agent named '9b01d99a' is reachable") — generation 1's session had already
+   closed. The predecessor id you get in the prompt is an address FOR CLEANUP, not the owner's
+   address; the owner has no fixed session name, so the only reliable channel is push.
 
-   **Nie raportuj poprzednikom.** Zmierzone: G3 wysłał raport do `roadmapa-wrzesien-g2` i **wybudził
-   sesję, która stała na 41% okna** i już przekazała pracę — dokładając jej zużycia bez żadnego
-   pożytku. Ustalenia dla następców idą do ledgera, nie do poprzedników.
+   **Do not report to predecessors.** Measured: G3 sent a report to `roadmapa-wrzesien-g2` and **woke up
+   a session sitting at 41% of its window** that had already handed off — adding to its usage without any
+   benefit. Findings for successors go into the ledger, not to predecessors.
 
-Łańcuch jest **ściśle sekwencyjny**. Dwie sesje piszące w jednym drzewie to zmierzona klasa szkód: cudzy plik skasowany przez `cat >`, cudza niezastage'owana praca zniknięta, commit porywający cudze pliki.
+The chain is **strictly sequential**. Two sessions writing in one tree are a measured class of harm: someone else's file deleted by `cat >`, someone else's unstaged work vanished, a commit hijacking someone else's files.
 
-## 6. Warunki zatrzymania
+## 6. Stop conditions
 
-**Zakończenie sukcesem — zależy od trybu łańcucha (§4c).** Pod trybem `ciągły` pokolenie domykające
-ostatnią fazę roadmapy sprawdza warunki stopu niżej i — jeśli żaden nie zachodzi — rodzi **kuratora**
-kolejnej fali zamiast kończyć; akapit poniżej opisuje tryb `partia`.
+**Successful completion — depends on the chain mode (§4c).** Under `continuous` mode the generation closing
+the last phase of the roadmap checks the stop conditions below and — if none holds — spawns a **curator**
+of the next wave instead of finishing; the paragraph below describes `batch` mode.
 
-**Tryb `partia`.** Pokolenie, które domyka OSTATNIĄ fazę roadmapy, **nie rodzi następcy** — pisze wiersz ledgera z adnotacją „roadmapa wyczerpana", raportuje właścicielowi i zatrzymuje łańcuch. Musi też wpisać ten zakaz do promptu następcy… którego nie ma, więc obowiązek spada na pokolenie WCZEŚNIEJSZE: jeśli widzisz, że po Twojej fazie zostaje już tylko jedna, napisz następcy wprost „po tej fazie NIE rodź kolejnego pokolenia". Bez tego zdania powstaje pokolenie, które otwiera ledger i nie znajduje niedomkniętej fazy. Zmierzone w suchym przebiegu — G2 musiał tę instrukcję wymyślić sam.
+**`batch` mode.** The generation closing the LAST phase of the roadmap **does not spawn a successor** — it writes a ledger row annotated "roadmap exhausted", reports to the owner and stops the chain. It must also write this ban into the successor's prompt… which does not exist, so the duty falls on the EARLIER generation: if you see that after your phase only one remains, tell the successor explicitly "after this phase do NOT spawn another generation". Without that sentence a generation comes into being that opens the ledger and finds no unclosed phase. Measured in the dry run — G2 had to invent that instruction itself.
 
-**Zakaz zatrzymania pytaniem.** Obowiązuje od chwili powstania G2. Jedyny wyjątek jest przed łańcuchem,
-nie w nim: G1 bez podanego zestawu issues MA zapytać, czy dobierać je autonomicznie (§4). Potem — żadne
-pokolenie nie stoi bezczynnie, czekając na odpowiedź
-właściciela — właściciela nie ma przy komputerze, więc pytanie bez odpowiedzi jest zatrzymaniem
-łańcucha bez żadnego z warunków niżej. Przy stanie nieprzewidzianym (nie pasuje ani do reguły końca
-fazy z §4, ani do żadnego punktu z listy niżej) pokolenie: (1) wykonuje najtańsze odwracalne
-działanie, jakie da się uzasadnić z ledgera i roadmapy; (2) zapisuje niepewność w wierszu ledgera
-(pole „Miny": „stan nieprzewidziany — <opis>, podjęto <działanie>"); (3) powiadamia właściciela przez
-`PushNotification`. `POMIAR` (zdarzenie 2026-09-05): pokolenie z zużyciem ~0,05% okna zatrzymało
-łańcuch pytaniem, czy wziąć następną fazę — dokładnie ten stan domyka reguła końca fazy w §4 razem
-z tym zakazem.
+**Ban on stopping with a question.** Applies from the moment G2 comes into existence. The only exception is before the chain,
+not within it: G1 without a provided set of issues MUST ask whether to select them autonomously (§4). After that — no
+generation stands idle waiting for the owner's
+answer — the owner is not at the keyboard, so an unanswered question is a stop of the
+chain without any of the conditions below. In an unforeseen state (matching neither the end-of-phase
+rule from §4 nor any item on the list below) the generation: (1) performs the cheapest reversible
+action that can be justified from the ledger and the roadmap; (2) records the uncertainty in the ledger row
+(the "Mines" field: "unforeseen state — <description>, action taken <action>"); (3) notifies the owner via
+`PushNotification`. `POMIAR` (event 2026-09-05): a generation with ~0.05% window usage stopped
+the chain with a question whether to take the next phase — exactly the state closed by the end-of-phase rule in §4 together
+with this ban.
 
-Zatrzymaj łańcuch awaryjnie i powiadom właściciela, gdy:
-- **zastój** — dwa kolejne pokolenia nie dopisały wiersza `Zrobione` do ledgera; zadanie się nie zbiega i decyzja należy do człowieka.
-  **Ciszy nie mierz po transkrypcie pokolenia ani po `status` z `claude agents` — oba kłamią.**
-  Zmierzone: (a) rodzic zablokowany na `Agent` NIE PISZE własnego transkryptu przez całą rundę
-  recenzji — G6 milczał 12,5 minuty przy zerze commitów, podczas gdy dwóch jego recenzentów
-  pracowało (transkrypty w `<sesja>/subagents/` zapisywane minutę przed alarmem); (b) `status: busy`
-  utrzymywał się dla G2 jeszcze 13 minut po jego ostatnim wywołaniu API. Żywotność mierz mtime
-  transkryptów pokoleń **oraz katalogu `<sesja>/subagents/`**;
-- osiągnięto `RELAY_MAX_GEN` (domyślnie 30);
-- **zapalony sygnał STOP** — sprawdza go KAŻDE pokolenie po domknięciu swojej fazy, nie tylko kurator.
-  Jest to kanał właściciela do łańcucha, który nie ma z nim kontaktu: łańcuch dokańcza bieżące issue,
-  dopisuje wiersz ledgera „stop na żądanie właściciela" i staje. **Sprawdzenie MUSI być odporne na
-  gałąź i na worktree** — obie komendy, wystarczy jedna zapalona:
+Stop the chain in an emergency and notify the owner when:
+- **stall** — two consecutive generations did not append a `Done` row to the ledger; the task is not converging and the decision belongs to a human.
+  **Do not measure silence by a generation's transcript or by `status` from `claude agents` — both lie.**
+  Measured: (a) a parent blocked on `Agent` does NOT write its own transcript for a whole
+  review round — G6 was silent for 12.5 minutes at zero commits, while two of its reviewers
+  were working (transcripts in `<session>/subagents/` written a minute before the alarm); (b) `status: busy`
+  persisted for G2 for 13 more minutes after its last API call. Measure liveness by the mtime of
+  generation transcripts **and of the `<session>/subagents/` directory**;
+- `RELAY_MAX_GEN` reached (default 30);
+- **STOP signal raised** — checked by EVERY generation after closing its phase, not only the curator.
+  It is the owner's channel to a chain that has no contact with them: the chain finishes the current issue,
+  appends a ledger row "stop at the owner's request" and halts. **The check MUST be resistant to
+  branch and to worktree** — both commands, one raised is enough:
 
   ```bash
-  test -f ~/.claude/relay-state/STOP-roadmapa && echo STOP        # niezależne od gałęzi i drzewa
-  git cat-file -e main:docs/plans/STOP-roadmapa 2>/dev/null && echo STOP   # trwałe, przeżywa relay-state
+  test -f ~/.claude/relay-state/STOP-roadmapa && echo STOP        # independent of branch and tree
+  git cat-file -e main:docs/plans/STOP-roadmapa 2>/dev/null && echo STOP   # durable, survives relay-state
   ```
 
-  `POMIAR` (repo syntetyczne, 2026-09-06): plik zacommitowany na `main` jest **NIEWIDOCZNY** przez
-  `test -f` z gałęzi `agent/issue-1` i z `git worktree` tej gałęzi — a to jest dokładnie miejsce, w którym
-  biegną fazy `exec` i `verify` (§4) i w którym §6a każe trzymać każde issue. Samo
-  `test -f docs/plans/STOP-roadmapa` byłoby więc hamulcem niewidocznym dla pokoleń, które mają go
-  nacisnąć — ochroną próżniowo zieloną, tą samą klasą co progi z niewłaściwym mianownikiem (§1b).
-  Właściciel zapala sygnał najprościej przez `touch ~/.claude/relay-state/STOP-roadmapa`; wariant
-  w repo jest dla trwałości i wymaga commita na `main`.
-  **Polecenie „niech to będzie ostatnie" wydane żywej sesji wiadomością NIE wystarcza** — ginie razem
-  z jej kontekstem, a następca go nie zobaczy; pokolenie, które takie polecenie dostanie, ma
-  **natychmiast utworzyć ten plik** (`touch docs/plans/STOP-roadmapa`) i go zacommitować, zanim zrobi
-  cokolwiek innego. Trwały stan mieszka w repo, nie w kontekście (§3);
-- **tryb `ciągły`: numer fali przekroczył 30** (`k` liczone wg §4c).
-- **`RELAY_GEN` przekroczył `RELAY_MAX_GEN`** — sprawdzasz to **SAM**, komendą, po domknięciu fazy:
+  `POMIAR` (synthetic repo, 2026-09-06): a file committed on `main` is **INVISIBLE** via
+  `test -f` from branch `agent/issue-1` and from that branch's `git worktree` — and that is exactly the place where
+  the `exec` and `verify` phases run (§4) and where §6a says every issue must be kept. A bare
+  `test -f docs/plans/STOP-roadmapa` would therefore be a brake invisible to the generations that are supposed to
+  press it — vacuously green protection, the same class as thresholds with a wrong denominator (§1b).
+  The owner raises the signal most simply via `touch ~/.claude/relay-state/STOP-roadmapa`; the in-repo variant
+  is for durability and requires a commit on `main`.
+  **An instruction "let this be the last one" given to a live session as a message is NOT enough** — it dies together
+  with its context, and the successor will not see it; a generation that receives such an instruction must
+  **immediately create that file** (`touch docs/plans/STOP-roadmapa`) and commit it before doing
+  anything else. Durable state lives in the repo, not in context (§3);
+- **`continuous` mode: the wave number exceeded 30** (`k` counted per §4c).
+- **`RELAY_GEN` exceeded `RELAY_MAX_GEN`** — you check this **YOURSELF**, with a command, after closing the phase:
   ```bash
   cat ~/.claude/relay-state/${CLAUDE_CODE_SESSION_ID:0:8}.gen
   ```
-  `POMIAR` (2026-09-06): `~/.claude/hooks/relay-post.sh:84` — warunek `[ "$RELAY_GEN" -ge "$RELAY_MAX_GEN" ]`
-  stoi **wewnątrz gałęzi progu `handoff`**, więc cap emituje się wyłącznie wtedy, gdy zapali się próg
-  procentowy. Tymczasem lista wykluczeń z §4 każe rodzić następcę **poniżej progu** (inny worktree, faza
-  atomowa, wyłączny slot) — łańcuch przekazujący pracę na granicach faz przy kilku procentach zużycia
-  przejdzie pokolenie 31, 50, 80 i hook nie powie ani słowa. `POMIAR`: licznik czytany jest z
-  `relay-state/<sid8>.gen` (`relay-lib.sh:112-114`), a pokolenie rodzące następcę pisze tam `<n+1>` (§5) —
-  **nic go nigdzie nie zeruje, także przy nowej fali.** `RELAY_MAX_GEN` liczy więc pokolenia **narastająco
-  przez wszystkie fale**, niezależnie od capu fal. **Nie „naprawiaj" tego rozjazdu zapisem
-  `echo 1 > …/<sid>.gen`** — to trwale wyłącza ostatni licznik pokoleń;
-- faza wymaga czegoś zabronionego: pusha na `origin`, deploya, `gh issue close`, wysyłki do KSeF, operacji na produkcji;
-- pełna suita wymaga wyłącznego slotu, a inne sesje pracują w drzewie;
-- recenzent zgłosił finding `PLAUSIBLE` — wraca jako **zlecenie dwustronne** („ustal, czy X czy nie-X, i podaj, co rozstrzyga"), nigdy jako gotowy fix.
+  `POMIAR` (2026-09-06): `~/.claude/hooks/relay-post.sh:84` — the condition `[ "$RELAY_GEN" -ge "$RELAY_MAX_GEN" ]`
+  sits **inside the `handoff` threshold branch**, so the cap is emitted only when the percentage
+  threshold fires. Meanwhile the exclusion list from §4 says to spawn a successor **below the threshold** (a different worktree, an atomic
+  phase, an exclusive slot) — a chain handing off work at phase boundaries at a few percent usage
+  will pass generation 31, 50, 80 and the hook will not say a word. `POMIAR`: the counter is read from
+  `relay-state/<sid8>.gen` (`relay-lib.sh:112-114`), and the generation spawning a successor writes `<n+1>` there (§5) —
+  **nothing ever resets it, not even at a new wave.** So `RELAY_MAX_GEN` counts generations **cumulatively
+  across all waves**, independently of the wave cap. **Do not "fix" this discrepancy by writing
+  `echo 1 > …/<sid>.gen`** — that permanently disables the last generation counter;
+- a phase requires something forbidden: a push to `origin`, a deploy, `gh issue close`, sending to KSeF, operations on production;
+- the full suite requires an exclusive slot, and other sessions are working in the tree;
+- the reviewer reported a `PLAUSIBLE` finding — it comes back as a **two-sided assignment** ("determine whether X or not-X, and state what settles it"), never as a ready fix.
 
-## 6a. Dwie fale równolegle
+## 6a. Two waves in parallel
 
-Skill opisuje JEDEN łańcuch. Właściciel może chcieć drugiego obok — bo pierwszy idzie wolniej, niż
-zakładał. Wolno, ale łańcuch jest sekwencyjny **wobec samego siebie**, nie wobec świata, i druga fala
-podwaja liczbę pisarzy w jednym drzewie. Warunki, bez których nie startuj:
+The skill describes ONE chain. The owner may want a second one alongside — because the first is going slower than
+they assumed. Allowed, but the chain is sequential **with respect to itself**, not to the world, and a second wave
+doubles the number of writers in one tree. Conditions without which you must not start:
 
-| co | wymóg | dlaczego |
+| what | requirement | why |
 |---|---|---|
-| slug | **inny dla każdej fali** (`fala-wrzesniowa`, `fala-b`…) | roadmapa i ledger to osobne pliki; dwie fale dopisujące do JEDNEGO ledgera to gwarantowana utrata wierszy |
-| nazwy sesji | `<slug-fali>-g<n>` — muszą się różnić między falami | dwie sesje o tej samej nazwie łamią adresowanie i `hold` (§2) |
-| zbiór issues | **rozłączny**, i to na poziomie PLIKÓW, nie numerów | dwie fale w tym samym pliku = cudza niezastage'owana praca znika |
-| worktree | każde issue we własnym `.claude/worktrees/issue-<nr>` | drzewo główne ma jeden indeks dla obu fal |
-| commit | `git commit -m "…" -- <pathspec>` **bezwzględnie** | zmierzone przy jednej fali: commit potrafi porwać cudze pliki z wspólnego indeksu |
-| pełna suita | **żadna fala jej nie uruchamia** | wyłącznego slotu nie będzie; zapisz to w wierszu ledgera zamiast udawać zieleń |
+| slug | **different for each wave** (`fala-wrzesniowa`, `fala-b`…) | the roadmap and the ledger are separate files; two waves appending to ONE ledger is guaranteed loss of rows |
+| session names | `<wave-slug>-g<n>` — must differ between waves | two sessions with the same name break addressing and `hold` (§2) |
+| issue set | **disjoint**, and at the level of FILES, not numbers | two waves in the same file = someone else's unstaged work disappears |
+| worktree | every issue in its own `.claude/worktrees/issue-<nr>` | the main tree has one index for both waves |
+| commit | `git commit -m "…" -- <pathspec>` **without exception** | measured with one wave: a commit can hijack someone else's files from the shared index |
+| full suite | **neither wave runs it** | there will be no exclusive slot; write that down in the ledger row instead of faking green |
 
-**Triage G1 drugiej fali musi objąć gałęzie pierwszej**, nie tylko `main`:
+**G1 triage of the second wave must cover the branches of the first**, not only `main`:
 ```bash
-git log --oneline --all --grep "#<nr>"      # --all, bo praca fali 1 siedzi na agent/issue-*
-git branch -a --contains <commit-naprawy>
+git log --oneline --all --grep "#<nr>"      # --all, because wave 1's work sits on agent/issue-*
+git branch -a --contains <fix-commit>
 ```
-Inaczej druga fala weźmie issue, które pierwsza właśnie zamyka na swojej gałęzi — a `main` o tym
-jeszcze nie wie.
+Otherwise the second wave takes an issue the first is just closing on its branch — and `main`
+does not know about it yet.
 
-`relay-state/` kolizji nie ma: pliki są kluczowane pełnym `session_id`, więc fale się tam nie widzą.
-Nie ma za to **żadnego wspólnego licznika pokoleń** — `RELAY_MAX_GEN` liczy każdą falę osobno.
+There is no collision in `relay-state/`: files are keyed by the full `session_id`, so waves do not see each other there.
+There is, however, **no shared generation counter** — `RELAY_MAX_GEN` counts each wave separately.
 
-> To jedyna sekcja tego skilla, która NIE wzięła się ze zdarzenia w przebiegu, tylko z decyzji
-> właściciela o puszczeniu drugiej fali (2026-09-05). Warunki w tabeli są wyprowadzone ze szkód
-> zmierzonych przy JEDNEJ fali — nie z obserwacji dwóch. Pierwsza fala, która pójdzie równolegle,
-> jest pomiarem tej sekcji.
+> This is the only section of this skill that did NOT arise from an event in a run, but from the
+> owner's decision to launch a second wave (2026-09-05). The conditions in the table are derived from harms
+> measured with ONE wave — not from observing two. The first wave that runs in parallel
+> is the measurement of this section.
 
-## 7. Dyscyplina pomiaru (obowiązuje każde pokolenie)
+## 7. Measurement discipline (applies to every generation)
 
-Przed nazwaniem pomiaru przyczyną wykonaj pomiar, który tezę **obaliłby**. Zdania nośne oznaczaj `POMIAR` (z komendą albo `plik:linia`) albo `WNIOSEK`; wiersz ledgera z werdyktem stojącym na `WNIOSEK` jest niedomknięty. Zapadka bez dowodu mutacyjnego (zielona na kodzie, czerwona pod mutacją, z diagnozą nazywającą TEN defekt) nie liczy się jako zrobiona. Dowód mutacyjny wykonuj na kopii ładowanej przez `--bootstrap`, nie mutując pliku w drzewie.
+Before naming a measurement as the cause, perform the measurement that would **disprove** the thesis. Mark load-bearing sentences as `POMIAR` (measurement, with a command or `file:line`) or `WNIOSEK` (conclusion); a ledger row with a verdict standing on a `WNIOSEK` is not closed. A latch without mutation proof (green on the code, red under mutation, with a diagnosis naming THIS defect) does not count as done. Perform mutation proofs on a copy loaded via `--bootstrap`, not by mutating the file in the tree.

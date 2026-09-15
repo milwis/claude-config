@@ -6,6 +6,12 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-15 (2) — `skills/roadmapa/SKILL.md` po angielsku, spójny z tor-orkiestratora.md (v1.5.5)
+
+Źródło: `KonkretnyTMS@5056634c1` (2026-09-13, tłumaczenie skilla na angielski + zapadka `tests/Config/RoadmapaSkillLatchTest.php` przepięta na frazę `What the chain must not do`). Plik NIE poszedł z v1.5.4, bo w chwili przenoszenia repo projektu miało już wersję polską z syncu `f1b8da338` (konflikt merge rozwiązany `--theirs`). Skutek: zapadka czerwona w CI na deployu v3.78.0 (Tests #34952880368). Wersja angielska jest NADZBIOREM polskiej z `5b6479f` — zawiera opis frontmatter z upstreamu i akapit o delegowaniu pełnej suity podagentowi (§4 „You do NOT run the full suite yourself"). `POMIAR`: `git diff --stat 74a1d5343 f1b8da338 -- SKILL.md` → 9 insercji, obie zmiany obecne w wersji angielskiej.
+
+- `skills/roadmapa/SKILL.md`: treść angielska 1:1 z `KonkretnyTMS@add0b67fb`; `references/tor-orkiestratora.md` (już angielski od v1.5.4) bez zmian.
+
 ## Run: 2026-09-15 — Przeniesienie lokalnych adaptacji cykli z KonkretnyTMS (v1.5.4)
 
 Źródło: sync `sync-claude-toolkit` z 2026-09-15 (`99c42ce30` w KonkretnyTMS) nadpisał `cp -rf` osiem plików, których ulepszenia żyły wyłącznie w repo projektu (commity `4c8373aef`, `1475a20ca`, `e947c6c58`, `518f37415`, `5056634c1`) — każdy kolejny sync zdejmowałby je ponownie. Przeniesione 1:1 z `KonkretnyTMS@ece8354fe`:
