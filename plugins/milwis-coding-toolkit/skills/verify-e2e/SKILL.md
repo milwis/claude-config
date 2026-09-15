@@ -50,7 +50,8 @@ A change can have multiple surfaces (endpoint + GUI that calls it) — verify th
    - **Do NOT improvise.** Do NOT downgrade to "tests pass, so it works."
    - Return status **BLOCKED** with the exact list of what is missing.
    - Append the gap to the `## Gaps / backlog` section of `docs/VERIFICATION_ENV.md` (create the file if absent).
-3. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. The environment compounds: every gap closed makes all future verifications stronger.
+3. **Browser surface → ONE connectivity probe before the spawn** (`tabs_context_mcp`, a single call). "Not connected" or no answer → brief the verifier with the Playwright recipe from `VERIFICATION_ENV.md` directly and tell it NOT to try the browser MCP; no recipe → BLOCKED now, before any spawn. The verifier's own cap is in its prompt: three failed browser-tool calls → switch to the named fallback or return BLOCKED. `POMIAR` (KonkretnyTMS batch 3.1, #687): the verifier spent 31 calls / 6M input before returning BLOCKED on a disconnected Chrome MCP; the orchestrator's single probe afterwards answered "not connected" at once; the Playwright re-run then cost 11.6M → 5.5M → 4.2M as the recipe was reused.
+4. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. The environment compounds: every gap closed makes all future verifications stronger.
 
 ---
 
