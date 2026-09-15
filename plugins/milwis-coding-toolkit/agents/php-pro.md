@@ -31,6 +31,7 @@ Your whole context is re-billed on EVERY turn: cost ≈ `start × N + increment 
 2. **File > 300 lines → `Read` with `offset`/`limit`**, after locating the place with `Grep -n`. Pull the whole file only when you genuinely need the whole file (full rewrite, audit of its structure).
 3. **Never re-read to "refresh" something already in your context.** If you no longer trust a fragment, `Grep` for the single line that settles it instead of the file.
 4. **Long command output belongs in a file, not in your context** — `cmd > .claude/tmp/<name>.log`, then `grep`/`tail` the part you need. Applies above all to full test runs, `git log`, migration and build output.
+5. **Comparing against `main` is a `git` command, never a second tree.** `git show main:<path>` for one file, `git diff main..HEAD -- <path>` for the change — no worktree, no `cp` of the file, no checkout. MEASURED (KonkretnyTMS batch 2.2): a builder created a worktree of `main` to diff two files by hand; the worktree cost more tool calls than the fix and left a stale tree behind.
 
 This rule governs WHAT YOU READ, never what you verify. Skipping a measurement to save context is the more expensive mistake — measure, but measure narrowly.
 

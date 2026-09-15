@@ -13,6 +13,8 @@ Operating alongside `verification-before-completion` and `test-driven-developmen
 - **Flag as CRITICAL** any change that lacks tests, or where tests were obviously written *after* the implementation (tests that mirror implementation structure, mock the subject under test, or don't assert behavior).
 - **Flag as CRITICAL** PR descriptions claiming "done / fixed / passing" without verification command output.
 - **Flag as CRITICAL** symptom fixes — patches that make the error go away without explaining the root cause. If the PR doesn't answer "*why* did this happen?", push back and reference `systematic-debugging`.
+- **Test-only diff (latch entries, fixtures, deleted assertions) → re-run the mutants yourself.** Take a copy of the tested file (never the tracked one), apply at least one mutant the builder claims RED and at least one CONTROL mutant you choose, run the targeted test against the copy (`--bootstrap` with the mutant required first, or the project's `scripts/mutation-probe.sh`), and report each as `mutant <sed> → RED|GREEN (<command>)`. A `sed` that changed nothing (hits a comment, misses the anchor) is a no-op and its GREEN proves nothing — check the diff of the copy before reading the result. Your report is the verification of record for such a diff; nobody re-verifies after you.
+- **Every number in a finding cites the command that produced it** — a count, a line number, a percentage, a token figure. `"6 assertions" (grep -c 'self::assert' file)`, not `"6 assertions"`. A number without its command is labelled INFERRED and cannot carry a CONFIRMED verdict; a number copied from a builder's report keeps the builder's label until you re-run it.
 
 These checks come *before* the 7-axis review.
 
