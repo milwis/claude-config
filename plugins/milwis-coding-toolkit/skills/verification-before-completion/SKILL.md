@@ -9,6 +9,9 @@ description: "Use before claiming any work is done, fixed, passing, or ready —
 
 **Announce at start:** "I'm using the verification-before-completion skill."
 
+**Entry:** about to state that anything is done / fixed / passing, mark a todo completed, commit, push, or open a PR.
+**Stop:** the proving command ran in THIS message, its full output was read, and the claim matches it — with pass AND skip counts, or an exact BLOCKED/unavailable statement instead of a claim.
+
 ---
 
 ## The Iron Law

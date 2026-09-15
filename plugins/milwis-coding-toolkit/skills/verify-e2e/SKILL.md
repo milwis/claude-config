@@ -9,6 +9,9 @@ description: "Use after implementing any user-facing change (GUI, API endpoint, 
 
 **Announce at start:** "I'm using the verify-e2e skill."
 
+**Entry:** a user-facing change is implemented and `verification-before-completion` has passed on its commands/tests.
+**Stop:** a fresh verifier returned PASS with evidence paths, or BLOCKED was recorded in `docs/VERIFICATION_ENV.md` and the report says "verified: NO (blocked on X)" — never a downgrade to "tests pass, so it works".
+
 ---
 
 ## Why a fresh subagent (non-negotiable)

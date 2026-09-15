@@ -284,7 +284,7 @@ The `status:do-scalenia` ("to be merged") label ("Done and verified on branch ag
 
 **What the chain must not do — closed list:** `git merge` into `main` (also `--ff`), `git push`, `gh issue close`, deploy, `npm run build`, changing `USE_BUNDLE`, sending to KSeF. "Verified on the branch" means "ready for the owner's review", not "deployed" nor "merged".
 
-**Owner-at-keyboard note — an instruction, not a mode.** When the owner's OWN prompt, in the session they are sitting at (G1, no `claude --bg` in between), explicitly says "merge locally and close each issue", that sentence authorises THAT session to merge with the `[roadmapa]` marker in the merge message and to `gh issue close` — for the issues named in that batch only. This is not something the roadmap declares, not something a generation may infer from the shape of the task, and it does not travel to G2+: a successor is a background session, the classifier from the `POMIAR` above stops it anyway, and a relayed quotation of the owner's consent is not consent (`CLAUDE.md` §4c — the session that received the instruction acts on it, no other). The ledger row quotes the owner's instruction verbatim and the final report still carries both warnings below. `POMIAR` (batch 2.3, 2026-09-15): three issues merged and closed under such an instruction in G1's own window, with the marker, without a single classifier bounce.
+**Owner-at-keyboard note — an instruction, not a mode.** When the owner's OWN prompt, in the session they are sitting at (G1, no `claude --bg` in between), explicitly says "merge locally and close each issue", that sentence authorises THAT session to merge with the `[roadmapa]` marker in the merge message and to `gh issue close` — for the issues named in that batch only. This is not something the roadmap declares, not something a generation may infer from the shape of the task, and it does not travel to G2+: a successor is a background session, the classifier from the `POMIAR` above stops it anyway, and a relayed quotation of the owner's consent is not consent (`CLAUDE.md` §4c — the session that received the instruction acts on it, no other). The ledger row quotes the owner's instruction verbatim and the final report still carries both warnings below. Mechanics of the close: write the markdown comment to a file and post it with `gh issue comment <nr> --body-file <path>`, then `gh issue close <nr> --reason completed` — never `--comment "<multi-line markdown>"` inline (`POMIAR` batch 2.4: zsh parse error on the inline body, the close did not happen). `POMIAR` (batch 2.3, 2026-09-15): three issues merged and closed under such an instruction in G1's own window, with the marker, without a single classifier bounce.
 
 **When the owner merges themselves — two things the chain must warn them about in the final report:**
 
@@ -366,7 +366,8 @@ The obligation lies with whoever defers — the owner, or the chain generation t
 gh label create status:odlozone --color C5DEF5 \
   --description "On hold by decision/observation window — the roadmap curator does NOT take it" 2>/dev/null || true
 gh issue edit <nr> --add-label "status:odlozone"
-gh issue comment <nr> --body "Deferred: <reason>. Unblocked by: <condition>. Source: <file:line>."
+printf '%s\n' "Deferred: <reason>. Unblocked by: <condition>. Source: <file:line>." > .claude/tmp/issue-<nr>-comment.md
+gh issue comment <nr> --body-file .claude/tmp/issue-<nr>-comment.md
 ```
 
 Reasons an issue is deferred:

@@ -101,7 +101,12 @@ must name the characterization test to write BEFORE the refactor.
     order;
   - seams (per Feathers) — places where behavior can be swapped without
     touching the surroundings (interface boundary, DI point, module
-    import).
+    import);
+  - the **deletion test** for every module suspected of being a
+    pass-through: imagine deleting it — if complexity vanishes it was
+    indirection (fold it away); if the same complexity reappears across
+    N callers it was earning its keep (deepen it, do not split it).
+    One adapter behind a seam is a hypothetical seam; two are a real one.
 - The output is TWO separate lists:
   1. "PURE REFACTOR" — safe changes, zero behavior change.
   2. "BEHAVIOR CHANGES (for decision)" — bugs, dead code, etc.
@@ -195,8 +200,12 @@ Every execution brief MUST contain:
 5. **Verification command** — what the subagent must run after the
    change (`php -l`, lint, a specific test filter) and the requirement
    to attach the output.
-6. **Return report format** — what it changed (file:line), how it
-   verified, what worried it.
+6. **Return report format** — first line a terminal token (`done.` /
+   `too-big.` / `ambiguous. ask: <question>` / `regressed. revert
+   <path:line>`), then what it changed (file:line first), how it
+   verified (command + output line), what worried it. Findings, not
+   narration; no invented abbreviations, no arrow chains — plain words,
+   exact names (`task-lifecycle` hard rule 8).
 
 Send independent briefs in parallel; briefs on the same file — always
 sequentially.
@@ -349,4 +358,4 @@ path is an explicit plan step, not a silent decision.)
   updated, user granted consent to delete the backup.
 
 <!-- 2026-07-07: this agent replaced refactoring-specialist.md — role changed from executor to orchestrator (phases 0-6, zero-regression). The "REFACTORING KNOWLEDGE" section was carried over from the old agent (including the sed incident of 2026-05-15). 2026-08-24: translated to English. -->
-Last updated: 2026-08-24
+Last updated: 2026-09-15

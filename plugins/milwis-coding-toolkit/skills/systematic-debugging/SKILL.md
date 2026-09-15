@@ -9,6 +9,9 @@ description: "Use when encountering any bug, test failure, or unexpected behavio
 
 **Announce at start:** "I'm using the systematic-debugging skill."
 
+**Entry:** a bug, failing test, or unexpected behavior whose cause is not evidence-backed yet.
+**Stop:** the root cause is named with MEASURED evidence (command / `file:line`), its disproof was run and survived, and the regression test is red-then-green — or, after 3 failed fixes, the architectural question has been raised with the user.
+
 This skill defines HOW to debug in any project. The project's own docs (CLAUDE.md, runbooks) define WHERE — log locations, symptom→log mappings, test commands. When the project documents a debugging path, follow it within this process.
 
 ---
@@ -59,9 +62,12 @@ Only after reading the logs → Phase 1.
 ### Phase 1 — Root-Cause Investigation
 
 1. **Read the FULL error message.** Complete stack trace — line numbers, file paths, error codes. Not just the first line.
-2. **Reproduce consistently.** Exact steps, every time — always / sometimes / randomly? Which inputs? One user or all?
-   - Not reproducible → check time dependencies (scheduled jobs, timezone, cache expiry), the specific record's data, session/state (permissions, tenant, feature flags). Add defensive logging and wait for the next occurrence — don't guess.
-   - **One user affected, ten fine → probably data, not code.**
+2. **Build the feedback loop — one command that goes red on THIS bug.** Everything after this step consumes the loop; without it, hypotheses are vibes. Try in this order and stop at the first that works: a failing test at the nearest seam (unit → integration → e2e) → a `curl`/HTTP call against the dev server → a CLI run on a fixture, diffed against a known-good output → a headless-browser script (Playwright) → replay of a captured payload/log through the code path → a throwaway harness calling the one function → `git bisect run` when the bug appeared between two known states → a differential run (old vs new version, two configs) → **last resort** a human-in-the-loop script from `scripts/hitl-loop.template.sh` when the repro needs an action only a human can perform (record the gap in `docs/VERIFICATION_ENV.md` as `verify-e2e` does).
+
+   **The step is done when you can name ONE command you have ALREADY RUN (invocation + output quoted, secrets redacted) that is:** red-capable (asserts the user's exact symptom, not "didn't crash"), deterministic (same verdict every run; for flaky bugs: loop the trigger 100×, add stress, narrow timing until the rate is high enough to debug), fast (seconds), agent-runnable. Reading code to build a theory before this command exists is the failure this skill prevents.
+   - **One user affected, ten fine → probably data, not code.** Check time dependencies (scheduled jobs, timezone, cache expiry), the specific record's data, session/state (permissions, tenant, feature flags) while building the loop.
+   - Cannot build a loop at all → say so, list what you tried, and ask the user for the environment, a redacted artifact (HAR, log dump, recording), or permission for temporary instrumentation. Do not proceed to a hypothesis without a loop.
+   - **Minimise.** Once red, cut inputs, callers, config, data and steps **one at a time**, re-running the loop after each cut, until every remaining element is load-bearing (removing any one makes it go green). The minimal repro shrinks the hypothesis space in Phase 3 and becomes the regression test in Phase 4.
 3. **Check recent changes.** `git log --oneline -20`, `git diff HEAD~5`. For regressions, bisect:
    ```bash
    git bisect start && git bisect bad && git bisect good <last-good-tag>
@@ -91,7 +97,7 @@ Only after reading the logs → Phase 1.
 
 ### Phase 3 — Hypothesis & Testing
 
-1. **Form ONE hypothesis:** *"I think X is the root cause because Y (evidence from Phase 1/2)."*
+1. **Rank 3–5 falsifiable hypotheses before testing any** — a single hypothesis anchors on the first plausible idea. Each states its prediction: *"If X is the cause, then <changing Y> makes the loop go green / <changing Z> makes it worse."* No prediction → not a hypothesis; discard or sharpen. Show the ranked list to the user when they are present (they re-rank instantly: "we deployed #3 yesterday"); do not block on it when they are away. Then take them **one at a time**, top-ranked first: *"I think X is the root cause because Y (evidence from Phase 1/2)."*
 2. **Write the disproof first.** Name the ONE measurement that would show X is NOT the cause — typically the layer above/below the code you are staring at (interceptor/middleware, FK `ON DELETE` action, a catch one frame down, a suite that never collects the file). Run it before anything else. Two measured premises + one unmeasured link is the shape of every false root cause in the 2026-08-29/30 wave.
 3. **Test it minimally.** Smallest change that confirms or denies. **One variable at a time.**
 4. **Verify before continuing:**
@@ -102,7 +108,8 @@ Only after reading the logs → Phase 1.
 
 ### Phase 4 — Fix, Guard, Verify
 
-1. **Write a failing regression test** (see `test-driven-development`). It MUST fail without the fix, pass with it, and describe the scenario that caused the bug.
+1. **Write a failing regression test** (see `test-driven-development`) from the minimised repro, **at a seam that exercises the real bug pattern** — the call chain that triggered it, not a shallower unit that cannot. It MUST fail without the fix, pass with it, and describe the scenario that caused the bug. **No correct seam exists → that is itself a finding:** the architecture prevents locking the bug down; record it in the report and the troubleshooting doc instead of writing a test that gives false confidence.
+   - Every temporary debug log carries one unique tag, e.g. `[DEBUG-a4f2]`; cleanup at the end is `grep -rn 'DEBUG-a4f2'` — untagged logs survive into commits.
 2. **Implement ONE fix at the root cause.** No bundled refactoring, no "while I'm here" improvements.
 
    ```
@@ -112,7 +119,7 @@ Only after reading the logs → Phase 1.
    ✅ find WHY the value is null and fix the source
    ✅ optimize the slow query instead of raising the timeout
    ```
-3. **Verify end-to-end:** new test passes → run the affected suites with the project's test commands (`phpunit`, `pytest`, `vitest`/`npm test`) → syntax/lint check modified files (`php -l`, `node --check`, `python -m py_compile`) → original symptom gone.
+3. **Verify end-to-end:** new test passes → run the affected suites with the project's test commands (`phpunit`, `pytest`, `vitest`/`npm test`) → syntax/lint check modified files (`php -l`, `node --check`, `python -m py_compile`) → **re-run the Phase 1 loop on the original, un-minimised scenario** → `grep` the debug tag returns nothing → the confirmed hypothesis is stated in the commit message so the next debugger learns.
 4. **If the fix doesn't work:**
    - `< 3` attempts → return to Phase 1 with the new evidence
    - `≥ 3` attempts → STOP. Architectural problem (below).
@@ -189,6 +196,7 @@ debugger;  console.table(rows);  console.time('op'); /*...*/ console.timeEnd('op
 ## Quick Checklist — When Stuck
 
 - [ ] Read the FULL error message? (not just the first line)
+- [ ] Got ONE command that goes red on this bug, already run, minimised to load-bearing elements?
 - [ ] Read the logs? (app, framework, web-server/container)
 - [ ] Checked the project's troubleshooting doc / closed issues for the keyword?
 - [ ] Checked what changed recently? (`git log --oneline -10`)
@@ -211,7 +219,7 @@ update the project's troubleshooting doc (e.g. `docs/troubleshooting.md`) with s
 
 | Phase | Done when |
 |---|---|
-| 1. Root cause | You understand *what* is wrong and *why* |
+| 1. Root cause | A red-capable loop command exists and was run, the repro is minimal, and you understand *what* is wrong and *why* |
 | 2. Pattern | You can articulate every relevant difference |
 | 3. Hypothesis | Theory confirmed (→ Phase 4) or new theory formed |
 | 4. Fix | Bug resolved, all tests green, no regressions |

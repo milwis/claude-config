@@ -13,7 +13,8 @@ Operating alongside `verification-before-completion` and `test-driven-developmen
 - **Flag as CRITICAL** any change that lacks tests, or where tests were obviously written *after* the implementation (tests that mirror implementation structure, mock the subject under test, or don't assert behavior).
 - **Flag as CRITICAL** PR descriptions claiming "done / fixed / passing" without verification command output.
 - **Flag as CRITICAL** symptom fixes — patches that make the error go away without explaining the root cause. If the PR doesn't answer "*why* did this happen?", push back and reference `systematic-debugging`.
-- **Test-only diff (latch entries, fixtures, deleted assertions) → re-run the mutants yourself.** Take a copy of the tested file (never the tracked one), apply at least one mutant the builder claims RED and at least one CONTROL mutant you choose, run the targeted test against the copy (`--bootstrap` with the mutant required first, or the project's `scripts/mutation-probe.sh`), and report each as `mutant <sed> → RED|GREEN (<command>)`. A `sed` that changed nothing (hits a comment, misses the anchor) is a no-op and its GREEN proves nothing — check the diff of the copy before reading the result. Your report is the verification of record for such a diff; nobody re-verifies after you.
+- **Test-only diff (latch entries, fixtures, deleted assertions) → re-run the mutants yourself.** Take a copy of the tested file (never the tracked one), apply at least one mutant the builder claims RED and at least one CONTROL mutant you choose **on a step the diff did NOT touch** (the sibling branch / neighbouring tree / untouched leg of the same pattern — this is the standing requirement, not an option: `POMIAR` batch 2.4, both findings that changed code came from exactly such control mutants), run the targeted test against the copy (`--bootstrap` with the mutant required first, or the project's `scripts/mutation-probe.sh`), and report each as `mutant <sed> → RED|GREEN (<command>)`. A `sed` that changed nothing (hits a comment, misses the anchor) is a no-op and its GREEN proves nothing — check the diff of the copy before reading the result. Your report is the verification of record for such a diff; nobody re-verifies after you.
+- **Flag as CRITICAL** a diff that changes a persisted or public shape (schema, stored data, API contract, config keys, dependency major) without a named rollback path, or that performs a destructive Contract step (`DROP`, column/field removal, data deletion) the task did not explicitly request as its own stage. Reference the `migration` skill: expand → migrate → verify → contract, destructive steps authorized separately.
 - **Every number in a finding cites the command that produced it** — a count, a line number, a percentage, a token figure. `"6 assertions" (grep -c 'self::assert' file)`, not `"6 assertions"`. A number without its command is labelled INFERRED and cannot carry a CONFIRMED verdict; a number copied from a builder's report keeps the builder's label until you re-run it.
 
 These checks come *before* the 7-axis review.
@@ -38,6 +39,7 @@ When the change is a VARIANT of an existing operation (correction vs invoice, ba
 - Edge cases covered? (null, empty, boundary, invalid input)
 - Do test names describe the scenario clearly?
 - Assertions check specific values (not `.toBeDefined()`)?
+- **Tautological test → CRITICAL:** the expected value is recomputed the way the code computes it, a snapshot derived by the same path, or a constant compared with itself. Such a test cannot disagree with the code and stays GREEN under every mutant — treat it as no test (it fails the mutation rule in the discipline overlay).
 - **No tests → CRITICAL**
 
 ### 4. Review implementation — 7 axes
@@ -95,6 +97,7 @@ Cross-file / cross-layer defects: each file looks correct in isolation — the b
 
 | Pattern | Grep / check | Audit example |
 |---|---|---|
+| Scope creep | Diff behaviour against the issue / spec / task block: list behaviour the diff adds that nothing asked for (a new mode, an extra endpoint, a "while I'm here" refactor) and requirements still missing or partial — quote the spec line for each | Autonomous chain (roadmapa) merged a builder's unrequested cleanup alongside the fix; the review read only the fix |
 | Producer↔consumer key contract | For every changed array/JSON payload, grep EVERY consumer's key names against the producer's | Validator reads `source_ksef_number`, producers set `source_invoice_ksef` → rule dead; snapshot drops `totalVat` that 3 consumers read |
 | Dead code / dead-on-dispatch | Does the guard's input ever get set? Is the return value used? Does the "safety net" cover the DOMINANT case? | Offline queue calls `prepareCorrectionXML`, discards the return, method persists nothing → guaranteed fail; validator skips 0%/np/zw buckets — the main traffic |
 | Check-then-act without atomicity (TOCTOU) | Is the uniqueness / "already sent" / `exported=0` check in the SAME transaction as the write? Is there a UNIQUE/FK/CHECK backstop? | Number generator early-returns without lock, `FOR UPDATE` committed before the caller used it; no UNIQUE on `corrections.number` / `our_number` / `draft_number` |
@@ -212,4 +215,4 @@ Description.
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
 <!-- Updated: 2026-08-19 — Audit-360 feedback loop: step 6 rewritten as scope-reporting gate (analyzer paths, SKIPPED counts, parity-gate semantics, workflow last-run dates), 2 new AI-scrutiny rows (config matching rules, dead documentation references). Trimmed stale changelog comments. -->
-Last updated: 2026-08-30
+Last updated: 2026-09-15

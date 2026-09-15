@@ -35,6 +35,18 @@ description: Use when you have a written implementation plan to execute. Drives 
 
 When unsure → AGENT. Quality beats speed.
 
+### Reuse ladder — decide WHERE the change lives before deciding WHO writes it
+
+Per task, walk the ladder top-down and stop at the first rung that fits without distorting the architecture; write the rung into the task's dispatch prompt (or apply it yourself for DIRECT):
+
+1. **The behavior already exists** (the plan's Canon from `writingplans` Step 0.5, or a `grep` you run now) → call it, or change nothing.
+2. **A responsible layer / type / helper / pattern already owns it** → extend there, not beside it.
+3. **The standard library, framework, database, runtime or an installed dependency owns it** → use it; no hand-rolled twin.
+4. **A small new implementation fits the current architecture** → build it where the invariant belongs.
+5. **The existing structure obstructs clear ownership** → the coherent refactor the task needs — as its own task, before the feature, never fused into it.
+
+A duplicated guard, a second formula for the same quantity, or logic parked in the wrong layer to avoid touching the right one is a rung-1/2 miss and is the regression class the Canon & Variant Inventory exists to prevent. Ask the user only for material public-surface, security, data, billing or hard-to-reverse choices — everything else is decided by the ladder.
+
 ### Dependency analysis — find parallel groups
 
 Tasks may run in parallel ONLY if ALL four hold:

@@ -40,7 +40,7 @@ Label every load-bearing sentence MEASURED (command / file:line) or INFERRED.
 ```
 
 - NOT-A-BUG → same handling as ALREADY-FIXED; the disproving measurement goes into the closing comment. An issue whose premises are all true but whose conclusion was never measured is the most common stale item in a wave.
-- ALREADY-FIXED → close/comment (with user-approved `gh issue close -c "..."`) or mark in the table; never "re-fix".
+- ALREADY-FIXED → close/comment (user-approved; markdown body via `gh issue comment <nr> --body-file <path>` then `gh issue close <nr> --reason completed` — never an inline `-c "<markdown>"`, which zsh mis-parses) or mark in the table; never "re-fix".
 - NEEDS-CLARIFICATION → park in the report with the question; do not guess.
 - VALID items proceed with **fresh anchors** replacing the issue's stale ones.
 
@@ -86,7 +86,7 @@ Return the task-lifecycle report package via SendMessage to <this session's agen
 - answers orchestrator questions it can answer from context,
 - escalates to the user ONLY: blockers (missing env/keys/decisions), cap-exhausted issues, scope conflicts between issues.
 
-Do not poll orchestrators — they report when done; polling burns the top-level context. An orchestrator that exhausts its caps is marked SKIPPED with its partial report — the pipeline moves on. Never let one stuck issue stall the batch.
+Do not poll orchestrators — they report when done; polling burns the top-level context. Read the first line of each report before the rest: it is the terminal token from `task-lifecycle` hard rule 8 (`done.` / `too-big.` / `ambiguous.` / `needs-confirm.` / `regressed.` / `BLOCKED`) — only `ambiguous.`, `needs-confirm.` and `BLOCKED` are exceptions to escalate; `done.` packages go straight to the status table. An orchestrator that exhausts its caps is marked SKIPPED with its partial report — the pipeline moves on. Never let one stuck issue stall the batch.
 
 ## Step 4: Final report — the status table
 

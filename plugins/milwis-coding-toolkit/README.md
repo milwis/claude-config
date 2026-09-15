@@ -51,6 +51,7 @@ Revisit with data, not intuition: `task-lifecycle` reports review iterations per
 | `/new-project` | Universal foundation scaffold for any new project |
 | `/audit-360` | Comprehensive 360° code audit. Orchestrates parallel domain specialists, consolidates via code-reviewer (opus), reproduces P0 PoCs via debugger, self-reviews fix proposals against hallucinated APIs, and proposes agent updates from recurring patterns. Universal — adapts to any stack via `audit/INVENTORY.md` |
 | `/task-lifecycle` | Full autonomous cycle for one task: build (subagent) → code-review loop with auto-fix (cap 3) → security pass → `verify-e2e` in a fresh subagent → report package. Main session orchestrates, never codes |
+| `/retro` | Retrospective on a finished roadmapa wave / issue-pipeline batch / session: ledger + subagent transcripts → ranked toolkit change proposals, each with a POMIAR (command / file:line) and final rule text. Runs after the wave, applies nothing on its own |
 | `/issue-pipeline` | Batch resolution of GitHub issues / audit findings: triage against HEAD (stale findings die), file-disjoint batching, one `task-lifecycle` per issue on its own branch, monitor-by-exception, final status table |
 
 ### Discipline skills (auto-triggered by matching context)
@@ -62,7 +63,9 @@ These skills are not slash commands — they auto-match based on their `descript
 | `verification-before-completion` | About to claim anything is done / fixed / passing, or to commit / push / PR | No completion claims without fresh verification evidence in the same message |
 | `verify-e2e` | After implementing any user-facing change (GUI, API, CLI, cron) | Verify on the SURFACE the user touches, in a fresh adversarial subagent, with evidence artifacts (screenshots / responses / recordings) |
 | `test-driven-development` | Implementing any feature, bugfix, refactor, or behavior change | Red → verify red → green → verify green → refactor. No production code before a failing test |
-| `systematic-debugging` | Any bug, test failure, or unexpected behavior | 4 phases before any fix: investigate → compare → hypothesize → fix. 3+ failed fixes = architectural problem |
+| `systematic-debugging` | Any bug, test failure, or unexpected behavior | Logs first, then ONE command that goes red on this bug (minimised), 3–5 ranked hypotheses tested one at a time with the disproof first, fix at the root. 3+ failed fixes = architectural problem |
+| `resolving-merge-conflicts` | A merge / rebase / cherry-pick is in progress with conflicts (e.g. merging a wave's `agent/issue-*` branches) | Resolve each hunk by the INTENT of each side traced to commit / issue / ledger; never invent behaviour, never `--abort`; run the project's checks; finish the operation |
+| `migration` | Any change to a persisted or public shape (schema, data, API, protocol, config, dependency major) | Map readers/writers first; forward AND rollback path; expand → migrate → verify → contract; destructive steps authorized separately; never contract implicitly |
 
 ## Development Workflow
 
@@ -87,9 +90,10 @@ The skills form a layered workflow:
 1. **Before writing any production code** for a feature or bugfix → invoke `test-driven-development`.
 2. **Before claiming anything is done / fixed / passing** (including marking a TodoWrite item `completed` or committing) → invoke `verification-before-completion`.
 3. **When hitting any bug, test failure, or broken build** → invoke `systematic-debugging` *before* proposing a fix.
+3a. **When the change alters a schema, stored data, API contract, config key or dependency major** → invoke `migration` before editing; stop after the requested stage.
 4. **For full feature development** → `/brainstorming` (if design unclear) → `/writingplans` → `/executingplans`, with the three discipline skills applied inside each step.
 
-The discipline skills are stackable and deliberately short — they are designed to be pulled in without derailing whatever else you're doing.
+The discipline skills are stackable and deliberately short — they are designed to be pulled in without derailing whatever else you're doing. Each states its **Entry** and **Stop** condition in its header, so an orchestrator can check per stage whether the skill has actually finished.
 
 ## Autonomy Layer
 

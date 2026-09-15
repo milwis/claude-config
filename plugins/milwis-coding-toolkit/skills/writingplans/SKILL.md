@@ -118,7 +118,7 @@ Find timeline-breaking issues in Task 1, not Task 8.
 [1-2 sentences: what behavior this task should produce. Not the code — the behavior.]
 
 **Approach:**
-- Follow existing pattern in [reference file]
+- Follow existing pattern in [reference file] — and name the latch that guards it (`tests/.../XTest::method`); the copy gets its own latch in the same task
 - Match naming convention from [similar function]
 - Key constraint: [e.g., must preserve backward compatibility, must use existing validation helper]
 

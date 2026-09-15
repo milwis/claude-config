@@ -9,6 +9,9 @@ description: "Use when implementing any new feature, bugfix, refactor, or behavi
 
 **Announce at start:** "I'm using the test-driven-development skill."
 
+**Entry:** about to write or change production code (feature, bugfix, refactor, behavior change).
+**Stop:** the new test failed for the expected reason, now passes, the full suite is green with pristine output, and no behavior was added without its own failing test first.
+
 ---
 
 ## The Iron Law
@@ -95,6 +98,9 @@ With the test still green: remove duplication, improve names, extract helpers. *
 | Named | Behavior in the name | `test('test1')`, `test('works')` |
 | Real | Real code where possible | Mocks the subject under test |
 | Intent | Shows desired API | Obscures what code should do |
+| Independent | Expected value is a known literal / worked example / spec value | **Tautological:** expected value recomputed the way the code computes it (`expect(total(items)).toBe(items.reduce(...))`, a snapshot derived by hand the same way, a constant asserted equal to itself) — passes by construction, stays GREEN under every mutant |
+
+**Vertical, not horizontal.** One test → one implementation → repeat. Writing all tests first and all code after tests the *shape* you imagined, not the behaviour; each cycle's test responds to what the last cycle taught you.
 
 ---
 
