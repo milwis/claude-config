@@ -1,110 +1,110 @@
-# Tor orkiestratora — mechanika
+# Orchestrator track — mechanics
 
-Uzupełnienie `.claude/skills/roadmapa/SKILL.md` §4a. Opisuje DRUGI tor realizacji: jedną
-długowieczną sesję-lead, która rozdziela pracę subagentom zamiast rodzić następców. Nie zastępuje
-sztafety (§1-§7 głównego pliku, tor domyślny) — jest wyjątkiem dla partii, w których fazy są
-KRÓTKIE i ROZŁĄCZNE PLIKOWO (kryterium wyboru: §4a głównego pliku).
+Supplement to `.claude/skills/roadmapa/SKILL.md` §4a. Describes the SECOND execution track: one
+long-lived lead session that distributes work to subagents instead of spawning successors. It does not replace
+the relay (§1-§7 of the main file, the default track) — it is an exception for batches in which phases are
+SHORT and FILE-DISJOINT (selection criterion: §4a of the main file).
 
-## Co robi lead
+## What the lead does
 
-- Czyta roadmapę i ledger na start (jak G1/Gn w sztafecie), potem tylko ledger — żeby wiedzieć,
-  które fazy są niedomknięte.
-- Rozdziela każdą niedomkniętą fazę jako osobne wywołanie `Agent` z `isolation: "worktree"` —
-  każdy subagent pracuje na własnej kopii repo, więc równoległe fazy nie kolidują na wspólnym
-  indeksie (klasa szkód, przed którą sekwencyjność sztafety broni się w §5/§6a głównego pliku).
-- **Nie czyta plików kodu (`Read`/`Grep`/`Glob` na treść implementacji) i nic sam nie edytuje** —
-  weryfikuje wyłącznie z tego, co subagent zwrócił w raporcie (komendy, wyjścia, `plik:linia`).
-  Jeśli raport nie niesie dowodu rozstrzygającego, lead zleca subagentowi doprecyzowanie zamiast
-  sprawdzać sam.
-- Dopisuje wiersz ledgera na podstawie raportu subagenta i commituje go — to jedyna pisząca
-  operacja na WSPÓLNYM drzewie, którą lead wykonuje sam (roadmapa i ledger żyją poza worktree
-  subagentów, więc nie kolidują z ich pracą).
-- Domyka przebieg, gdy `/goal` (niżej) jest spełniony, albo zatrzymuje się na warunkach z §6
-  głównego pliku (te same zakazy: push na `origin`, deploy, `gh issue close`, KSeF).
+- Reads the roadmap and the ledger at start (like G1/Gn in the relay), afterwards only the ledger — to know
+  which phases are unclosed.
+- Distributes every unclosed phase as a separate `Agent` call with `isolation: "worktree"` —
+  each subagent works on its own copy of the repo, so parallel phases do not collide on the shared
+  index (the class of harm the relay's sequentiality defends against in §5/§6a of the main file).
+- **Does not read code files (`Read`/`Grep`/`Glob` on implementation content) and edits nothing itself** —
+  verifies solely from what the subagent returned in its report (commands, outputs, `file:line`).
+  If the report carries no decisive evidence, the lead asks the subagent to clarify instead of
+  checking itself.
+- Appends the ledger row based on the subagent's report and commits it — this is the only writing
+  operation on the SHARED tree the lead performs itself (the roadmap and the ledger live outside the subagents'
+  worktrees, so they do not collide with their work).
+- Closes the run when `/goal` (below) is met, or stops on the conditions from §6
+  of the main file (the same bans: push to `origin`, deploy, `gh issue close`, KSeF).
 
-## Co robi subagent
+## What the subagent does
 
-- Dostaje JEDNĄ fazę (plan/exec/verify jednego issue), pracuje we własnym worktree, zwraca raport
-  z dowodem. Nie rodzi kolejnych subagentów — ten sam zakaz co w sztafecie (§1a głównego pliku:
-  podagent nie przekazuje pracy w bok, nie zakłada osobnej sesji w tle).
-- Commituje swoją pracę w SWOIM worktree przed zwróceniem raportu — lead nie ma innego sposobu
-  odzyskania jej niż to, co subagent zdążył zapisać przed końcem swojego okna.
+- Gets ONE phase (plan/exec/verify of one issue), works in its own worktree, returns a report
+  with evidence. Does not spawn further subagents — the same ban as in the relay (§1a of the main file:
+  a subagent does not hand work sideways, does not start a separate background session).
+- Commits its work in ITS worktree before returning the report — the lead has no other way
+  of recovering it than what the subagent managed to save before the end of its window.
 
-## `/goal` — warunek domknięcia
+## `/goal` — completion condition
 
-Brzmienie: „każde issue z roadmapy ma w ledgerze wiersz `verify` z dowodem albo wiersz
-`BLOKADA` z powodem."
+Wording: "every issue in the roadmap has in the ledger a `verify` row with evidence or a
+`BLOKADA` (blocked) row with a reason."
 
-Warunek musi być rozstrzygalny z transkryptu: policz issues w roadmapie, sprawdź dla każdego, czy
-ledger zawiera wiersz `verify` z sekcją `POMIAR` niosącą dowód, LUB wiersz `BLOKADA` z opisanym
-powodem. Brak jednego z dwóch dla któregokolwiek issue = `/goal` niespełniony — lead nie ogłasza
-końca przebiegu.
+The condition must be decidable from the transcript: count the issues in the roadmap, check for each whether
+the ledger contains a `verify` row with a `POMIAR` (measurement) section carrying evidence, OR a `BLOKADA` (blocked) row with a described
+reason. Missing one of the two for any issue = `/goal` not met — the lead does not declare
+the end of the run.
 
-## Wiersze ledgera pod tym torem
+## Ledger rows under this track
 
-Format wiersza (§3 głównego pliku) **zostaje bez zmian** — bez nowego pola na tor. Lead odróżnia
-swoje wiersze, opisując w polu `Zrobione` albo `Miny`, że faza wykonał subagent w konkretnym
-worktree, prozą — nie przez modyfikację szablonu.
+The row format (§3 of the main file) **stays unchanged** — no new field for the track. The lead distinguishes
+its rows by describing in the `Zrobione` (done) or `Miny` (mines) field that the phase was executed by a subagent in a specific
+worktree, in prose — not by modifying the template.
 
-## Uzupełnienie, nie zamiennik: `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`
+## Supplement, not replacement: `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`
 
-Ta zmienna ogranicza głębokość spawnu subagentów niezależnie od treści komendy — działa tam, gdzie
-regex `relay-pre.sh` (§1a głównego pliku) nie łapie (nazwa binarki podana zmienną, `bash -c`).
-**Nie zastępuje blacklisty komend w `relay-pre.sh`** — blacklista zostaje, bo chroni przed inną
-klasą wywołania (uruchomieniem nowej sesji w tle poza wiedzą leada), a `MAX_SUBAGENT_SPAWN_DEPTH`
-przed tamtą klasą nie chroni.
+This variable limits the subagent spawn depth regardless of command content — it works where
+the `relay-pre.sh` regex (§1a of the main file) does not catch (binary name given via a variable, `bash -c`).
+**It does not replace the command blacklist in `relay-pre.sh`** — the blacklist stays, because it protects against a different
+class of call (launching a new background session outside the lead's knowledge), and `MAX_SUBAGENT_SPAWN_DEPTH`
+does not protect against that class.
 
-## ZMIERZONE suchą próbą (Zadanie 7b, 2026-09-05) — jeden lead, jeden subagent
+## MEASURED in a dry run (Task 7b, 2026-09-05) — one lead, one subagent
 
-Przebieg: lead (sesja główna) rozdzielił JEDNĄ drobną fazę subagentowi z `isolation: "worktree"`,
-sam nie edytował ani jednego pliku zadania. Wyniki są `POMIAR`, nie `WNIOSEK` — każdy z komendą.
+Run: the lead (main session) distributed ONE small phase to a subagent with `isolation: "worktree"`,
+and itself edited not a single file of the task. The results are `POMIAR`, not `WNIOSEK` — each with a command.
 
-**1. Worktree odgałęzia się od `origin/<gałąź domyślna>`, NIE od lokalnego HEAD leada.**
-`POMIAR`: w drzewie leada było 26 commitów lokalnych ponad `origin/main` (szczyt `31efbd677`).
-W worktree subagenta `git log --oneline origin/main..HEAD | wc -l` → `0`, a
-`git merge-base --is-ancestor 31efbd677 HEAD; echo $?` → `1`. Ustawienie `worktree.baseRef` nie
-występuje w żadnym pliku konfiguracji tego repo, więc obowiązuje domyślne `fresh`.
+**1. The worktree branches off from `origin/<default branch>`, NOT from the lead's local HEAD.**
+`POMIAR`: the lead's tree had 26 local commits above `origin/main` (tip `31efbd677`).
+In the subagent's worktree `git log --oneline origin/main..HEAD | wc -l` → `0`, and
+`git merge-base --is-ancestor 31efbd677 HEAD; echo $?` → `1`. The `worktree.baseRef` setting does not
+appear in any configuration file of this repo, so the default `fresh` applies.
 
-> **KONSEKWENCJA — to jest główna pułapka tego toru.** Subagent **nie widzi niezapushowanej pracy
-> leada**. Zadanie zależne od commita, który leżał tylko lokalnie, subagent wykona na nieaktualnym
-> kodzie i zwróci raport wyglądający na poprawny. Zanim zlecisz fazę tym torem, rozstrzygnij, czy
-> zależy ona od czegoś spoza `origin/<gałąź domyślna>` — a jeśli tak, przekaż subagentowi SHA
-> i polecenie `git merge <sha>` w jego worktree, albo nie używaj tego toru dla tej fazy.
+> **CONSEQUENCE — this is the main trap of this track.** The subagent **does not see the lead's unpushed
+> work**. A task depending on a commit that existed only locally will be executed by the subagent on stale
+> code, returning a report that looks correct. Before assigning a phase via this track, determine whether
+> it depends on anything outside `origin/<default branch>` — and if so, pass the subagent the SHA
+> and the instruction `git merge <sha>` in its worktree, or do not use this track for that phase.
 
-**2. Worktree z commitem NIE jest sprzątany automatycznie.**
-`POMIAR`: `git worktree list | wc -l` → 17 przed, **18 po**; wpis `agent-<id>` został na dysku
-z gałęzią `worktree-agent-<id>`. W trakcie pracy subagenta wpis miał flagę `locked`, po
-zakończeniu — nie ma. (Dokumentacja narzędzia mówi „auto-cleaned **if unchanged**"; przypadek
-„zmieniony" zmierzony tutaj jako NIEsprzątany. Przypadek „bez zmian" pozostaje niezmierzony.)
+**2. A worktree with a commit is NOT cleaned up automatically.**
+`POMIAR`: `git worktree list | wc -l` → 17 before, **18 after**; the entry `agent-<id>` remained on disk
+with branch `worktree-agent-<id>`. During the subagent's work the entry had the `locked` flag; after
+completion — it does not. (The tool's documentation says "auto-cleaned **if unchanged**"; the
+"changed" case measured here as NOT cleaned. The "unchanged" case remains unmeasured.)
 
-**3. Praca wraca do leada BEZ pusha i bez zdalnego repo.**
-`POMIAR`: z drzewa głównego `git log --oneline -1 <sha z worktree>` rozwiązuje się natychmiast —
-baza obiektów jest wspólna dla wszystkich worktree tego repo. Lead odzyskuje pracę zwykłym
-`git merge <gałąź-worktree>` albo `git cherry-pick <sha>` u siebie; **żaden fetch ani remote nie
-jest potrzebny**. Nazwy gałęzi i katalogu nadaje harness (`agent-<id>` / `worktree-agent-<id>`),
-lead ich nie wybiera — subagent MUSI je zwrócić w raporcie, inaczej lead nie wie, co scalać.
-**To scalenie idzie do gałęzi `agent/issue-<nr>` leada, nigdy do `main`** — zakaz z §4b SKILL.md
-obowiązuje pod tym torem bez wyjątku.
+**3. Work returns to the lead WITHOUT a push and without a remote repo.**
+`POMIAR`: from the main tree `git log --oneline -1 <sha from worktree>` resolves immediately —
+the object database is shared by all worktrees of this repo. The lead recovers the work with an ordinary
+`git merge <worktree-branch>` or `git cherry-pick <sha>` on its side; **no fetch and no remote is
+needed**. The branch and directory names are assigned by the harness (`agent-<id>` / `worktree-agent-<id>`),
+the lead does not choose them — the subagent MUST return them in its report, otherwise the lead does not know what to merge.
+**That merge goes into the lead's `agent/issue-<nr>` branch, never into `main`** — the ban from §4b of SKILL.md
+applies under this track without exception.
 
-**4. Izolacja realna:** plik zmieniony przez subagenta pozostał w drzewie leada nietknięty
-(`git status --short <plik>` u leada → pusto po zakończeniu subagenta).
+**4. Isolation is real:** a file changed by the subagent remained untouched in the lead's tree
+(`git status --short <file>` at the lead → empty after the subagent finished).
 
-**5. `isolation: "worktree"` wymusza tryb tła (async).** `POMIAR`: wywołanie zwróciło `agentId`
-i komunikat o pracy w tle zamiast raportu synchronicznego. Lead dostaje wynik notyfikacją.
+**5. `isolation: "worktree"` forces background (async) mode.** `POMIAR`: the call returned an `agentId`
+and a message about background work instead of a synchronous report. The lead gets the result via notification.
 
-**6. W worktree NIE MA pliku `.env`.** `POMIAR`: `test -f .env` → `NIE`. Każdy przebieg testów
-zależnych od środowiska da tam SKIP zamiast wyniku — czyli **fałszywy baseline**. Faza, której
-kryterium odbioru jest „testy zielone", nie nadaje się do tego toru bez wcześniejszego dostarczenia
-`.env` do worktree.
+**6. There is NO `.env` file in the worktree.** `POMIAR`: `test -f .env` → `NO`. Every run of tests
+that depend on the environment will yield SKIP there instead of a result — i.e. a **false baseline**. A phase whose
+acceptance criterion is "tests green" is unsuitable for this track without first delivering
+`.env` to the worktree.
 
-## NIEZMIERZONE — nadal otwarte
+## UNMEASURED — still open
 
-- **`/goal` nie jest dostępne w tym środowisku.** `POMIAR`: brak w `~/.claude/commands/`, brak
-  w `.claude/commands/`, brak na liście skilli. Jeśli istnieje jako wbudowana komenda CLI, to nie
-  jest wykrywalne z systemu plików. **Dopóki to nie zostanie rozstrzygnięte, warunek domknięcia
-  z sekcji wyżej egzekwuje lead ręcznie** — czyta ledger i sam sprawdza, czy każde issue ma wiersz
-  `verify` z dowodem albo `BLOKADA` z powodem. Nie udawaj, że robi to za Ciebie mechanizm.
-- Czy dwóch subagentów przypadkowo skierowanych na TĘ SAMĄ fazę realnie nie koliduje, czy kolizja
-  przesuwa się na scalanie do drzewa leada. Sucha próba miała **jednego** subagenta — ten punkt
-  nie został dotknięty.
-- Zachowanie przy worktree BEZ zmian (czy wtedy faktycznie znika sam).
+- **`/goal` is not available in this environment.** `POMIAR`: absent in `~/.claude/commands/`, absent
+  in `.claude/commands/`, absent from the skills list. If it exists as a built-in CLI command, it is not
+  detectable from the file system. **Until this is resolved, the completion condition
+  from the section above is enforced by the lead manually** — it reads the ledger and checks itself whether every issue has a `verify` row
+  with evidence or a `BLOKADA` (blocked) row with a reason. Do not pretend a mechanism does that for you.
+- Whether two subagents accidentally directed at THE SAME phase really do not collide, or whether the collision
+  shifts to merging into the lead's tree. The dry run had **one** subagent — this point
+  was not touched.
+- Behaviour with a worktree WITHOUT changes (whether it then really disappears on its own).

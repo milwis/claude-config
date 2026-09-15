@@ -6,6 +6,16 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-15 — Przeniesienie lokalnych adaptacji cykli z KonkretnyTMS (v1.5.4)
+
+Źródło: sync `sync-claude-toolkit` z 2026-09-15 (`99c42ce30` w KonkretnyTMS) nadpisał `cp -rf` osiem plików, których ulepszenia żyły wyłącznie w repo projektu (commity `4c8373aef`, `1475a20ca`, `e947c6c58`, `518f37415`, `5056634c1`) — każdy kolejny sync zdejmowałby je ponownie. Przeniesione 1:1 z `KonkretnyTMS@ece8354fe`:
+
+- `agents/php-pro.md`, `python-pro.md`, `nextjs-pro.md`: `tools:` + `SendMessage, Skill` (raport końcowy przez SendMessage do orkiestratora, wywołanie skilla z ograniczoną listą narzędzi); `refactoring-orchestrator.md`: + `SendMessage`.
+- `skills/issue-pipeline/SKILL.md`: równoległość ⇒ worktree (zawsze), reguła zasobów współdzielonych (slot pełnej suity, port per worktree z dyskryminatorem, Chrome vs Playwright), jeden agent na jednostkę pracy + raport przez SendMessage + zakaz pollingu orkiestratorów, `model:` orkiestratora wg polityki projektu (domyślnie opus), „jeden lifecycle = jedno issue" z jedynym wyjątkiem bundle, kolumna Tip SHA i done-label w tabeli, odsyłacz do dokumentu lokalnych adaptacji projektu.
+- `skills/task-lifecycle/SKILL.md`: hard rule 6 (fix-upy do ŚWIEŻEGO agenta, nigdy wznowienie), raport przez SendMessage, worktree.
+- `skills/verify-e2e/SKILL.md`: „które drzewo weryfikujesz" — dyskryminator docroot przy pracy w worktree.
+- `skills/roadmapa/references/tor-orkiestratora.md`: wersja angielska (mniej tokenów), spójna z SKILL.md roadmapy.
+
 ## Run: 2026-08-30 — Klasa błędu „pomiar ≠ wniosek": procedura falsyfikacji u agentów piszących (v1.5.1)
 
 Źródło: diagnoza agenta po fali 11 issues w KonkretnyTMS (2026-08-29/30). Sześciu agentów piszących popełniło ten sam błąd (jeden trzykrotnie): dwie prawdziwe przesłanki zmierzone, trzecia niezmierzona, wniosek fałszywy (403 CSRF vs globalny interceptor; `--exclude-group` vs plik w ogóle niezbierany przez suitę; „sieroty" vs `FK ON DELETE SET NULL`; „zdarzenia przepadają" vs logger łapiący `PDOException` piętro niżej). Reguły kodowały WNIOSKI z incydentów, nie PROCEDURĘ; jedyne miejsce łapiące klasę systematycznie to wymóg dowodu mutacyjnego (procedura, nie przestroga). code-reviewer (krok weryfikacyjny w definicji) wyłapał 5/6 — brakowało odpowiednika u piszących.

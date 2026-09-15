@@ -36,6 +36,8 @@ Never verify in the same context that built the change. Never accept the builder
 
 A change can have multiple surfaces (endpoint + GUI that calls it) — verify the **outermost** one the user touches; inner surfaces are covered transitively unless the change is inner-only.
 
+**Which tree is being verified?** If the change lives on a branch in a worktree, the default app URL usually serves the MAIN tree, not the branch. The verifier must (a) hit a server whose docroot is the worktree, and (b) show a **discriminator** — one observation that comes out differently on the fixed tree than on the unfixed one (the same action on both ports, or a marker only the branch has in executed code, not in a static file). "The server on port N answered" is not evidence of which code ran.
+
 ---
 
 ## Step 2: Environment check (before dispatching the verifier)
@@ -103,5 +105,5 @@ Noisy tool-calling (browser automation) stays in the subagent — the orchestrat
 
 - `verification-before-completion` — inner gate (commands, tests, exit codes). verify-e2e is the outer gate (user surface). Both must pass before "done".
 - `task-lifecycle` — calls this skill as its verification stage.
-- `executing-plans` — final group of a plan includes this skill for user-facing changes.
+- `executingplans` — final group of a plan includes this skill for user-facing changes.
 - `systematic-debugging` — invoked when FAIL has a non-obvious cause.
