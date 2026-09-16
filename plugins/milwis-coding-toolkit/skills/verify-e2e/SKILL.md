@@ -51,7 +51,8 @@ A change can have multiple surfaces (endpoint + GUI that calls it) — verify th
    - Return status **BLOCKED** with the exact list of what is missing.
    - Append the gap to the `## Gaps / backlog` section of `docs/VERIFICATION_ENV.md` (create the file if absent).
 3. **Browser surface → ONE connectivity probe before the spawn** (`tabs_context_mcp`, a single call). "Not connected" or no answer → brief the verifier with the Playwright recipe from `VERIFICATION_ENV.md` directly and tell it NOT to try the browser MCP; no recipe → BLOCKED now, before any spawn. The verifier's own cap is in its prompt: three failed browser-tool calls → switch to the named fallback or return BLOCKED. `POMIAR` (KonkretnyTMS batch 3.1, #687): the verifier spent 31 calls / 6M input before returning BLOCKED on a disconnected Chrome MCP; the orchestrator's single probe afterwards answered "not connected" at once; the Playwright re-run then cost 11.6M → 5.5M → 4.2M as the recipe was reused.
-4. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. The environment compounds: every gap closed makes all future verifications stronger.
+4. **Browser surface → look up the project's e2e helper directory BEFORE the spawn** (the path is recorded in `VERIFICATION_ENV.md`, e.g. `tests/e2e/helpers/`): `ls` it, and pass the login / open-modal / A-B-route helper paths in the brief. A verifier that had to write such a helper returns its path in `Evidence`, and **the orchestrator commits it into that directory in the same verify phase** — the commit is part of closing the verify, not a courtesy. `POMIAR` (KonkretnyTMS batches 3.2–3.3): the same Playwright login+modal script was built from zero three times (#710, #683, then reused for #697); with the path in the brief the reuse run cost 104k / 10 calls against 198k / 118 calls for the from-zero run — a ~90k difference on an identical class of proof, and the from-zero script sat in git-ignored `.claude/tmp/`, so the next batch could not find it.
+5. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. The environment compounds: every gap closed makes all future verifications stronger.
 
 ---
 
@@ -68,7 +69,8 @@ Environment: [from VERIFICATION_ENV.md: URL, test login, tokens, tools]
 Tree state: [build/bundle flag as served (e.g. USE_BUNDLE=<value>, dist/ stale or fresh) — verified by the orchestrator this turn;
              which uncommitted changes in the tree are the orchestrator's (`git diff <file>` = the only local change; everything else is HEAD)]
 Discriminator: [ONE command whose output differs between fixed and unfixed tree, e.g. `curl -s <url> | grep -c 'js/modules'`]
-Reusable script: [path under scripts/e2e/ to start from, if one exists — extend it, do not rewrite from zero]
+Reusable script: [helper paths from the project's e2e helper directory (VERIFICATION_ENV.md) — extend them, do not rewrite from zero; a helper you had to write goes into that directory and its path into Evidence]
+State reset between steps: reload the page (`page.reload()`), never close modals programmatically (`Modal.getInstance(...).hide()` from `page.evaluate` did not close the modal in headless — POMIAR, cause unmeasured)
 Classifier-safe commands: copies via `cat A > .claude/tmp/B`, restore via `cat .claude/tmp/B > A` + `diff`; no `cp`, no `rm` outside .claude/tmp/, no `mv` of tracked or generated files.
 
 Your job is to try to PROVE THE CLAIM FALSE:
@@ -89,7 +91,7 @@ Return EXACTLY this structure:
 
 Noisy tool-calling (browser automation) stays in the subagent — the orchestrator's context receives only the verdict and evidence paths.
 
-**A verifier script that will be needed again is committed under `scripts/e2e/`, not left in the scratchpad.** A Playwright or HTTP harness that counts requests/intervals per view, logs in and walks a flow, is ~5k tokens to write once and ~0 to reuse; written from zero each time it is the single most expensive line of the verify. `POMIAR` (KonkretnyTMS batch 3.2, #710): the verifier built its Playwright script from scratch in `.claude/tmp/`, fought a stale `dist/` because the brief did not state the bundle flag, and attributed a committed config line to the orchestrator's local edit — 210k / 51 calls, the most expensive verify of the batch; batch 3.1 measured the reuse curve on the same kind of script at 11.6M → 5.5M → 4.2M input per run.
+**A verifier script that will be needed again is committed under the project's e2e helper directory (named in `VERIFICATION_ENV.md`), not left in the scratchpad.** A Playwright or HTTP harness that counts requests/intervals per view, logs in and walks a flow, is ~5k tokens to write once and ~0 to reuse; written from zero each time it is the single most expensive line of the verify. `POMIAR` (KonkretnyTMS batch 3.2, #710): the verifier built its Playwright script from scratch in `.claude/tmp/`, fought a stale `dist/` because the brief did not state the bundle flag, and attributed a committed config line to the orchestrator's local edit — 210k / 51 calls, the most expensive verify of the batch; batch 3.1 measured the reuse curve on the same kind of script at 11.6M → 5.5M → 4.2M input per run.
 
 ---
 
