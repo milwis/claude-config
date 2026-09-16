@@ -65,6 +65,11 @@ Claim under test: "[what the builder says now works, 1-2 sentences]"
 Change summary: [files touched / feature description — NOT the diff rationale]
 Surface: [GUI at <url> / API <method+path> / CLI <command> / ...]
 Environment: [from VERIFICATION_ENV.md: URL, test login, tokens, tools]
+Tree state: [build/bundle flag as served (e.g. USE_BUNDLE=<value>, dist/ stale or fresh) — verified by the orchestrator this turn;
+             which uncommitted changes in the tree are the orchestrator's (`git diff <file>` = the only local change; everything else is HEAD)]
+Discriminator: [ONE command whose output differs between fixed and unfixed tree, e.g. `curl -s <url> | grep -c 'js/modules'`]
+Reusable script: [path under scripts/e2e/ to start from, if one exists — extend it, do not rewrite from zero]
+Classifier-safe commands: copies via `cat A > .claude/tmp/B`, restore via `cat .claude/tmp/B > A` + `diff`; no `cp`, no `rm` outside .claude/tmp/, no `mv` of tracked or generated files.
 
 Your job is to try to PROVE THE CLAIM FALSE:
 1. Exercise the happy path exactly as a user would.
@@ -83,6 +88,8 @@ Return EXACTLY this structure:
 ```
 
 Noisy tool-calling (browser automation) stays in the subagent — the orchestrator's context receives only the verdict and evidence paths.
+
+**A verifier script that will be needed again is committed under `scripts/e2e/`, not left in the scratchpad.** A Playwright or HTTP harness that counts requests/intervals per view, logs in and walks a flow, is ~5k tokens to write once and ~0 to reuse; written from zero each time it is the single most expensive line of the verify. `POMIAR` (KonkretnyTMS batch 3.2, #710): the verifier built its Playwright script from scratch in `.claude/tmp/`, fought a stale `dist/` because the brief did not state the bundle flag, and attributed a committed config line to the orchestrator's local edit — 210k / 51 calls, the most expensive verify of the batch; batch 3.1 measured the reuse curve on the same kind of script at 11.6M → 5.5M → 4.2M input per run.
 
 ---
 
