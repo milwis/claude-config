@@ -52,7 +52,8 @@ A change can have multiple surfaces (endpoint + GUI that calls it) — verify th
    - Append the gap to the `## Gaps / backlog` section of `docs/VERIFICATION_ENV.md` (create the file if absent).
 3. **Browser surface → ONE connectivity probe before the spawn** (`tabs_context_mcp`, a single call). "Not connected" or no answer → brief the verifier with the Playwright recipe from `VERIFICATION_ENV.md` directly and tell it NOT to try the browser MCP; no recipe → BLOCKED now, before any spawn. The verifier's own cap is in its prompt: three failed browser-tool calls → switch to the named fallback or return BLOCKED. `POMIAR` (KonkretnyTMS batch 3.1, #687): the verifier spent 31 calls / 6M input before returning BLOCKED on a disconnected Chrome MCP; the orchestrator's single probe afterwards answered "not connected" at once; the Playwright re-run then cost 11.6M → 5.5M → 4.2M as the recipe was reused.
 4. **Browser surface → look up the project's e2e helper directory BEFORE the spawn** (the path is recorded in `VERIFICATION_ENV.md`, e.g. `tests/e2e/helpers/`): `ls` it, and pass the login / open-modal / A-B-route helper paths in the brief. A verifier that had to write such a helper returns its path in `Evidence`, and **the orchestrator commits it into that directory in the same verify phase** — the commit is part of closing the verify, not a courtesy. `POMIAR` (KonkretnyTMS batches 3.2–3.3): the same Playwright login+modal script was built from zero three times (#710, #683, then reused for #697); with the path in the brief the reuse run cost 104k / 10 calls against 198k / 118 calls for the from-zero run — a ~90k difference on an identical class of proof, and the from-zero script sat in git-ignored `.claude/tmp/`, so the next batch could not find it.
-5. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. The environment compounds: every gap closed makes all future verifications stronger.
+5. **Browser surface → the ENTRY POINT is measured before the spawn, and the brief names the surface a user can actually reach.** The cheapest measurement wins: `git grep -n '<handler>' -- views/ js/` showing the button / menu / route binding (or its absence); only when grep is ambiguous, ≤ 5 browser calls ("is element X in the DOM and clickable"). No entry point → the surface in the brief is the innermost reachable one (`page.evaluate` against the `window.*` contract, the endpoint), the GUI path is declared OUT OF SCOPE in the brief, and the missing entry point becomes a spin-off issue BEFORE the spawn. `POMIAR` (KonkretnyTMS batch 4.6, #549): the orchestrator had already measured `git grep addManualItem -- js/ views/` → definition + `window.addManualItem` export only, no button — in its own exec row — and still briefed a GUI flow; the verifier spent most of 86 calls / 190k diagnosing two pre-existing blockers on that unreachable path (`.col-md-3` selector, missing `select` argument — both `git blame` before the branch) and returned them as spin-off #784. ≈150k of the 190k bought no evidence about #549, and that was the whole +23% of the batch. The measurement was in the orchestrator's context; the brief did not carry it as scope.
+6. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. The environment compounds: every gap closed makes all future verifications stronger.
 
 ---
 
@@ -65,6 +66,8 @@ You are an ADVERSARIAL end-to-end verifier with no prior context.
 Claim under test: "[what the builder says now works, 1-2 sentences]"
 Change summary: [files touched / feature description — NOT the diff rationale]
 Surface: [GUI at <url> / API <method+path> / CLI <command> / ...]
+Connectivity probe: [`tabs_context_mcp` result from THIS turn — or `skipped: Playwright recipe <path> chosen`]
+Entry point: [command + output from THIS turn showing how a user reaches the surface (button / menu / route binding) — or `no GUI entry point: surface is <window.* call / endpoint>; the GUI path is OUT OF SCOPE, do not exercise it`]
 Environment: [from VERIFICATION_ENV.md: URL, test login, tokens, tools]
 Tree state: [build/bundle flag as served (e.g. USE_BUNDLE=<value>, dist/ stale or fresh) — verified by the orchestrator this turn;
              which uncommitted changes in the tree are the orchestrator's (`git diff <file>` = the only local change; everything else is HEAD)]
@@ -78,6 +81,7 @@ Your job is to try to PROVE THE CLAIM FALSE:
 2. Exercise at least one edge/negative case relevant to the change.
 3. Capture evidence at every step (screenshots / responses / output).
 4. Check for collateral damage: does the surrounding page/endpoint still work?
+5. A step that fails OUTSIDE the change summary — pre-existing: the same step fails on the main tree, or `git blame -L` of the failing line predates the branch (ONE such check, ≤ 5 calls) — gets ONE line in Deviations: step, error text verbatim, blame SHA. Then continue with the in-scope steps. You do NOT diagnose it further; the orchestrator files it as a spin-off issue.
 
 Save evidence to [scratchpad or .verify/ dir — never commit binaries].
 Return EXACTLY this structure:
@@ -89,6 +93,8 @@ Return EXACTLY this structure:
 - If BLOCKED: exact missing prerequisite(s)
 ```
 
+**Every bracketed line of the template is filled before the spawn — with a measurement from THIS turn or the explicit sentence `skipped: <reason>`; a brief with a blank or missing line is not sent.** The lines are a checklist, not a suggestion: `Connectivity probe`, `Entry point`, `Reusable script`, `State reset` each carry a rule that batches 3.1–3.3 added to this skill, and batch 4.6 measured them "not applied" for one shared reason — none reached the verifier. `POMIAR` (KonkretnyTMS batch 4.6): zero `mcp__claude-in-chrome__*` calls in the whole session transcript; `grep -c "tests/e2e/helpers"` and `grep -c "page.reload()"` on the verifier's 189-line script = 0 and 0; the verify brief itself was not preserved past a compaction, so whether the helper path was ever in it is unmeasured. A rule that lives in the skill and not in the brief does not reach the subagent — the brief is the only channel.
+
 Noisy tool-calling (browser automation) stays in the subagent — the orchestrator's context receives only the verdict and evidence paths.
 
 **A verifier script that will be needed again is committed under the project's e2e helper directory (named in `VERIFICATION_ENV.md`), not left in the scratchpad.** A Playwright or HTTP harness that counts requests/intervals per view, logs in and walks a flow, is ~5k tokens to write once and ~0 to reuse; written from zero each time it is the single most expensive line of the verify. `POMIAR` (KonkretnyTMS batch 3.2, #710): the verifier built its Playwright script from scratch in `.claude/tmp/`, fought a stale `dist/` because the brief did not state the bundle flag, and attributed a committed config line to the orchestrator's local edit — 210k / 51 calls, the most expensive verify of the batch; batch 3.1 measured the reuse curve on the same kind of script at 11.6M → 5.5M → 4.2M input per run.
@@ -97,6 +103,7 @@ Noisy tool-calling (browser automation) stays in the subagent — the orchestrat
 
 ## Step 4: Act on the verdict
 
+- **PASS with out-of-scope Deviations** (a pre-existing failure the verifier reported in one line) → the verdict on the claim stands; the orchestrator files the Deviation as a spin-off issue with the verifier's line and does not widen the task.
 - **PASS** → attach evidence paths to the completion report. Only now may "done" be claimed (`verification-before-completion` still applies to the wording).
 - **FAIL** → this is Stop-the-Line. Hand the verifier's repro steps to a builder subagent (or `systematic-debugging` for non-obvious causes). Re-verify after the fix with a **new** fresh verifier. Cap: 3 verify-fix cycles, then stop and report to the user.
 - **BLOCKED** → report the missing prerequisites to the user verbatim and record them in `VERIFICATION_ENV.md`. A BLOCKED verification is never silently skipped — the final report must say "verified: NO (blocked on X)".
