@@ -6,6 +6,18 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-18 — Deklaracja `tools:` dla 8 agentów bez niej (KonkretnyTMS #505, v1.5.19)
+
+Źródło: issue KonkretnyTMS #505 (audyt 360° 2026-08-19, DOC-011). `POMIAR`: 8/13 agentów bez `tools:` w frontmatterze — `backend-security-coder`, `code-reviewer`, `database-optimizer`, `debugger`, `javascript-pro`, `mobile-pwa-developer`, `sql-pro`, `test-automator`. Brak `tools:` = agent dziedziczy WSZYSTKIE narzędzia sesji, łącznie z MCP (Gmail, Drive, Notion, Chrome). Run 2026-09-15 dodał `tools:` tylko trzem `*-pro` i orkiestratorowi jako przeniesienie lokalnych adaptacji, bez polityki dla reszty — luka bez udokumentowanego powodu (0 commitów `-S"tools:"` na tych plikach).
+
+- Recenzenci (`code-reviewer`, `backend-security-coder`): `Read, Glob, Grep, Bash, SendMessage, Skill` — bez `Write`/`Edit` (recenzent nie pisze; naprawy idą do fixera).
+- Diagnostyka (`debugger`, `database-optimizer`): `Read, Glob, Grep, Bash, Write, Edit, SendMessage, Skill`.
+- Piszący (`javascript-pro`, `sql-pro`, `test-automator`, `mobile-pwa-developer`): `Read, Write, Edit, Bash, Glob, Grep, SendMessage, Skill` — identycznie jak `php-pro`.
+- Świadomie BEZ narzędzi MCP Chrome: verify-e2e robi `general-purpose` (ledgery partii 09-15…09-18: 5× general-purpose, 3× php-pro, 1× javascript-pro, 0× test-automator/debugger); Playwright w `test-automator` idzie przez Bash (`npm run test:e2e`). Gdy jakiś agent realnie potrzebuje MCP — dopisać JAWNIE do jego listy, nie zdejmować `tools:`.
+- Poza zakresem: `skryba` (plik lokalny KonkretnyTMS) ma prawo zapisu do `CLAUDE.md` CELOWO — decyzja właściciela 2026-09-18, część 2 issue #505 zamknięta jako „nie robić".
+
+---
+
 ## Run: 2026-09-17 (2) — Partia 4.8: test na żywej bazie z własnym fixture'em, zapadki korpusowe w testach celowanych, pytanie recenzenta o źródło danych, limit docbloku jako reguła agenta (v1.5.18)
 
 Źródło: aneks `docs/plans/zrealizowane/2026-09-17-roadmapa-partia-4-8-ledger.md` (tryb walidacji: 6/9 reguł z 3.1–3.3 zadziałało, 3 „nie dotyczy"). `POMIAR`: ≈547 k/issue (+32 % vs 4.7); bez fixera-po-suicie ≈482 k (+16 %, w rzędzie 4.7) — cała nadwyżka ponad próg to JEDEN spawn 194 k + drugi przebieg suity: builder #516 dodał do testu na żywej bazie dwa `markTestSkipped` zależne od zawartości `purchase_invoices`, recenzja opus (50 wywołań, 13 mutantów) i fixer przepuściły, `FixtureLotterySkipLatchTest` zaczerwieniła się dopiero w pełnej suicie. Ta sama zapadka była czerwona w 4.7 za ruch odwrotny (usunięty skip, ≈10 k inline) — aneks 4.7 uznał to za znaną klasę bez propozycji; drugi pomiar tej samej klasy w kolejnej partii, tym razem drogi, to sygnał do zmiany (hard rule 5). Wspólny mechanizm: zapadka korpusowa (czyta `tests/` jako tekst) nie odwołuje się do żadnego symbolu z diffu, więc definicja testów celowanych ze Step 2.4 (`git grep -l '<symbol>' tests/`, wprowadzona w 3.4) strukturalnie jej nie znajduje — luka tekstu skilla, nie tylko buildera, jak w 3.4.

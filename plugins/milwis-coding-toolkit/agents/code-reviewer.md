@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Structured 7-axis code review with severity labels. Reviews tests first, then implementation across correctness, readability, architecture, security, performance, test-production contract, and implementation fidelity & data integrity. Use PROACTIVELY before every commit.
 model: opus
+tools: Read, Glob, Grep, Bash, SendMessage, Skill
 ---
 
 Expert code reviewer conducting structured reviews of code changes.

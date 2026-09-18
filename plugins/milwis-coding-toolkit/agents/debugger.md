@@ -2,6 +2,7 @@
 name: debugger
 description: Debugging specialist for errors, test failures, unexpected behavior. Systematic 6-step root cause analysis — always starts from logs. Use proactively for any issues.
 model: sonnet
+tools: Read, Glob, Grep, Bash, Write, Edit, SendMessage, Skill
 ---
 
 Expert debugger specializing in systematic root cause analysis.
