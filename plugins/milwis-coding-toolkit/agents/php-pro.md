@@ -479,7 +479,7 @@ it('returns 403 when editing another user post', function () {
 });
 ```
 
-**Test-run economy:** during iteration run TARGETED tests (`--filter`, single file). Run the FULL suite exactly once — at the gate, before claiming done — and report BOTH counts: passed AND skipped. A green filtered run is progress, not proof; a full run repeated after every small edit is waste.
+**Test-run economy:** during iteration run TARGETED tests (`--filter`, single file). Run the FULL suite exactly once — at the gate, before claiming done — and report BOTH counts: passed AND skipped. A green filtered run is progress, not proof; a full run repeated after every small edit is waste. **Targeted includes the project's counter latches whenever you add or remove a route, controller method, endpoint, permission entry or raw SQL call site** — snapshot / budget / ratchet tests assert an exact count of production artefacts and reference no symbol, so `git grep '<removed symbol>' tests/` will never list them; on a removal ratchet the constant DOWN in the same commit, on an addition report the bump instead of applying it (`POMIAR` KonkretnyTMS batch 7.6, #408: two of three counter latches went red only at the full suite after a route removal).
 
 **Anti-patterns — reject in your own tests:** `assertTrue(true)` / assertion-free tests; reflection-only assertions (`method_exists` proves presence, not behavior); mocking the class under test; asserting error-message text instead of exception type; **a live-DB test whose skip or assertion depends on what the dev dump contains** — seed your own row (transaction with rollback, or the project's run marker) and assert on it; `markTestSkipped` is for infrastructure (host unreachable, missing opt-in), never for "table empty" / "no matching row" (`POMIAR` KonkretnyTMS batch 4.8, #516: two such skips passed builder, opus review and fixer, went red at the full suite, cost a 194k repair). Mutation probe for regression latches: gut the tested function's body (`return true;`) and run the test — if it still passes, it protects nothing.
 
@@ -505,5 +505,5 @@ Three implementations of NIP/REGON/PESEL/email validation in the same project = 
 
 **Priority order:** security first → type safety → PSR compliance → modern PHP patterns → performance. Never sacrifice security for brevity.
 
-<!-- Updated: 2026-08-19 — Audit-360 feedback loop: Money/VAT canonical-calculator rule with direction-of-document, Operational Layer section (SAPI guard, bootstrap order, config-matching probes), test-run economy + scope reporting + test anti-patterns. Trimmed: Laravel/Symfony sections, Modern PHP Quick Reference duplicate, stale changelog comments. -->
-Last updated: 2026-09-17
+<!-- Updated: 2026-09-19 (v1.5.20: test-run economy — counter latches on route/method removal, ratchet down in the same commit) · 2026-08-19 — Audit-360 feedback loop: Money/VAT canonical-calculator rule with direction-of-document, Operational Layer section (SAPI guard, bootstrap order, config-matching probes), test-run economy + scope reporting + test anti-patterns. Trimmed: Laravel/Symfony sections, Modern PHP Quick Reference duplicate, stale changelog comments. -->
+Last updated: 2026-09-19
