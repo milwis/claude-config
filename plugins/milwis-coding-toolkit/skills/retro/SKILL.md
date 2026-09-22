@@ -38,6 +38,14 @@ For each category, look for the evidence named under *Use when*; skip the catego
 | **Information access** | BLOCKED verdicts; a verifier without a test account/port/browser; logs the builder could not see | a `docs/VERIFICATION_ENV.md` entry, a teed log, a read-only credential |
 | **Relay mechanics** (roadmapa only) | a threshold fired too early/late; a `hold` forgotten; a handoff row missing a path; a successor that re-explored | a rule in `roadmapa/SKILL.md` — remember the project's latch test on that file |
 
+### A "rule did not hold" verdict is itself a measurement
+
+When the run's annex walks the toolkit's rules as *held / did not hold*, each verdict is checked the way any other measurement is:
+
+1. **The command must match the rule's SCOPE.** A cap on production-code comments is measured on production paths, not on the whole diff; a "targeted tests ran" verdict is measured on the test names the rule enumerates, not on the suite. `POMIAR` (KonkretnyTMS batches 4.7 and 4.8): "the docblock cap did not hold" was recorded twice (24, then 40 lines) from the longest comment run in the WHOLE diff — including the test file's class header, the very place the rule sends the derivation to; scoped to production paths both diffs give **0** added comment lines. Two annexes, one escalating violation count, zero real violations and no change proposed.
+2. **A verdict of "did not hold" for the THIRD time, with the conclusion each time that it is an instance of an existing rule and not a gap, is the finding.** The rule exists, is in the agent overlays and in the briefs, and still does not change behaviour — so the candidate is a change to its MECHANISM (its scope, its measurement, a mechanical check that runs in the pipeline), never another paragraph of the same prose. Prose that has failed three times does not fail because it was too short.
+3. **A rule marked "not applicable" twice in a row is a candidate for deletion**, and a rule no transcript shows changing behaviour belongs in the *No-ops and sediment* row above.
+
 ---
 
 ## Step 3: Rank and write the candidates
