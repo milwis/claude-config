@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a self-spawning chain of sessions, one phase each (triage / plan / execute / verify), handing work through a committed roadmap + append-only ledger rather than through context. Input: issue numbers or a backlog. Output: `agent/issue-<nr>` branches with evidence in the ledger and a status table; the chain never merges to main — that is the owner's step."
+description: "Use when a BATCH of issues must be resolved with the owner away from the keyboard — a self-spawning chain of sessions, one phase each (triage / plan / execute / verify), handing work through a committed roadmap + append-only ledger rather than through context. Input: issue numbers or a backlog. Output: `agent/issue-<nr>` branches with evidence in the ledger and a status table; the chain never merges to main — that is the owner's step. Variant `kolejka nocna` (night queue, owner's explicit instruction only): one lead in the owner's own session, one issue subagent at a time spawning specialists, the lead merges locally and closes issues — references/kolejka-nocna.md."
 ---
 
 # Roadmapa (a chain of sessions that resolves a batch of issues without the owner present)
@@ -73,6 +73,8 @@ Conclusions for the delegator: **delegate narrowly**. A task like "review the wh
 
 **A subagent never hands work off sideways.** It does not spawn a second subagent (most definitions lack the `Agent` tool — `php-pro` has `Read, Write, Edit, Bash, Glob, Grep`) and does not start a session via `claude --bg` from Bash.
 
+**Exception — night queue only** (`references/kolejka-nocna.md`): the issue subagent is `general-purpose` and spawns specialists for its own issue (depth 2), because there the lead is the owner's session and no generation hands off to another. The `claude --bg` ban holds at every depth, and a specialist spawned by the issue subagent spawns nobody.
+
 The hook blocks the typical forms of that call, but this is **defence in depth, not a latch** — and you need to know that before relying on it. The command blacklist is by definition incomplete: `sudo claude`, `nohup claude`, `timeout 600 claude`, `bash -c 'claude …'` and a binary name passed via a variable **get through** (measured). The first version of the guard even let through `KTMS_RELAY_GEN=2 claude --bg …`, i.e. literally the form §5 of this skill teaches and which the hook itself injects into context — the ban could be defeated by copying the instruction the subagent received from the very same mechanism. Closed, but the remaining gaps stay: what really holds here is the content of the injected instruction, not the regex.
 
 **Why there is NO `permissions.deny` rule with `Bash(claude:*)` here** — considered and rejected 2026-09-05 after measurement, not by oversight. The rule is stronger than the regex: `POMIAR` (`claude -p --disallowedTools "Bash(claude:*)"`) showed that it blocks `nohup claude …` and `C=claude; $C …`, i.e. variants no regex can catch, and **there are no false positives** on commands merely quoting `claude` (`echo`, `grep`, `git log --grep`). The shared hole of both is `bash -c '…'`.
@@ -138,10 +140,10 @@ The roadmap does not have to be a list of issues — it can be a list of phases 
 - the list of issues after triage, each with a one-sentence scope, a **size-class hint** (Trivial / Small / Standard / Large per `task-lifecycle` Step 0 — from the fresh anchors: expected diff, files, modules, whether it touches money/auth/regulated data), the phases that follow from it (`plan` only for Large) and a `cloud-safe`/`local-only` label (criterion in §4a). The hint is G1's estimate; the generation that opens the issue makes the final call at intake (§4) and records it in the ledger with the reason;
 - ordering (first what unblocks the rest; never two issues touching the same table next to each other);
 - **execution track** — relay (default) / orchestrator / cloud, chosen per the criterion in §4a and justified in ONE sentence;
-- **issue completion mode** — always `branch` (§4b); the `local-merge` mode has been abolished and must not be declared;
+- **issue completion mode** — always `branch` (§4b); the `local-merge` mode has been abolished and must not be declared. A night-queue roadmap declares instead `tryb: kolejka nocna` and quotes the owner's instruction (`references/kolejka-nocna.md`);
 - **chain mode** — `batch` (default: the chain ends together with the roadmap) or `continuous`
   (after the roadmap is exhausted, a curator of the next wave is created) — §4c;
-- what the chain must not do: push to `origin`, deploy, `gh issue close`, sending to KSeF.
+- what the chain must not do: push to `origin`, deploy, `gh issue close`, sending to KSeF (night queue excepted: its lead merges and closes — `references/kolejka-nocna.md`).
 
 **Ledger** — `docs/plans/<the-same-slug>-ledger.md`, **append-only**, one row per completed phase.
 
@@ -244,13 +246,15 @@ was consistent with the skill of that time — the defect was in the skill, not 
 
 ## 4a. Choosing the track
 
-Three tracks, chosen at G1, recorded in the roadmap (§3) and justified in ONE sentence:
+Three tracks (plus the night-queue variant below the table), chosen at G1, recorded in the roadmap (§3) and justified in ONE sentence:
 
 | Track | When | Who works |
 |---|---|---|
 | **Relay** (default, §1-§7 below) | everything except the two rows below — including long/atomic phases (§2, `hold`) and batches where phases overlap on the same files | successive sessions, one at a time |
 | **Orchestrator** | phases that are SHORT and FILE-DISJOINT — subagents can run in parallel in separate worktrees without collision | one lead session + subagents (`isolation: worktree`) |
 | **Cloud** | a batch labelled `cloud-safe` | `claude --cloud`, one session per issue |
+
+**Night queue** (`kolejka nocna`) — a variant of the orchestrator track for "the owner starts it and is away for the night": the lead is the owner's OWN interactive session (never `claude --bg`), issues run strictly one at a time, each in one `general-purpose` subagent that runs `task-lifecycle` in full and spawns specialists, and the lead merges each verified branch into local `main` and closes the issue. Chosen ONLY when the owner's own prompt names it and authorises merging and closing — never inferred. Mechanics, pre-flight, the lead's loop, spin-off issues and stop conditions → `references/kolejka-nocna.md`.
 
 The measured advantage of the relay for the owner: it lets several issues be closed without approaching the computer and uses noticeably fewer tokens than the previous arrangement — which is why it stays the default, and the other two tracks are an exception for a specific batch shape, not an equal alternative chosen freely.
 
@@ -286,7 +290,7 @@ The `status:do-scalenia` ("to be merged") label ("Done and verified on branch ag
 
 **What the chain must not do — closed list:** `git merge` into `main` (also `--ff`), `git push`, `gh issue close`, deploy, `npm run build`, changing `USE_BUNDLE`, sending to KSeF. "Verified on the branch" means "ready for the owner's review", not "deployed" nor "merged".
 
-**Owner-at-keyboard note — an instruction, not a mode.** When the owner's OWN prompt, in the session they are sitting at (G1, no `claude --bg` in between), explicitly says "merge locally and close each issue", that sentence authorises THAT session to merge with the `[roadmapa]` marker in the merge message and to `gh issue close` — for the issues named in that batch only. This is not something the roadmap declares, not something a generation may infer from the shape of the task, and it does not travel to G2+: a successor is a background session, the classifier from the `POMIAR` above stops it anyway, and a relayed quotation of the owner's consent is not consent (`CLAUDE.md` §4c — the session that received the instruction acts on it, no other). The ledger row quotes the owner's instruction verbatim and the final report still carries both warnings below. Mechanics of the close: write the markdown comment to a file and post it with `gh issue comment <nr> --body-file <path>`, then `gh issue close <nr> --reason completed` — never `--comment "<multi-line markdown>"` inline (`POMIAR` batch 2.4: zsh parse error on the inline body, the close did not happen). `POMIAR` (batch 2.3, 2026-09-15): three issues merged and closed under such an instruction in G1's own window, with the marker, without a single classifier bounce.
+**Owner-at-keyboard note — an instruction, not a mode.** When the owner's OWN prompt, in the session they are sitting at (G1, no `claude --bg` in between), explicitly says "merge locally and close each issue", that sentence authorises THAT session to merge with the `[roadmapa]` marker in the merge message and to `gh issue close` — for the issues named in that batch only. This is not something the roadmap declares, not something a generation may infer from the shape of the task, and it does not travel to G2+: a successor is a background session, the classifier from the `POMIAR` above stops it anyway, and a relayed quotation of the owner's consent is not consent (`CLAUDE.md` §4c — the session that received the instruction acts on it, no other). The ledger row quotes the owner's instruction verbatim and the final report still carries both warnings below. Mechanics of the close: write the markdown comment to a file and post it with `gh issue comment <nr> --body-file <path>`, then `gh issue close <nr> --reason completed` — never `--comment "<multi-line markdown>"` inline (`POMIAR` batch 2.4: zsh parse error on the inline body, the close did not happen). `POMIAR` (batch 2.3, 2026-09-15): three issues merged and closed under such an instruction in G1's own window, with the marker, without a single classifier bounce. The durable, whole-night form of this note is the night queue (§4a, `references/kolejka-nocna.md`) — the same authorisation, quoted in ledger row 0, with the lead as the only session that merges and closes.
 
 **When the owner merges themselves — two things the chain must warn them about in the final report:**
 
@@ -403,6 +407,10 @@ A `grep` with no hits is a measurement that **the repo says nothing about a defe
 ### The curator is NOT an ordinary generation
 
 The curator writes the roadmap and the ledger of the new wave, and **stops there** — it writes neither plans nor code (§4, G1). The first row of the new ledger contains the measured thresholds and the wave number. It spawns a successor per §5 unchanged.
+
+### New problems found on the way → new issues
+
+Every track: a defect found OUTSIDE the scope of the issue being worked is not fixed "while we are here" — it becomes a new issue. The subagent that found it lists it in its report (`NOWE PROBLEMY`: title, `path:line`, the `POMIAR` that shows it, proposed `modul:*` / `P*` / `typ:*`); the generation or lead checks for a duplicate first (`gh issue list --state all --search "<2-3 distinctive words>"` — a hit gets a comment with the new evidence, not a second issue), then creates it with `gh issue create --body-file` and all three label axes, and records the number in the ledger row. **A spin-off is never taken by the wave that found it** — it enters a later batch through normal triage, otherwise the chain feeds itself overnight. A problem that blocks the current issue makes the current issue `BLOCKED`; it is not a new queue item. Subagents never create issues themselves — one writer to the tracker, like one writer to the ledger.
 
 ## 5. Handoff protocol
 
@@ -521,7 +529,7 @@ Stop the chain in an emergency and notify the owner when:
   **nothing ever resets it, not even at a new wave.** So `RELAY_MAX_GEN` counts generations **cumulatively
   across all waves**, independently of the wave cap. **Do not "fix" this discrepancy by writing
   `echo 1 > …/<sid>.gen`** — that permanently disables the last generation counter;
-- a phase requires something forbidden: a push to `origin`, a deploy, `gh issue close`, sending to KSeF, operations on production;
+- a phase requires something forbidden: a push to `origin`, a deploy, `gh issue close` (night queue excepted: its lead merges and closes — `references/kolejka-nocna.md`), sending to KSeF, operations on production;
 - the full suite requires an exclusive slot, and other sessions are working in the tree;
 - the reviewer reported a `PLAUSIBLE` finding — it comes back as a **two-sided assignment** ("determine whether X or not-X, and state what settles it"), never as a ready fix.
 

@@ -6,6 +6,17 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-22 — `roadmapa`: tryb „kolejka nocna” (lider w sesji właściciela, podagent per issue z głębokością 2, merge lokalny + zamykanie issues, spin-offy jako nowe issues) (v1.5.24)
+
+Źródło: decyzja właściciela KonkretnyTMS (2026-09-22) — autonomiczna praca nocą przez 8-10 h, issues po kolei, podagent per issue z własnymi specjalistami, zamykanie rozwiązanych i zakładanie nowych issues. Stan sprzed zmiany: tag `roadmapa-przed-kolejka-nocna`.
+
+- `skills/roadmapa/references/kolejka-nocna.md` (nowy): tryb wybierany WYŁĄCZNIE własnym poleceniem właściciela w jego sesji; lider (L1) nie czyta i nie pisze kodu, jako jedyny scala lokalnie `--no-ff` z `[roadmapa]` i pisze do trackera; podagent issue (L2, `general-purpose`, jeden naraz) robi triage + `task-lifecycle` w całości i woła specjalistów (L3), którzy nie wołają nikogo; worktree kolejki z LOKALNEGO `main` + `.env` (nie `isolation: worktree`); heartbeat przez `/loop` (NIEZMIERZONE — pierwszy przebieg to pomiar); tokeny raportu `closed-on-head.` i `partial.`; kontrola przed merge'em; stopy. `POMIAR`: 69/1916 transkryptów podagentów KonkretnyTMS ma własne wywołanie `Agent` — głębokość 2 działa w tym harnessie.
+- `skills/roadmapa/SKILL.md`: opis, §1a (wyjątek głębokości 2 tylko dla kolejki nocnej), §4a (wariant pod tabelą torów), §4b (notka „owner-at-keyboard” wskazuje trwałą formę), nowa sekcja przed §5 — nowe problemy jako nowe issues na KAŻDYM torze (dedup, trzy osie etykiet, nigdy brane przez falę, która je znalazła, podagent nie pisze do trackera).
+- `skills/roadmapa/references/tor-orkiestratora.md`: wskazanie wyjątku.
+- Bez zmian: tor sztafety i zakaz scalania w nim (§4b, zamknięta lista), tryb zakończenia `branch`.
+
+---
+
 ## Run: 2026-09-22 — Partia 4.8: zakres i komenda pomiaru dla limitu docbloka, liczba w raporcie z własną komendą, werdykt „reguła nie zadziałała" jako pomiar (v1.5.23)
 
 Źródło: aneks `docs/plans/zrealizowane/2026-09-22-roadmapa-partia-4-8-ledger.md` (#828, commit `1593b2e3b`) + aneks partii 4.7. `POMIAR`: 730 182 tok/issue — **−18,3 % vs 4.7**, cała oszczędność z jednej pozycji (0 spawnów fixera wobec 227 128 tok rundy fixera w 4.7). Aneks zamknął się wnioskiem „brak nowej klasy — propozycji nie ma"; obie reguły oznaczone „nie zadziałała" dają się jednak zmienić mechanicznie, bo problem leży w POMIARZE werdyktu i w warstwie, do której reguła trafiła.

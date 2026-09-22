@@ -25,7 +25,7 @@ SHORT and FILE-DISJOINT (selection criterion: §4a of the main file).
 ## What the subagent does
 
 - Gets ONE phase (plan/exec/verify of one issue), works in its own worktree, returns a report
-  with evidence. Does not spawn further subagents — the same ban as in the relay (§1a of the main file:
+  with evidence. Does not spawn further subagents (the night-queue variant, `kolejka-nocna.md`, is the one exception: depth 2, sequential) — the same ban as in the relay (§1a of the main file:
   a subagent does not hand work sideways, does not start a separate background session).
 - Commits its work in ITS worktree before returning the report — the lead has no other way
   of recovering it than what the subagent managed to save before the end of its window.
