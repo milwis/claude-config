@@ -27,9 +27,9 @@ This skill DELEGATES to specialists from the `milwis-coding-toolkit` plugin. Wit
 /plugin install milwis-coding-toolkit         # if missing
 ```
 
-Specialists invoked via the Task tool (`subagent_type: <name>`).
+Specialists invoked via the `Agent` tool (`subagent_type: <name>`).
 
-The **Model** column is the model the audit RUNS each specialist on — since 2026-08-19 the agents' own frontmatter defaults to `sonnet` for daily work (token economy on subscription quota), so the orchestrator must pass an explicit **`model: opus`** override on every Task call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
+The **Model** column is the model the audit RUNS each specialist on — since 2026-08-19 the agents' own frontmatter defaults to `sonnet` for daily work (token economy on subscription quota), so the orchestrator must pass an explicit **`model: opus`** override on every `Agent` call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
 
 | # | Agent | Model | Domain | Prompt file |
 |---|-------|-------|--------|-------------|
@@ -63,7 +63,7 @@ Discipline skills active throughout (auto-loaded by the plugin):
 
 ## 3. Procedure — orchestrated by the main agent
 
-The MAIN agent (current Claude Code session) drives the procedure. All specialists are invoked via the Task tool.
+The MAIN agent (current Claude Code session) drives the procedure. All specialists are invoked via the `Agent` tool.
 
 **Announce at start**: "Running the audit-360 skill. I will delegate to N specialists from milwis-coding-toolkit and consolidate via code-reviewer (opus)."
 
@@ -115,13 +115,13 @@ This inventory lets specialist prompts stay short and generic — "audit the pro
 
 ### STEP 2 — Spawn specialists in parallel (one tool block)
 
-**CRITICAL**: invoke all Task calls in a SINGLE message. That's the only way to get genuine parallelism in Claude Code. Pass `model: opus` on every Task call (see §1 model policy).
+Invoke all specialist `Agent` calls in one message so they start together. Pass `model: opus` on every call (see §1 model policy).
 
 For each specialist you want to run:
 
 1. Read the corresponding prompt file from `prompts/` (Read tool).
 2. Substitute `<INVENTORY_PATH>` with the actual absolute path to `audit/INVENTORY.md`.
-3. Use the body as the `prompt` parameter of the Task call.
+3. Use the body as the `prompt` parameter of the `Agent` call.
 
 Specialist selection adapts to the stack detected in INVENTORY:
 
@@ -181,7 +181,7 @@ grep -c '^| P2-'  audit/REPORT.md
 
 Show output to the user. Without this, the audit is not "done".
 
-Also write `audit/RUN_META.md`: start/end timestamps, number of Task invocations per step, models used, and a **per-specialist state table** — `specialist | state | calls | tokens (if known) | note` with state ∈ `completed` / `truncated(budget)` (checkpoint present in its findings file) / `failed(<class>: timeout, context, tool, other)` / `reused` (resumed from a previous run). The audit's terminal state derives from that table: all `completed` → complete; any `truncated` → complete-with-gaps (list the Pending sections); any `failed` → the step is re-run or the gap is named in REPORT §1 — never "done" over a failed specialist. Any lost/failed/restarted pass is recorded **with its approximate cost**; a consolidation pass that fails or is redone MUST be here — "run 1 lost without record" must never happen again. Compare the actuals against the STEP 1 estimate (item 13) — that delta is the next audit's estimate. This file is how the user learns what the audit cost and where the budget went.
+Also write `audit/RUN_META.md`: start/end timestamps, number of `Agent` invocations per step, models used, and a **per-specialist state table** — `specialist | state | calls | tokens (if known) | note` with state ∈ `completed` / `truncated(budget)` (checkpoint present in its findings file) / `failed(<class>: timeout, context, tool, other)` / `reused` (resumed from a previous run). The audit's terminal state derives from that table: all `completed` → complete; any `truncated` → complete-with-gaps (list the Pending sections); any `failed` → the step is re-run or the gap is named in REPORT §1 — never "done" over a failed specialist. Any lost/failed/restarted pass is recorded **with its approximate cost**; a consolidation pass that fails or is redone MUST be here — "run 1 lost without record" must never happen again. Compare the actuals against the STEP 1 estimate (item 13) — that delta is the next audit's estimate. This file is how the user learns what the audit cost and where the budget went.
 
 ### STEP 8 — Feedback loop: propose agent updates
 
@@ -206,7 +206,7 @@ Present the file to the user and ASK whether to apply the updates. Do not modify
 
 ## 4. Common rules for every specialist
 
-Every Task call's prompt (already encoded in the `prompts/` files) tells the specialist:
+Every `Agent` call's prompt (already encoded in the `prompts/` files) tells the specialist:
 
 1. **Project context**: path to `audit/INVENTORY.md` — read first.
 2. **Read-only mode**: do NOT modify project code, only write to `audit/findings/NN-<area>.md`.
@@ -214,7 +214,7 @@ Every Task call's prompt (already encoded in the `prompts/` files) tells the spe
 4. **Anti-hallucination**: if no problems in a category, write `none found` — never invent.
 5. **Quote real code**: every finding cites a snippet read via Read/Grep, never assumed.
 6. **Tool-call budget**: ~50 tool calls per specialist. On overrun, stop and END the findings file with a `## Checkpoint` in five fixed sections — `Identified issues` (already written above, by id), `Tool-call conclusions` (one line per decisive command: what it established, e.g. `code_search("lastInsertId") → 21 hits, none cast`), `Completed`, `Pending` (areas not reached), `Current focus` (one sentence) — and set `truncated: true` in the header. The conclusions section is what makes a resumed or second specialist NOT re-run the same greps; a bare list of unexplored areas throws the run's measurements away. Budget exhaustion is coverage truncation, never a failed specialist — the orchestrator records it as `truncated(budget)` in RUN_META, not as a lost run.
-7. **No nested subagents**: specialists do not spawn further Task calls (Anthropic SDK limit).
+7. **No nested subagents**: specialists do not spawn further `Agent` calls — this keeps each specialist inside its ~50-call budget and its output in one findings file.
 8. **Verify recommendations**: any class / method / package suggested in a fix proposal must be confirmed to exist (`grep` / `npm view` / `composer show`) before being written into the report.
 9. **Hard-rules from INVENTORY §9**: grep the codebase for direct violations of every project hard-rule. Each violation = at least P1, automatic P0 if the rule concerns financial / regulated / PII data.
 
@@ -225,7 +225,7 @@ All specialist prompts live in `prompts/` so the main skill stays small. The wor
 1. Read `prompts/<NN>-<name>.md`.
 2. Find the fenced code block with the `subagent_type` / `description` / `prompt:` lines.
 3. Substitute `<INVENTORY_PATH>` (always required) and any other placeholders documented in the file.
-4. Use the body as the `prompt` parameter of the Task call.
+4. Use the body as the `prompt` parameter of the `Agent` call.
 
 | File | Purpose | When to use |
 |------|---------|-------------|
@@ -367,12 +367,12 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 
 ## 9. Best practices (operating manual)
 
-1. **Spawn in one tool block (STEP 2)**: the main agent invokes ALL Task calls in a single message. That's the only path to genuine parallelism.
+1. **Spawn in one tool block (STEP 2)**: the main agent issues all specialist `Agent` calls in one message so they run concurrently.
 2. **Each specialist gets its own context**: it does NOT inherit the project's `CLAUDE.md` automatically. The specialist prompts already point to `<INVENTORY_PATH>`.
 3. **Output schema**: every specialist writes to `audit/findings/NN-<area>.md` with the §7 finding format.
 4. **Read-only on the project**: specialists write only to `audit/findings/`. Consider `chmod -R a-w` on the audit branch as an extra guardrail.
 5. **Time/token budget**: each specialist has a budget of ~50 tool calls. The prompt already says so.
-6. **No nested subagents**: SDK limit — specialists never spawn more Task calls.
+6. **No nested subagents**: specialists never spawn further `Agent` calls (budget and single-findings-file discipline, see §4 rule 7).
 7. **Discipline overlay**: `verification-before-completion`, `systematic-debugging`, `test-driven-development` activate automatically inside each specialist (they're plugin-bundled).
 8. **Consolidation, self-review and P0 reproduction must be opus**: STEP 4, STEP 6 and STEP 5 carry the audit's judgment — Sonnet misses cross-confirmations and mis-attributes root causes, and both failures are silent (no later step re-checks them). Every other specialist is on Opus too; the toolkit does not currently mix classes.
 9. **PoC reproduction is mandatory**: STEP 5 — P0 without reproduction = P1 with note.

@@ -11,7 +11,7 @@ prompt: |
   You are auditing DEPENDENCIES and DOCUMENTATION of the application in
   <INVENTORY_PATH>. Mode: READ-ONLY.
 
-  This is your SECOND Task call. Do NOT repeat findings from the first
+  This is your SECOND `Agent` call. Do NOT repeat findings from the first
   language pass — focus exclusively on supply chain and docs.
 
   ZONE A — DEPENDENCIES:

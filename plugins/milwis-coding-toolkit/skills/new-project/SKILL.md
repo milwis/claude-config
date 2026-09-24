@@ -88,7 +88,7 @@ If NOT from marketplace:
 
 ### MANDATORY: Agent Routing Table in CLAUDE.md
 
-**Without an explicit routing table, Claude will NOT use specialized agents** — it will write code directly, bypassing AI-error-prevention and security rules in the agents.
+The routing table tells Claude which specialist agent owns which files. Without it, code gets written in the main session and the agents' error-prevention and security rules never load.
 
 Generate based on stack from Step 0:
 
@@ -97,11 +97,11 @@ Generate based on stack from Step 0:
 
 | Files / Context | Agent | Invocation |
 |---|---|---|
-| {backend_paths} | `{language}-pro` | ALWAYS for {language} code |
-| {frontend_paths} | `javascript-pro` | ALWAYS for JS/TS code |
-| {sql_paths}, DB queries | `sql-pro` | ALWAYS for SQL |
-| Security, API keys, auth | `backend-security-coder` | ALWAYS for security-related |
-| Before every commit | `code-reviewer` | MANDATORY — never skip |
+| {backend_paths} | `{language}-pro` | {language} code |
+| {frontend_paths} | `javascript-pro` | JS/TS code |
+| {sql_paths}, DB queries | `sql-pro` | SQL |
+| Security, API keys, auth | `backend-security-coder` | Security-related changes |
+| Before every commit | `code-reviewer` | Required before every commit |
 | Bugs, errors, failures | `debugger` | Start from logs, then code |
 | DB performance | `database-optimizer` | For slow queries, indexing |
 | Tests | `test-automator` | For test creation |
@@ -124,9 +124,9 @@ Rules for generating the table:
 ```markdown
 ## Non-negotiable rules
 
-- ALWAYS use the agent specified in the routing table — NEVER write code directly when an agent exists
-- ALWAYS run `code-reviewer` before committing
-- ALWAYS start debugging with `debugger` (logs first, then code)
+- Code in a path the routing table covers is written by that agent, so its language and security rules apply
+- Run `code-reviewer` before every commit
+- Debugging starts with `debugger`: logs first, then code
 - Use `Decimal` for money — NEVER float
 - Secrets in `.env` only — NEVER in code or logs
 - Parameterized SQL only — NEVER string formatting
@@ -481,6 +481,5 @@ Total: ~3-4 hours for a complete foundation.
 11. Skipping domain safety → general security isn't enough for financial/medical
 12. Skipping SBOM/dependency scanning → unpinned deps and unknown CVEs ship to production; increasingly a compliance requirement, not optional
 
-<!-- Updated: 2026-05-01 — Updated Docker images (postgres:18, mongo:8, rabbitmq:4), added PG 18 feature notes -->
-<!-- Updated: 2026-08-01 — Added SBOM generation (CycloneDX/SPDX), dependency pinning/lockfiles, automated dependency updates (Dependabot/Renovate), secret-scanning tool names (gitleaks/trufflehog/detect-secrets), vulnerability scanning (Trivy/Grype) in CI, MFA-on-publish-rights rule, postgres:18 Docker volume-path gotcha, and CI/CD platform landscape note -->
-Last updated: 2026-08-01
+<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-09-24

@@ -1,6 +1,6 @@
 # Prompt for `backend-security-coder` — Tier-1 security boundary
 
-Paste the body below (after the `prompt: |` line) as the `prompt` parameter of the Task call. Replace `<INVENTORY_PATH>` with the actual path to `audit/INVENTORY.md` (typically the repo root + `/audit/INVENTORY.md`).
+Paste the body below (after the `prompt: |` line) as the `prompt` parameter of the `Agent` call. Replace `<INVENTORY_PATH>` with the actual path to `audit/INVENTORY.md` (typically the repo root + `/audit/INVENTORY.md`).
 
 ```
 subagent_type: backend-security-coder

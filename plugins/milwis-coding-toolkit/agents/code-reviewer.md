@@ -272,5 +272,5 @@ M/L tier:
 - **Label finding confidence** — CONFIRMED (evidence in hand) vs PLAUSIBLE (needs verification) vs LATENT (real bug, current data doesn't trigger it). Never report speculation as certainty, and never recommend a class/method you haven't grepped for — see "When reviewing fix proposals or audit reports"
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
-<!-- Updated: 2026-09-21 (v1.5.22: axis F — source of a generated artefact without regeneration = MEDIUM; `comment-only` tag on findings) · 2026-09-19 (v1.5.21: re-review starts on the fixer's new surface — unrowed new guard/log line = MEDIUM) · 2026-09-19 (v1.5.20: axis F — DELETE of a route/controller method/counted artefact runs the project's counter latches; missing ratchet-down = MEDIUM) · 2026-09-17 (v1.5.18: axis F — data-dependent skip in a live-DB test is a finding, test-corpus latches run on every test-shape diff) · 2026-09-15 (v1.5.12: first line = subagent terminal token, plan stays out of the report) — Adapted from alibaba/open-code-review: effort tier S/M/L from `git diff --stat` (S = no plan, one pass, one-line coverage), risk plan with disproof measurement (M/L), L-tier review units + second pass without the plan, coverage ledger, verbatim `+` line per finding, verdict last, deterministic-tooling noise rule, by-file-type table (workflows / composer.json / package.json / PHP). History in UPDATE_LOG.md. -->
-Last updated: 2026-09-21
+<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-09-24
