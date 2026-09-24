@@ -6,6 +6,17 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-24 — `roadmapa`: tryb „kolejka ciągła” (bugi wg priorytetu P0→P3 bez końca, `/clear` lidera po każdym issue, watcher w tmux) (v1.5.26)
+
+Źródło: decyzja właściciela KonkretnyTMS (2026-09-24) — jeden agent ma naprawiać kolejne bugi bez końca na Macu (dostęp do lokalnej bazy dev), wg etykiet P0→P3, z merge'em lokalnym i zamknięciem issue po każdym, bez nowych funkcji, bez równoległości i bez snapshotu bazy; kontekst lidera ma nie ulegać kompaktowaniu. Uruchamiany dopiero po zakończeniu fal 10–12 (lider scala w drzewie głównym, więc w repo nie może działać inny lider).
+
+- `skills/roadmapa/references/kolejka-ciagla.md` (nowy): cykl lidera = dokładnie jedno issue (warunki wstępne → odzysk po `w-toku` → wybór → worktree L2 → L2 na PIERWSZYM PLANIE → dyspozycja po tokenie → kontrola, merge `--no-ff` `[roadmapa]`, zamknięcie + `status:zrobione-lokalnie` → wiersz ledgera → flaga `rotuj`). Nowy token L2 `feature.` (issue okazuje się nową funkcją → `status:odlozone`, bez kodu). Konflikt merge'a → `merge --abort` + odłożenie, bez rozwiązywania w drzewie głównym. Pusta kolejka → flaga `pusto`, czekanie `IDLE_MIN`. Stan wyłącznie poza kontekstem (etykiety, merge'e, ledger, pliki flag).
+- `skills/roadmapa/scripts/kolejka-ciagla/` (nowy): `kolejka.sh start|stop|status|lista` (sesja tmux z liderem w auto mode + okno watchera pod `caffeinate`; hooki tylko przez `--settings`, więc inne sesje w repo ich nie widzą), `watcher.sh` (`/clear` + prompt startowy po fladze lidera ORAZ znaczniku końca tury; powiadomienie przy braku aktywności; tura bez flagi → jeden restart, drugi z rzędu → stop), `wybierz-issue.sh` (P0→P3 + legacy `priorytet:*`, najstarsze pierwsze, tylko typy bugów, pomija funkcje/odłożone/zrobione/remediację oraz issues z istniejącą gałęzią `agent/issue-<nr>`), `hook-session-start.sh` (zasady, wiersz 0 i ostatnie wiersze ledgera, `w-toku`), `hook-stop.sh`.
+- `skills/roadmapa/SKILL.md`: opis + akapit pod tabelą torów.
+- `POMIAR` (2026-09-24, repo testowe, Claude Code 2.1.281, auto mode): interaktywna sesja w tmux scaliła `--no-ff`, dostała `/clear` przez `tmux send-keys`, nie pamiętała poprzedniej tury, dostała kontekst z hooka `SessionStart:clear` i scaliła ponownie — bez odbicia od klasyfikatora. `POMIAR` (ten sam dzień, przebieg testowy): lider przepisujący 130-znakową ścieżkę zgubił `/`, zapisał flagę w nieistniejącym katalogu i zgłosił sukces → reguła „każde wywołanie Bash zaczyna się od `. .claude/tmp/kolejka-ciagla/config.env`, ścieżki tylko ze zmiennych”. `NIEZMIERZONE`: prawdziwe issue z L2 i cała noc — pierwszy przebieg na KonkretnyTMS to próba na sucho.
+
+---
+
 ## Run: 2026-09-24 — Audyt promptów (`/claude-api prompt-audit`): mniej presji, bez archeologii incydentów w agentach, poprawione fakty o narzędziach w audit-360 (v1.5.25)
 
 Źródło: audyt promptów pod Claude Opus 5 / Sonnet 5 (aliasy `opus`/`sonnet` z frontmattera). Stan sprzed zmiany: commit `b64f6ac` (v1.5.24) — do porównania A/B na kolejnym przebiegu `roadmapa`. Reguły, komendy kontrolne i kontrakty raportów bez zmian merytorycznych; zmienia się rejestr i uzasadnienia.
