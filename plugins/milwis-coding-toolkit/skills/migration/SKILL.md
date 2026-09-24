@@ -68,6 +68,6 @@ Mixed-version safety: during Expand and Migrate the old reader must still work a
 
 - `writingplans` Step 0.5 — the reader/writer inventory is the same canon-and-variants inventory.
 - `executingplans` — migrations are always sequential and precede the code that depends on them.
-- `issue-pipeline` — DB-touching issues never run in parallel with each other (shared-resource rule).
+- `roadmapa` — the queue runs one issue at a time, so DB-touching changes never run in parallel (shared dev database).
 - `code-reviewer` — flags a migration without a rollback path or with an implicit Contract as CRITICAL.
 - `sql-pro` — the writer agent for the migration itself; `verify-e2e` — the DB-migration surface row.

@@ -30,7 +30,7 @@ Record the base: `git merge-base HEAD MERGE_HEAD`. Enable `git config merge.conf
 For each conflicting file, before touching a hunk:
 
 - **Our side:** the commit(s) that last changed the region (`git log -L<start>,<end>:<file> HEAD`), their messages, the issue / plan / ledger row they cite.
-- **Their side:** the same on `MERGE_HEAD`. For a roadmapa branch the ledger row of that issue (`Zrobione:` with commit SHAs) says what the change was for.
+- **Their side:** the same on `MERGE_HEAD`. For a roadmapa branch the issue's L2 report (`.claude/tmp/kolejka/raport-<nr>.md`) and the defer comment on the issue say what the change was for.
 - **The intent of the merge itself:** what the user asked for ("merge the three wave branches", "rebase onto main"). Where the two sides are incompatible, this is the tie-breaker.
 
 Comments in the code are not a source of intent when they contradict the commit or the issue — the commit is what was decided.
@@ -59,7 +59,7 @@ In the order the project documents (`CLAUDE.md`, CI config), typically: syntax c
 
 ## Step 5: Finish the operation
 
-- **Merge:** commit with the project's merge-message convention (e.g. a `[roadmapa]` marker when merging chain branches — the project `CLAUDE.md` says whether one is required and what it changes downstream, such as a deploy workflow).
+- **Merge:** commit with the project's merge-message convention (e.g. a `[roadmapa]` marker when merging queue branches — the project `CLAUDE.md` says whether one is required and what it changes downstream, such as a deploy workflow).
 - **Rebase:** `git rebase --continue` and repeat Steps 1–4 for every further conflicting commit until the rebase completes.
 - Never push as part of this skill; pushing `main` is the user's call, and for roadmapa branches the project's push rules apply.
 
@@ -69,6 +69,6 @@ Report: files resolved, each non-trivial resolution with the intent chosen and t
 
 ## Integration
 
-- `roadmapa` §4b — the chain never merges to main; this skill is the owner's step after a wave, run by the owner's session.
+- `roadmapa` — the queue's lead merges one issue at a time and, on a conflict, aborts and defers the issue instead of resolving it; this skill is the owner's step for such branches, run in the owner's session.
 - `verification-before-completion` — the gate on every "merged / tests pass" claim in the report.
 - `systematic-debugging` — when a test breaks only on the merged result and neither side explains it.

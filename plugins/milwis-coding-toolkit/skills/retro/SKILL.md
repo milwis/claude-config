@@ -1,6 +1,6 @@
 ---
 name: retro
-description: "Retrospective on a finished roadmapa wave, issue-pipeline batch, or single session: read the ledger and the subagent transcripts, find where tokens and quality were lost, and propose changes to the toolkit's skills/agents/hooks — every proposal with a POMIAR (command or file:line) and the rule it changes. Run after the wave, never inside it."
+description: "Retrospective on a finished roadmapa queue run or a single session: read the ledger and the subagent transcripts, find where tokens and quality were lost, and propose changes to the toolkit's skills/agents/hooks — every proposal with a POMIAR (command or file:line) and the rule it changes. Run after the run, never inside it."
 disable-model-invocation: true
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 **Core:** The toolkit improves only from measured runs. A retro turns one finished run into a short list of rule changes, each anchored to the transcript line or ledger row that justifies it — the same shape as the A–L corrections of 2026-09-15. Proposals without a POMIAR are opinions and do not enter `UPDATE_LOG.md`.
 
-**Entry:** the user names a wave / batch / session (ledger path, date, or "the last one"). Default: the most recent roadmapa ledger under `docs/plans/`.
+**Entry:** the user names a wave / batch / session (ledger path, date, or "the last one"). Default: the roadmapa queue ledger (`docs/plans/kolejka-ledger.md`) — the rows since the last retro.
 **Stop:** the user has a ranked list of candidates, each with POMIAR + affected file + proposed rule text, and has chosen which to apply. Applying them is a separate step (this skill edits nothing in the toolkit on its own).
 
 ---
@@ -17,7 +17,7 @@ disable-model-invocation: true
 
 Read, in this order, and keep every number with the command that produced it:
 
-1. **The ledger** (`docs/plans/<date>-roadmapa-…-ledger.md` or the issue-pipeline status table): per phase — window % at start/end, subagents spawned, `POMIAR`/`WNIOSEK` rows, what was left `NIE zmaterializowane`, every `CZĘŚCIOWA` handoff, every cap exhausted, every BLOCKED.
+1. **The ledger** (`docs/plans/kolejka-ledger.md`, older runs: `docs/plans/<date>-roadmapa-…-ledger.md`) plus the L2 reports in `.claude/tmp/kolejka/raport-<nr>.md`: per issue — token, review iterations, `POMIAR`/`WNIOSEK` rows, what was left `NIE zmaterializowane`, every `partial.`, every cap exhausted, every deferral and BLOCKED.
 2. **Subagent transcripts** for that run: `~/.claude/projects/<project-slug>/*.jsonl`, filtered by the run's date range. Per subagent, extract with a script (never by reading the JSONL in context): model, turn count, max context (`.message.usage` cache-read + input), tool-call histogram (`Read`/`Grep`/`Bash`/`Agent`), re-reads of the same file, first and last user-facing message. Write the table to `.claude/tmp/retro-<date>.tsv` and read only the table.
 3. **The diff of the run**: `git log --oneline <base>..<tip>` per branch, `git diff --stat`, review iterations per issue (count reviewer spawns), verify verdicts.
 4. **The toolkit as it was**: the plugin version in `UPDATE_LOG.md` that the run used — a rule that already exists in a newer version is not a proposal.
@@ -36,7 +36,7 @@ For each category, look for the evidence named under *Use when*; skip the catego
 | **Tool economy** | one subagent cost an outlier share of the run's tokens; a full suite delegated instead of backgrounded; an agent resumed instead of respawned; a plan written for a Small issue | a threshold, a cap, a "do this inline" exception, a `run_in_background` rule — with the measured before/after |
 | **No-ops and sediment** | a rule in a skill/agent that no transcript shows changing behaviour; a paragraph restating what the environment already says (`package.json` scripts, `--help`, config); a NEVER that reads as an instruction to do the thing | delete the sentence (whole sentence, not trimmed words), or rewrite the prohibition as the positive target behaviour |
 | **Information access** | BLOCKED verdicts; a verifier without a test account/port/browser; logs the builder could not see | a `docs/VERIFICATION_ENV.md` entry, a teed log, a read-only credential |
-| **Relay mechanics** (roadmapa only) | a threshold fired too early/late; a `hold` forgotten; a handoff row missing a path; a successor that re-explored | a rule in `roadmapa/SKILL.md` — remember the project's latch test on that file |
+| **Queue mechanics** (roadmapa only) | a lead that read code or pulled suite output; a watcher rotation that cut a running issue; a picker that took a feature or a deferred issue; a recovery that re-ran an interrupted issue | a rule in `roadmapa/references/cykl-lidera.md` or a script in `roadmapa/scripts/` — remember the project's latch test on the skill, if it has one |
 
 ### A "rule did not hold" verdict is itself a measurement
 
