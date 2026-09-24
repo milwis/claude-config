@@ -1,13 +1,14 @@
 #!/bin/bash
-# SessionStart hook (startup|clear|compact) of the continuous-queue lead. Its stdout becomes the fresh
+# SessionStart hook (startup|clear|compact) of the queue lead. Its stdout becomes the fresh
 # lead's context: where the rules are, the owner's authorisation (ledger row 0) and where the queue stands.
 # Registered only through the --settings file that kolejka.sh generates, so no other session runs it.
-K="${CLAUDE_PROJECT_DIR:-.}/.claude/tmp/kolejka-ciagla"
+K="${CLAUDE_PROJECT_DIR:-.}/.claude/tmp/kolejka"
 [ -f "$K/config.env" ] || exit 0
 # shellcheck disable=SC1091
 . "$K/config.env"
 
-echo "[kolejka ciągła] Ta sesja jest LIDEREM kolejki ciągłej: dokładnie jedno issue, potem koniec tury."
+echo "[kolejka] Ta sesja jest LIDEREM kolejki roadmapa: dokładnie jedno issue, potem koniec tury."
+[ -n "${KOLEJKA_LISTA:-}" ] && echo "Źródło: lista właściciela $KOLEJKA_LISTA (koniec listy = stop)." || echo "Źródło: backlog bugów P0→P3 (pusta kolejka = czekanie)."
 echo "Zasady (przeczytaj w całości przed pierwszą akcją): $INSTRUKCJA"
 echo "Nie wywołuj skilla /roadmapa — wszystko, czego potrzebujesz, jest w pliku zasad."
 echo

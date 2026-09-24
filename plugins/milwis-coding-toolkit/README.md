@@ -53,8 +53,8 @@ Ground truth for the reviewer itself: [AACR-Bench](https://huggingface.co/datase
 | `/new-project` | Universal foundation scaffold for any new project |
 | `/audit-360` | Comprehensive 360° code audit. Orchestrates parallel domain specialists, consolidates via code-reviewer (opus), reproduces P0 PoCs via debugger, self-reviews fix proposals against hallucinated APIs, and proposes agent updates from recurring patterns. Universal — adapts to any stack via `audit/INVENTORY.md` |
 | `/task-lifecycle` | Full autonomous cycle for one task: build (subagent) → code-review loop with auto-fix (cap 3) → security pass → `verify-e2e` in a fresh subagent → report package. Main session orchestrates, never codes |
-| `/retro` | Retrospective on a finished roadmapa wave / issue-pipeline batch / session: ledger + subagent transcripts → ranked toolkit change proposals, each with a POMIAR (command / file:line) and final rule text. Runs after the wave, applies nothing on its own |
-| `/issue-pipeline` | Batch resolution of GitHub issues / audit findings: triage against HEAD (stale findings die), file-disjoint batching, one `task-lifecycle` per issue on its own branch, monitor-by-exception, final status table |
+| `/retro` | Retrospective on a finished roadmapa queue run / session: ledger + subagent transcripts → ranked toolkit change proposals, each with a POMIAR (command / file:line) and final rule text. Runs after the run, applies nothing on its own |
+| `/roadmapa` | The issue queue: an explicit list or the bug backlog P0→P3 without end; a lead in tmux handles one issue per session (fresh subagent: triage on HEAD + `task-lifecycle`), merges locally with `[roadmapa]` and closes the issue, then `/clear`. Started by the owner with `scripts/kolejka.sh start`; never pushes, never builds features from the backlog |
 
 ### Discipline skills (auto-triggered by matching context)
 
@@ -102,23 +102,23 @@ The discipline skills are stackable and deliberately short — they are designed
 On top of the workflow above sits the orchestration layer (added after Boris's "steps of AI adoption" — the goal is that the human reviews *outputs*, not the *process*):
 
 ```
-              ONE TASK                          A BATCH OF ISSUES
-          /task-lifecycle                       /issue-pipeline
+              ONE TASK                          A QUEUE OF ISSUES
+          /task-lifecycle                       /roadmapa (kolejka.sh)
                 │                                      │
-   build → review-fix loop (≤3)          triage on HEAD → batch by file-
-   → security pass → verify-e2e           disjointness → one task-lifecycle
-   → report package                       per issue → status table
-                │                                      │
+   build → review-fix loop (≤3)          pick (list | bugs P0→P3) → fresh
+   → security pass → verify-e2e           subagent: triage + task-lifecycle
+   → report package                       → local merge [roadmapa] + close
+                │                          → /clear → next issue
                 └──────────────┬───────────────────────┘
                                ▼
               user reviews: diff + evidence + blockers
-              user decides: merge / push / deploy (NEVER the agent)
+              user decides: push / deploy (NEVER the agent)
 ```
 
 Key principles baked in:
 
 - **The orchestrator never writes code** — everything happens in subagents; the main context stays clean.
 - **Verification is adversarial and isolated** — a fresh subagent tries to falsify the "done" claim on the user's surface (pixels / HTTP / CLI), producing evidence artifacts. Smarter models cheat more convincingly; isolation is the countermeasure.
-- **Every loop has a hard cap** (3 review-fix, 3 verify-fix, 10 issues/run) — exhausted cap = stop and report, never spin.
+- **Every loop has a hard cap** (3 review-fix, 3 verify-fix, one issue per lead session) — exhausted cap = stop and report, never spin.
 - **BLOCKED is a first-class result** — missing test accounts / keys / tools get recorded in the project's `docs/VERIFICATION_ENV.md`, so the verification environment compounds over time.
-- **Upstream feed:** `/audit-360` findings → GitHub issues → `/issue-pipeline` closes the audit-to-remediation loop automatically.
+- **Upstream feed:** `/audit-360` findings → GitHub issues (bug-typed, prioritised) → the `/roadmapa` queue closes the audit-to-remediation loop.

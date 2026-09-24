@@ -1,5 +1,5 @@
 #!/bin/bash
-# Watcher of the continuous queue: after every issue it clears the lead's context and starts the next
+# Watcher of the queue: after every issue it clears the lead's context and starts the next
 # cycle by typing into the lead's tmux pane, exactly as the owner would (/clear, then the start prompt).
 # Started by `kolejka.sh start` in the second window of the tmux session, under caffeinate.
 #
@@ -9,7 +9,8 @@
 #   stop   — stop condition, content = reason; the watcher notifies and exits
 # plus tura-koniec from the Stop hook. A flag counts only together with tura-koniec, so the watcher
 # never clears a lead that is still working.
-# Owner's controls: $K/STOP (or `kolejka.sh stop`) = finish the current issue, then exit.
+# Owner's controls: $K/zatrzymaj (or `kolejka.sh stop`) = finish the current issue, then exit.
+# Flag names must differ in more than case — macOS file systems are case-insensitive (`STOP` = `stop`).
 set -uo pipefail
 # shellcheck disable=SC1090
 . "$1"
@@ -18,7 +19,7 @@ cd "$K" || exit 1
 log() { echo "$(date '+%F %T') $*" >> "$K/watcher.log"; }
 powiadom() {
   log "POWIADOMIENIE: $1"
-  osascript -e "display notification \"${1//\"/\'}\" with title \"Kolejka ciągła\"" 2>/dev/null
+  osascript -e "display notification \"${1//\"/\'}\" with title \"Kolejka roadmapa\"" 2>/dev/null
 }
 wyslij() { tmux send-keys -t "$SESJA:0" -l "$1"; sleep 1; tmux send-keys -t "$SESJA:0" Enter; }
 nowy_cykl() {
@@ -54,8 +55,8 @@ while sleep 20; do
   fi
 
   if [ -f stop ]; then zakoncz "Lider zatrzymał kolejkę: $(cat stop)"; fi
-  if [ -f STOP ] || [ -f "$HOME/.claude/relay-state/STOP-roadmapa" ]; then
-    [ -f rotuj ] || [ -f pusto ] && zakoncz "Kolejka zatrzymana przez właściciela (plik STOP)."
+  if [ -f zatrzymaj ] || [ -f "$HOME/.claude/relay-state/STOP-roadmapa" ]; then
+    [ -f rotuj ] || [ -f pusto ] && zakoncz "Kolejka zatrzymana przez właściciela (kolejka.sh stop)."
   fi
 
   if [ -f rotuj ]; then
@@ -63,8 +64,10 @@ while sleep 20; do
     log "cykl: koniec issue #$(grep '^| [0-9]' "$REPO/$LEDGER" 2>/dev/null | tail -1 | cut -d'|' -f4 | tr -d ' #')"
     nowy_cykl
   elif [ -f pusto ]; then
+    KOLEJKA_PUSTO_POWOD=$(head -c 200 pusto)
+    [ -n "$KOLEJKA_PUSTO_POWOD" ] && powiadom "Kolejka: $KOLEJKA_PUSTO_POWOD"
     BEZ_FLAGI=0
-    log "kolejka pusta — czekam $IDLE_MIN min"
+    log "kolejka pusta — czekam $IDLE_MIN min${KOLEJKA_PUSTO_POWOD:+ ($KOLEJKA_PUSTO_POWOD)}"
     rm -f tura-koniec
     sleep $((IDLE_MIN * 60))
     nowy_cykl
