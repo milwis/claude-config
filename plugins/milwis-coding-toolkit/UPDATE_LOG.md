@@ -6,6 +6,13 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-24 — Kolejka: lider czeka na raport L2 blokująco, L2 nie zostawia timerów (v1.5.28)
+
+Źródło: pierwsza próba kolejki na KonkretnyTMS (`--issues 898,904`). `POMIAR`: oba L2 wystartowały w tle mimo reguły „spawn in the foreground” — narzędzie Agent w tej wersji uruchamia podagentów w tle i nie ma opcji pierwszego planu. Lider #904 sam zablokował turę pętlą w Bash czekającą na `raport-904.md`. L2 #898 zostawił timer, który obudził go 10 min po oddaniu raportu, już po `/clear` lidera.
+
+- `references/cykl-lidera.md` krok 4: zamiast „foreground” — po spawnie lider blokuje turę pętlą `test -s "$K/raport-$N.md"` (Bash `timeout: 600000`, powtarzana). Powód: zakończona tura = `tura-koniec`, a watcher po `GRACE_MIN` ciszy (długa suita) restartowałby cykl nad pracującym issue.
+- Brief L2, punkt 6: przed końcowym komunikatem zatrzymaj każdy własny proces w tle, Monitor i timer.
+
 ## Run: 2026-09-24 — Konsolidacja: jeden silnik `roadmapa` (kolejka), usunięte sztafeta, tory orkiestratora i chmurowy, kolejka nocna i `issue-pipeline` (v1.5.27)
 
 Źródło: decyzja właściciela (2026-09-24) — kilka ścieżek do tego samego zadania (rozwiązać issues autonomicznie) ma zostać zastąpionych jedną. Stan sprzed zmiany: tag `roadmapa-przed-konsolidacja`. `POMIAR` (ledgery KonkretnyTMS na `main`): ostatni ledger wielogeneracyjny (sztafeta) 2026-09-13, od 14.09 wyłącznie partie jednogeneracyjne w sesji właściciela i kolejka nocna (p1–p9, fale 7–12); tor orkiestratora tylko w próbie na sucho 05.09; `issue-pipeline` 2 wzmianki w commitach od 10.09.
