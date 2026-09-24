@@ -23,7 +23,7 @@ backlog source). `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-chara
 - **L1 — you.** You read no code and write no code. You alone merge into `$MAIN`, close/label/create issues
   and commit the ledger.
 - **L2 — issue subagent**, one per issue: `general-purpose` (it needs the `Agent` tool), `model: $MODEL_L2`,
-  `name: issue-<nr>`, spawned in the **foreground**. It runs triage + `task-lifecycle` in full in `$WT` and
+  `name: issue-<nr>`; your turn stays open until its report exists (step 4). It runs triage + `task-lifecycle` in full in `$WT` and
   reports. It never merges, pushes, closes or creates issues, never edits the ledger.
 - **L3 — specialists** spawned by L2 per `task-lifecycle` (`php-pro`, `javascript-pro`, `sql-pro`,
   `code-reviewer`, `backend-security-coder`, `Explore`, the project's doc agent…). L3 spawns nobody.
@@ -87,8 +87,17 @@ git -C "$WT" status --short                     # must be empty — someone else
 git -C "$WT" checkout -b "agent/issue-$N" "$MAIN"
 ```
 
-**4. Spawn L2 in the foreground** and wait. A foreground wait means your turn cannot end while L2 works, so the
-watcher can never `/clear` a running issue. The brief:
+**4. Spawn L2, then keep your turn open until its report exists.** The Agent tool starts subagents in the
+background — there is no foreground option to rely on (`POMIAR` 2026-09-24, first KonkretnyTMS run: both L2s
+ran in the background). If your turn ended while L2 works, the Stop hook would mark `tura-koniec` and the
+watcher could restart the cycle over a running issue once L2 goes quiet for `GRACE_MIN` (a long test run).
+So right after the spawn, block in Bash with `timeout: 600000` — one call waits at most ~9 minutes; repeat
+the call until it prints the token:
+```bash
+. .claude/tmp/kolejka/config.env && for i in $(seq 1 108); do test -s "$K/raport-$N.md" && break; sleep 5; done; test -s "$K/raport-$N.md" && head -1 "$K/raport-$N.md" || echo CZEKAM
+```
+Nothing else in between — no reading, no Monitor, no other work. When L2's message arrives first, use it; when
+the report file appears first, go on from its first line. The brief:
 
 ```
 You are the issue subagent issue-<N> of the roadmapa queue. Lead: <your agent name, or "the top-level session">.
@@ -115,7 +124,9 @@ Never touch <$REPO> (the main tree).
 4. Project-local rules: <path to the project's local-adaptations doc, if any>.
 5. Forbidden: git merge, git push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
    production.
-6. Before ANY report token commit everything on the branch — `git status --short` must be empty, also for
+6. Leave nothing running: before your final message stop every background shell, Monitor and wait timer you
+   started (TaskStop) — a leftover timer wakes you after the lead has moved on (`POMIAR` 2026-09-24, issue-898
+   woke 10 minutes after its report). Then, before ANY report token, commit everything on the branch — `git status --short` must be empty, also for
    BLOCKED / ambiguous. Near your window cap (the hook's own-window message) on a Large issue: commit, report
    `partial.` with what remains.
 7. Defects found OUTSIDE this issue's scope are not fixed: list them in a `NOWE PROBLEMY` section (title,
