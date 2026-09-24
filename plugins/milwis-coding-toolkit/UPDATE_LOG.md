@@ -6,6 +6,13 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-24 — Kolejka: hook SessionStart tylko dla lidera, nigdy dla podagenta (v1.5.29)
+
+Źródło: pierwsza noc pełnej kolejki na KonkretnyTMS. `POMIAR` (transkrypt `agent-a694684c0848cbe29`, 2026-09-24 23:05): plik `--settings` obowiązuje cały proces lidera, więc auto-kompakcja budowniczego L3 (`build-906-1`, sonnet) odpaliła `SessionStart:compact` z tekstem „Ta sesja jest LIDEREM”. Budowniczy wykonał cykl lidera: odłożył #906 (w trakcie pracy L2) i #909 na GitHubie, dopisał dwa wiersze ledgera na `main` i zostawił flagę `stop`. Kodu nie ruszył, worktree #906 nietknięty.
+
+- `scripts/hook-session-start.sh`: wyjście bez tekstu, gdy payload ma `agent_id`; pierwsza linia tekstu każe podagentowi zignorować wiadomość (druga warstwa, gdyby payload kompakcji podagenta nie niósł `agent_id` — `NIEZMIERZONE`).
+- `scripts/hook-stop.sh`: ten sam strażnik `agent_id`.
+
 ## Run: 2026-09-24 — Kolejka: lider czeka na raport L2 blokująco, L2 nie zostawia timerów (v1.5.28)
 
 Źródło: pierwsza próba kolejki na KonkretnyTMS (`--issues 898,904`). `POMIAR`: oba L2 wystartowały w tle mimo reguły „spawn in the foreground” — narzędzie Agent w tej wersji uruchamia podagentów w tle i nie ma opcji pierwszego planu. Lider #904 sam zablokował turę pętlą w Bash czekającą na `raport-904.md`. L2 #898 zostawił timer, który obudził go 10 min po oddaniu raportu, już po `/clear` lidera.
