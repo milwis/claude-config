@@ -6,6 +6,20 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-24 — Audyt promptów (`/claude-api prompt-audit`): mniej presji, bez archeologii incydentów w agentach, poprawione fakty o narzędziach w audit-360 (v1.5.25)
+
+Źródło: audyt promptów pod Claude Opus 5 / Sonnet 5 (aliasy `opus`/`sonnet` z frontmattera). Stan sprzed zmiany: commit `b64f6ac` (v1.5.24) — do porównania A/B na kolejnym przebiegu `roadmapa`. Reguły, komendy kontrolne i kontrakty raportów bez zmian merytorycznych; zmienia się rejestr i uzasadnienia.
+
+- **F1** `skills/lang-guidelines/references/agent-template.md`: generator nie każe już pisać każdej reguły jako NEVER/ALWAYS — reguła wprost z powodem, NEVER/ALWAYS tylko dla kilku reguł chroniących przed realną szkodą (bezpieczeństwo, utrata danych, pieniądze); nagłówek sekcji bez `CRITICAL:`, bez „You MUST avoid every one".
+- **F2** `agents/php-pro.md`, `javascript-pro.md`, `python-pro.md`, `nextjs-pro.md`: otwarcia bez statystyk branżowych (Veracode) i `CRITICAL`/`MUST` — zgodnie z polityką pkt 2; powód (legacy wzorce w danych treningowych) zostaje.
+- **F3** `skills/new-project/SKILL.md`: tabela routingu i „Non-negotiable rules" generowane do CLAUDE.md projektu bez ALWAYS/NEVER/MANDATORY przy delegowaniu do agentów — ta sama treść wprost, z powodem. Reguły domenowe (Decimal, sekrety, parametryzowany SQL) bez zmian.
+- **F4** `agents/*.md` (10 agentów z overlayem): blok „Discipline overlay — measurement vs. conclusion" bez wstawek `POMIAR (KonkretnyTMS batch …)`, numerów issue, hashy commitów i liczb tokenów — w miejsce każdej jedno zdanie powodu. Wszystkie 10 reguł, komendy pomiarowe, pułapki regexów i komunikat hooka `Zużyłeś N% własnego okna` zostają. 1406 → 1016 słów na kopię. Pomiary źródłowe są w tym pliku (wpisy v1.5.13–v1.5.24). **To zmiana do zmierzenia** — jeśli w partii wzrosną rundy review, stopy `ambiguous. ask:` / „context exhausted" albo znikną tabele mutantów i kontrole pozytywne, przywrócić jedno zdanie powodu przy konkretnej regule, nie całą narrację.
+- **F5** stopki agentów + `skills/new-project/SKILL.md`: skumulowane komentarze `<!-- Updated -->` zastąpione jednym krótkim (polityka pkt 4).
+- **F6** `skills/audit-360/SKILL.md`, `prompts/01-backend-security.md`, `prompts/09-deps-docs.md`: narzędzie `Task` → `Agent` (reszta toolkitu już tak pisze); usunięte „only way to get genuine parallelism" i `CRITICAL`; zakaz zagnieżdżania specjalistów zostaje, ale z prawdziwym powodem (budżet ~50 wywołań, jeden plik znalezisk) zamiast „Anthropic SDK limit", któremu przeczy pomiar w `roadmapa/references/kolejka-nocna.md` (głębokość 2 działa).
+- Bez zmian (niska pewność, tylko oznaczone w audycie): narracje `POMIAR` w skillach orkiestracyjnych (`roadmapa`, `task-lifecycle`, `verify-e2e`), uzasadnienie „długi kontekst psuje edycje AI" przy progach 1500/2500 LOC, statystyki w `code-reviewer`/`debugger`/`backend-security-coder`/`prompts/02,03,07` (rozjechane daty Veracode 2025/2026), cytat z system card w `verify-e2e`, nagłówki ROLE/PRIME DIRECTIVE w `refactoring-orchestrator`.
+
+---
+
 ## Run: 2026-09-22 — `roadmapa`: tryb „kolejka nocna” (lider w sesji właściciela, podagent per issue z głębokością 2, merge lokalny + zamykanie issues, spin-offy jako nowe issues) (v1.5.24)
 
 Źródło: decyzja właściciela KonkretnyTMS (2026-09-22) — autonomiczna praca nocą przez 8-10 h, issues po kolei, podagent per issue z własnymi specjalistami, zamykanie rozwiązanych i zakładanie nowych issues. Stan sprzed zmiany: tag `roadmapa-przed-kolejka-nocna`.

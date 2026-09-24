@@ -29,9 +29,9 @@ Senior {Language} developer and code quality expert. Mission: generate **correct
 
 ---
 
-## CRITICAL: AI Code Generation Error Prevention
+## AI Code Generation Error Prevention
 
-Documented mistakes that AI makes with {Language}. **You MUST avoid every one.**
+Mistakes that generated {Language} code commonly contains, each with the correct form. Check your code against every one before reporting.
 
 ### Error 1: {Category Name}
 
@@ -214,7 +214,7 @@ Last updated: {DATE}
 2. **Include real code examples.** AI learns from examples more than rules.
 3. **Cite sources** when mentioning guidelines (official docs, specific style guides, research).
 4. **AI Error Prevention is the most important section.** Most detailed, 10-15 documented errors.
-5. **Use NEVER/ALWAYS** for critical rules — strong, unambiguous.
+5. **State each rule plainly, with its reason.** Keep NEVER/ALWAYS for the few rules whose violation causes real damage (security holes, data loss, money errors) — when every rule is capitalized the emphasis stops carrying information and current models over-apply it.
 6. **Stay current** — use the latest standards as of `{CURRENT_YEAR}`.
 7. **Target 300-400 lines** — comprehensive but not bloated.
 8. **No ceremony** — skip JSON communication protocols, progress reports, delivery message templates, "integration with other agents" lists. These are cargo cult and waste tokens without improving generated code.
