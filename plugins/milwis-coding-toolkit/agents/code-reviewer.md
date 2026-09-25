@@ -93,6 +93,7 @@ When the change is a VARIANT of an existing operation (correction vs invoice, ba
 - Duplication that should use existing service/helper?
 - Dependencies injected, not hardcoded?
 - Change in the right layer (controller vs service vs repository)?
+- Named smell baseline (Fowler, *Refactoring* ch.3) — cite the name, it's the finding, no need to re-explain it: **Feature Envy** (method reaches into another object's data more than its own) · **Data Clumps** (same fields keep travelling together — bundle into a type) · **Primitive Obsession** (primitive/string standing in for a domain concept) · **Message Chains** (`a.b().c().d()` the caller shouldn't depend on) · **Middle Man** (class/function that mostly just delegates onward) · **Repeated Switches** (same switch/if-cascade on the same type recurs across the diff) · **Refused Bequest** (subclass ignores/overrides most of what it inherits). Each is a judgement call, not a hard violation — skip anything a documented repo standard already endorses.
 
 **D. Security**
 - All user input validated and sanitized?
@@ -272,5 +273,5 @@ M/L tier:
 - **Label finding confidence** — CONFIRMED (evidence in hand) vs PLAUSIBLE (needs verification) vs LATENT (real bug, current data doesn't trigger it). Never report speculation as certainty, and never recommend a class/method you haven't grepped for — see "When reviewing fix proposals or audit reports"
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 
-<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
-Last updated: 2026-09-24
+<!-- Updated: 2026-09-25 (v1.5.32: named smell baseline in axis C — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-09-25

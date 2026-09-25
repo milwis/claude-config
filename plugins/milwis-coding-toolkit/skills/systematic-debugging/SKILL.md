@@ -39,6 +39,8 @@ If you have not completed Phase 1, you cannot propose a fix. No exceptions — n
 
 **ALWAYS start from logs and observability — never from reading code.**
 
+**Redact before you show anything.** Every command, log line, or captured artifact quoted in this session — from the first `grep` in this step through the final report — gets secrets replaced with `<REDACTED>` first: API keys, tokens, passwords, connection strings, PII. Build feedback loops against env vars so the credential stays in the environment rather than in what gets shown. If the redacted output isn't enough to diagnose the bug, say so and ask the user for a scoped/redacted artifact instead of pasting the raw one.
+
 1. **Early-warning signals first**, if the project has any (health report, monitoring dashboard, alerting channel, anomaly detection). If something is flagged there, the issue is there — not in the raw error log.
 2. **Map symptom → log source.** Use the project's documented mapping (CLAUDE.md, runbook) when one exists. No mapping → find the errors:
    ```bash
@@ -66,6 +68,7 @@ Only after reading the logs → Phase 1.
 
    **The step is done when you can name ONE command you have ALREADY RUN (invocation + output quoted, secrets redacted) that is:** red-capable (asserts the user's exact symptom, not "didn't crash"), deterministic (same verdict every run; for flaky bugs: loop the trigger 100×, add stress, narrow timing until the rate is high enough to debug), fast (seconds), agent-runnable. Reading code to build a theory before this command exists is the failure this skill prevents.
    - **One user affected, ten fine → probably data, not code.** Check time dependencies (scheduled jobs, timezone, cache expiry), the specific record's data, session/state (permissions, tenant, feature flags) while building the loop.
+   - **Performance regression ("slow", "timeout", "spinning") → measure before you hypothesise.** Logs are usually silent or misleading on *why* something is slow. Build the loop as a baseline measurement instead: a timing harness (`performance.now()` / `microtime(true)` around the suspect call), a profiler run, or `EXPLAIN`/query plan for a DB-bound symptom. Once you have a number, bisect against it (old vs new commit/config, or cut load one piece at a time) the same way as any other loop — the number is the red/green signal, not a stack trace.
    - Cannot build a loop at all → say so, list what you tried, and ask the user for the environment, a redacted artifact (HAR, log dump, recording), or permission for temporary instrumentation. Do not proceed to a hypothesis without a loop.
    - **Minimise.** Once red, cut inputs, callers, config, data and steps **one at a time**, re-running the loop after each cut, until every remaining element is load-bearing (removing any one makes it go green). The minimal repro shrinks the hypothesis space in Phase 3 and becomes the regression test in Phase 4.
 3. **Check recent changes.** `git log --oneline -20`, `git diff HEAD~5`. For regressions, bisect:

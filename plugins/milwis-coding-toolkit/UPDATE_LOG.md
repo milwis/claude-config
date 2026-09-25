@@ -6,6 +6,13 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-25 — systematic-debugging: redakcja sekretów + gałąź wydajnościowa; code-reviewer: nazwana biblioteka smells w osi C (v1.5.32)
+
+Źródło: przegląd skills.sh na prośbę właściciela (2026-09-25, porównanie z `mattpocock/skills`) pod kątem jakości kodu i zużycia tokenów. Dwie realne luki znalezione przez porównanie z ich `diagnosing-bugs` i `code-review`; reszta porównania (TDD, resolving-merge-conflicts, git-guardrails) nie wykazała realnych ulepszeń — nasze wersje albo już pokrywają temat (`autoMode.soft_deny` zamiast hooka), albo są dojrzalsze.
+
+- `skills/systematic-debugging/SKILL.md`: nowy akapit "Redact before you show anything" na początku Step 0 — reguła obejmuje KAŻDy cytowany log/output od pierwszego grepa, nie tylko output pętli feedbackowej (który już miał wzmiankę o redakcji, ale punktowo). Nowa gałąź "Performance regression" w kroku 2 Fazy 1: dla "slow"/"timeout" pętla feedbackowa to pomiar bazowy (timing harness / profiler / EXPLAIN), nie log — bisekcja idzie po liczbie, nie po stack trace.
+- `agents/code-reviewer.md`, oś C (Architecture): dodana nazwana biblioteka 7 Fowlerowskich smells (Feature Envy, Data Clumps, Primitive Obsession, Message Chains, Middle Man, Repeated Switches, Refused Bequest) z jednolinijkowym testem każdego — pozwala cytować nazwę zamiast opisywać zjawisko prozą (oszczędność tokenów przy tym samym sygnale), zawsze jako judgement call, nadpisywany przez udokumentowany standard repo.
+
 ## Run: 2026-09-25 — Kolejka: hook SessionStart milczy przy kompakcji (v1.5.31)
 
 Źródło: KonkretnyTMS #977 (zamknięte po v1.5.29 z otwartym pomiarem). `POMIAR` (transkrypt `agent-a813859de12249eea`, 2026-09-25 07:17, po aktualizacji marketplace o 07:15): budowniczy `build-973-1` (sonnet, głębokość 2) po auto-kompakcji dostał tekst hooka v1.5.29 („Jeśli jesteś PODAGENTEM…”, `hook_success SessionStart:compact`) — strażnik `agent_id` nie zadziałał, więc payload `SessionStart:compact` podagenta NIE niesie `agent_id`. Druga warstwa zadziałała (budowniczy zignorował tekst i oddał raport #973). Trzy próby syntetyczne (`claude -p`, haiku) nie doprowadziły podagenta do kompakcji (maks. 108k) — `CLAUDE_CODE_AUTO_COMPACT_WINDOW` nie obniżył progu podagenta.
