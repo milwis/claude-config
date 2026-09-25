@@ -6,6 +6,15 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-25 — Kolejka: stop przy limicie tygodniowym (v1.5.30)
+
+Źródło: decyzja właściciela (2026-09-25) — kolejka ma nie zaczynać nowego issue po przekroczeniu 92% tygodniowego limitu subskrypcji (rezerwa na nieprzewidziane sprawy; resztę tygodnia dobiera start z `--limit 100` kilka godzin przed resetem). `POMIAR`: Claude Code podaje tygodniowe zużycie wyłącznie na wejściu status line (`rate_limits.seven_day.used_percentage`, `resets_at` w sekundach epoki) — ani CLI, ani plik stanu go nie mają.
+
+- `scripts/limit-tygodniowy.sh` (nowy): bramka — czyta `~/.claude/usage/limit-tygodniowy.json` (`{used_percentage, resets_at, ts}`, zapisuje go status line właściciela), exit 0 = nie startuj. Brak pliku, odczyt starszy niż godzina albo nieczytelny też zatrzymuje (fail closed). `100` = wyłączony. Separator `|`, nie tab: tab to białe znaki IFS, więc puste pierwsze pole znikało i reszta się przesuwała (`POMIAR`: `null` dawało procent = znacznik czasu).
+- `scripts/watcher.sh`: każda droga do nowego cyklu (`rotuj`, `pusto` po odczekaniu, restart bez flagi, start) idzie przez `nastepny_cykl`, który najpierw pyta bramkę. Bieżące issue zawsze się kończy. Nowy argument `--bez-cyklu` — dołączenie do pracującego lidera bez wysyłania `/clear`.
+- `scripts/kolejka.sh`: `start --limit N` (domyślnie `KOLEJKA_LIMIT_TYG` albo 92), start odmawia ponad limitem; `status` pokazuje odczyt; nowe `watcher [--limit N]` podmienia watcher działającej kolejki (lider nietknięty).
+- `POMIAR` (atrapa `tmux`, 2026-09-25): `rotuj` + `tura-koniec` przy 93% → „Kolejka zatrzymana: limit tygodniowy 93% ≥ 92%”, zero `send-keys`; przy 50% → nowy cykl (4 `send-keys`); bez pliku → stop.
+
 ## Run: 2026-09-24 — Kolejka: hook SessionStart tylko dla lidera, nigdy dla podagenta (v1.5.29)
 
 Źródło: pierwsza noc pełnej kolejki na KonkretnyTMS. `POMIAR` (transkrypt `agent-a694684c0848cbe29`, 2026-09-24 23:05): plik `--settings` obowiązuje cały proces lidera, więc auto-kompakcja budowniczego L3 (`build-906-1`, sonnet) odpaliła `SessionStart:compact` z tekstem „Ta sesja jest LIDEREM”. Budowniczy wykonał cykl lidera: odłożył #906 (w trakcie pracy L2) i #909 na GitHubie, dopisał dwa wiersze ledgera na `main` i zostawił flagę `stop`. Kodu nie ruszył, worktree #906 nietknięty.
