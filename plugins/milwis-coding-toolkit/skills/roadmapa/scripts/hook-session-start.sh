@@ -6,11 +6,20 @@
 # The --settings file applies to the whole lead process, subagents included: a subagent's auto-compaction
 # fires SessionStart:compact here too. POMIAR (2026-09-24, KonkretnyTMS, #906): a compacted L3 builder got
 # "you are the LEAD", deferred #906 and #909 on GitHub, wrote two ledger rows and the stop flag.
-# So: never speak to a subagent (payload carries agent_id), and the text itself tells a subagent to ignore it.
+# v1.5.29 exited on agent_id in the payload. POMIAR (2026-09-25 07:17, KonkretnyTMS #973): the builder build-973-1
+# (sonnet, depth 2) compacted and still got this text — the SessionStart:compact payload of a subagent does NOT carry
+# agent_id. So `compact` is silent for everyone: the lead is /cleared after every issue and never compacts in practice
+# (113–122k of 300k over the first night), while a subagent told "you are the LEAD" does damage on GitHub and main.
+# The compact payload is logged (hook-compact.log) so the discriminator can be measured before compact is re-enabled.
 INPUT=$(cat)
 [ -n "$(jq -r '.agent_id // empty' <<<"$INPUT" 2>/dev/null)" ] && exit 0
 K="${CLAUDE_PROJECT_DIR:-.}/.claude/tmp/kolejka"
 [ -f "$K/config.env" ] || exit 0
+if [ "$(jq -r '.source // empty' <<<"$INPUT" 2>/dev/null)" = "compact" ]; then
+  jq -c --arg ts "$(date '+%F %T')" --arg env "$(env | grep -o '^CLAUDE[A-Z_]*' | sort | tr '\n' ' ')" \
+    '{ts: $ts, payload: ., env: $env}' <<<"$INPUT" >> "$K/hook-compact.log" 2>/dev/null
+  exit 0
+fi
 # shellcheck disable=SC1091
 . "$K/config.env"
 

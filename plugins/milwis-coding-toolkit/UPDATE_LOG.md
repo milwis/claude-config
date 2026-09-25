@@ -6,6 +6,12 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-25 — Kolejka: hook SessionStart milczy przy kompakcji (v1.5.31)
+
+Źródło: KonkretnyTMS #977 (zamknięte po v1.5.29 z otwartym pomiarem). `POMIAR` (transkrypt `agent-a813859de12249eea`, 2026-09-25 07:17, po aktualizacji marketplace o 07:15): budowniczy `build-973-1` (sonnet, głębokość 2) po auto-kompakcji dostał tekst hooka v1.5.29 („Jeśli jesteś PODAGENTEM…”, `hook_success SessionStart:compact`) — strażnik `agent_id` nie zadziałał, więc payload `SessionStart:compact` podagenta NIE niesie `agent_id`. Druga warstwa zadziałała (budowniczy zignorował tekst i oddał raport #973). Trzy próby syntetyczne (`claude -p`, haiku) nie doprowadziły podagenta do kompakcji (maks. 108k) — `CLAUDE_CODE_AUTO_COMPACT_WINDOW` nie obniżył progu podagenta.
+
+- `scripts/hook-session-start.sh`: przy `source == compact` zero tekstu dla każdego; payload i nazwy zmiennych `CLAUDE*` (bez wartości) idą do `$K/hook-compact.log`, żeby zmierzyć wyróżnik przed ewentualnym przywróceniem. Lider i tak nie kompaktuje (`/clear` po każdym issue, 113–122k z 300k przez pierwszą noc).
+
 ## Run: 2026-09-25 — Kolejka: stop przy limicie tygodniowym (v1.5.30)
 
 Źródło: decyzja właściciela (2026-09-25) — kolejka ma nie zaczynać nowego issue po przekroczeniu 92% tygodniowego limitu subskrypcji (rezerwa na nieprzewidziane sprawy; resztę tygodnia dobiera start z `--limit 100` kilka godzin przed resetem). `POMIAR`: Claude Code podaje tygodniowe zużycie wyłącznie na wejściu status line (`rate_limits.seven_day.used_percentage`, `resets_at` w sekundach epoki) — ani CLI, ani plik stanu go nie mają.
