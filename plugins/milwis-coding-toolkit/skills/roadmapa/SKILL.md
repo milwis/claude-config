@@ -32,10 +32,11 @@ with L2 over a whole night — the first run on a project is a watched dry run.
 
 ```bash
 kolejka.sh lista [repo]                      # the queue in order (skips and reasons on stderr)
-kolejka.sh start [repo] [--issues 812,815]   # lead + watcher in tmux session "kolejka"
+kolejka.sh start [repo] [--issues 812,815] [--limit 92]   # lead + watcher in tmux session "kolejka"
 tmux attach -t kolejka                       # watch; Ctrl-b n = watcher window, Ctrl-b d = detach
 kolejka.sh status [repo]                     # current issue, flags, last ledger rows, unpushed [roadmapa] merges
 kolejka.sh stop [repo]                       # finish the current issue, then stop (hard: tmux kill-session -t kolejka)
+kolejka.sh watcher [repo] [--limit N]        # replace the watcher of a running queue (new limit), lead untouched
 ```
 `kolejka.sh` = `scripts/kolejka.sh` of this skill; settings via environment (header of the script).
 
@@ -68,6 +69,11 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
   for those and the lead labels them.
 - **Spin-offs** — defects found outside the issue become new issues (duplicate check first, three label
   axes `modul:*`/`P*`/`typ:*`), never "while we are here" fixes.
+- **Weekly limit** — before every new issue the watcher reads the weekly usage and stops at ≥ `--limit`
+  (default 92, `KOLEJKA_LIMIT_TYG`; 100 = off); the running issue is always finished. The only source is the
+  status line input (`rate_limits.seven_day`), so the owner's status line must dump it to
+  `~/.claude/usage/limit-tygodniowy.json` (`{used_percentage, resets_at, ts}`); a missing reading or one older
+  than an hour stops the queue too (fail closed) — `scripts/limit-tygodniowy.sh` is the gate.
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
   committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
 
@@ -79,9 +85,10 @@ It is the only file the lead reads; the `SessionStart` hook points to it.
 | file | role |
 |---|---|
 | `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, L2 brief, dispatch, control, merge, close, ledger |
-| `scripts/kolejka.sh` | owner's control: start / stop / status / lista |
+| `scripts/kolejka.sh` | owner's control: start / stop / status / lista / watcher |
 | `scripts/watcher.sh` | `/clear` + start prompt after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
 | `scripts/wybierz-issue.sh` | the picker: list source or backlog source |
+| `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
 | `scripts/hook-session-start.sh`, `scripts/hook-stop.sh` | hooks of the lead session only (passed with `--settings`) |
 
 State: `<repo>/.claude/tmp/kolejka/` (config, flags, L2 reports, `watcher.log`). Ledger:
