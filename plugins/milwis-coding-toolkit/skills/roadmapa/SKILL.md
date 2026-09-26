@@ -32,7 +32,7 @@ with L2 over a whole night — the first run on a project is a watched dry run.
 
 ```bash
 kolejka.sh lista [repo]                      # the queue in order (skips and reasons on stderr)
-kolejka.sh start [repo] [--issues 812,815] [--limit 92]   # lead + watcher in tmux session "kolejka"
+kolejka.sh start [repo] [--issues 812,815] [--limit 90]   # lead + watcher in tmux session "kolejka"
 tmux attach -t kolejka                       # watch; Ctrl-b n = watcher window, Ctrl-b d = detach
 kolejka.sh status [repo]                     # current issue, flags, last ledger rows, unpushed [roadmapa] merges
 kolejka.sh stop [repo]                       # finish the current issue, then stop (hard: tmux kill-session -t kolejka)
@@ -70,7 +70,7 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
 - **Spin-offs** — defects found outside the issue become new issues (duplicate check first, three label
   axes `modul:*`/`P*`/`typ:*`), never "while we are here" fixes.
 - **Weekly limit** — before every new issue the watcher reads the weekly usage and stops at ≥ `--limit`
-  (default 92, `KOLEJKA_LIMIT_TYG`; 100 = off); the running issue is always finished. The only source is the
+  (default 90, `KOLEJKA_LIMIT_TYG`; 100 = off); the running issue is always finished. The only source is the
   status line input (`rate_limits.seven_day`), so the owner's status line must dump it to
   `~/.claude/usage/limit-tygodniowy.json` (`{used_percentage, resets_at, ts}`); a missing reading or one older
   than an hour stops the queue too (fail closed) — `scripts/limit-tygodniowy.sh` is the gate.

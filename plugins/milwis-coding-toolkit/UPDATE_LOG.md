@@ -6,6 +6,12 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: domyślny limit tygodniowy 90% (v1.5.34)
+
+Źródło: decyzja właściciela (2026-09-26) — kolejka ma nie zaczynać nowego issue od 90% tygodniowego limitu (wcześniej 92%, potem czasowo 100% na spalenie tygodnia przed resetem).
+
+- `scripts/kolejka.sh`, `scripts/watcher.sh`, `scripts/limit-tygodniowy.sh`, `SKILL.md`: domyślna wartość `LIMIT_TYG` / `KOLEJKA_LIMIT_TYG` 92 → 90 (także w pomocy i przykładach). `--limit N` i `KOLEJKA_LIMIT_TYG` nadal nadpisują; `100` = wyłączony.
+
 ## Run: 2026-09-26 — nowy skill `nowe-issue`: issue na jeden przebieg task-lifecycle + obowiązkowe osie etykiet (v1.5.33)
 
 Źródło: prośba właściciela (2026-09-26) — skill do tworzenia issues tak, by każde dało się zamknąć jednym agentem z `task-lifecycle` (L2 kolejki albo pojedyncza sesja web), duży problem dzielony na kilka–kilkanaście porcji, każde issue z etykietą modułu, priorytetu i środowiska. `POMIAR` (`gh label list`, KonkretnyTMS, 2026-09-26): osie `modul:*` (27), `P0–P3`, `typ:*` (6), `srodowisko:web|lokalne`, `status:*` (3), `tor:remediacja-danych`; 53 ze 142 otwartych issues nie ma kompletu osi (`sprawdz-etykiety.sh --otwarte`), głównie `srodowisko:*`.

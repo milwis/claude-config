@@ -36,7 +36,7 @@ nowy_cykl() {
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 }
 zakoncz() { powiadom "$1"; log "watcher: koniec"; exit 0; }
-LIMIT_TYG="${LIMIT_TYG:-92}"
+LIMIT_TYG="${LIMIT_TYG:-90}"
 # The only place a new issue starts: every path to nowy_cykl goes through here.
 nastepny_cykl() {
   local powod

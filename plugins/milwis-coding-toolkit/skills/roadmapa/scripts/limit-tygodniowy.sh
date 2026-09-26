@@ -5,7 +5,7 @@
 # The reading comes from ~/.claude/usage/limit-tygodniowy.json, written by the owner's status line — the only place
 # Claude Code exposes the weekly usage (`rate_limits.seven_day`). Fail closed: no fresh reading = no new issue.
 # A limit of 100 or more switches the gate off.
-LIMIT="${1:-92}"
+LIMIT="${1:-90}"
 PLIK="${KOLEJKA_PLIK_LIMITU:-$HOME/.claude/usage/limit-tygodniowy.json}"
 MAX_WIEK_S="${KOLEJKA_LIMIT_MAX_WIEK_S:-3600}"
 
