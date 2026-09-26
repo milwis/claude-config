@@ -123,4 +123,5 @@ Never merge, push to the deploy branch, or deploy — present the package and st
 - `code-reviewer`, `backend-security-coder` — review stages.
 - `verify-e2e` — verification stage (Step 4).
 - `roadmapa` — the issue queue: one task-lifecycle per issue, run by a fresh subagent, one issue at a time.
+- `nowe-issue` — creating issues sized for one run of this skill; a `too-big. split:` report goes there as input.
 - `test-driven-development`, `systematic-debugging`, `verification-before-completion` — active inside every subagent.

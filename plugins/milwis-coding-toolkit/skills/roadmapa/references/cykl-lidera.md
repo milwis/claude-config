@@ -130,7 +130,7 @@ Never touch <$REPO> (the main tree).
    BLOCKED / ambiguous. Near your window cap (the hook's own-window message) on a Large issue: commit, report
    `partial.` with what remains.
 7. Defects found OUTSIDE this issue's scope are not fixed: list them in a `NOWE PROBLEMY` section (title,
-   path:line, the POMIAR that shows it, proposed modul:* / P* / typ:*).
+   path:line, the POMIAR that shows it, proposed modul:* / P* / typ:* / srodowisko:*).
 Write the full report to <$K>/raport-<N>.md: first line one terminal token (done. / closed-on-head. /
 partial. / feature. / ambiguous. / needs-confirm. / too-big. / regressed. / BLOCKED), then tip SHA, commits,
 evidence paths, review iterations, POMIAR/WNIOSEK labels, NOWE PROBLEMY. Your message to the lead
@@ -184,9 +184,10 @@ conflict in the main tree (`/resolving-merge-conflicts` is the owner's tool).
 ```bash
 gh issue list --state all --search "<2-3 distinctive words>" --json number,title,state
 printf '%s\n' "<body: evidence, source issue #N, found by the roadmapa queue>" > "$K/spinoff.md" \
-  && gh issue create --title "<title>" --body-file "$K/spinoff.md" --label "<modul:*>" --label "<P*>" --label "<typ:*>"
+  && gh issue create --title "<title>" --body-file "$K/spinoff.md" --label "<modul:*>" --label "<P*>" --label "<typ:*>" --label "<srodowisko:*>"
 ```
-A duplicate gets a comment with the new evidence instead. A spin-off joins the queue by its own priority in a
+A duplicate gets a comment with the new evidence instead. Size, body sections and the four label axes follow the
+`nowe-issue` skill (§3 size, §4 web vs local, §6a body); a spin-off too big for one L2 becomes an umbrella + portions. A spin-off joins the queue by its own priority in a
 later cycle; one labelled as a feature never enters it. A problem that BLOCKS this issue makes this issue
 `BLOCKED`, not a new queue item.
 

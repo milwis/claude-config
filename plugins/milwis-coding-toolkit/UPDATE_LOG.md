@@ -6,6 +6,15 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — nowy skill `nowe-issue`: issue na jeden przebieg task-lifecycle + obowiązkowe osie etykiet (v1.5.33)
+
+Źródło: prośba właściciela (2026-09-26) — skill do tworzenia issues tak, by każde dało się zamknąć jednym agentem z `task-lifecycle` (L2 kolejki albo pojedyncza sesja web), duży problem dzielony na kilka–kilkanaście porcji, każde issue z etykietą modułu, priorytetu i środowiska. `POMIAR` (`gh label list`, KonkretnyTMS, 2026-09-26): osie `modul:*` (27), `P0–P3`, `typ:*` (6), `srodowisko:web|lokalne`, `status:*` (3), `tor:remediacja-danych`; 53 ze 142 otwartych issues nie ma kompletu osi (`sprawdz-etykiety.sh --otwarte`), głównie `srodowisko:*`.
+
+- `skills/nowe-issue/SKILL.md` (nowy): etykiety czytane na żywo; kryteria rozmiaru (klasa Small/Standard, ≤ ~10 plików / ≤ 400 linii, ≤ 2 warstwy, scalalne osobno); kolejność preferowanych podziałów; parasol `typ:analysis` + porcje `[#<parasol>]` tworzone w kolejności zależności (wybierak bierze P0→P3, potem najstarsze); reguła web vs lokalne (web tylko bez bazy dev, bez powierzchni UI, bez produkcji); szablony treści wg porcji #437 (#1067); potwierdzenie planu u właściciela przy podziale.
+- `skills/nowe-issue/scripts/sprawdz-etykiety.sh` (nowy): walidator osi po utworzeniu i audyt backlogu (`--otwarte`). `POMIAR`: #1067, #1066 → OK (exit 0); #437 → brak modul/srodowisko/typ (exit 1).
+- `skills/roadmapa/references/cykl-lidera.md`: spin-offy dostają czwartą oś `srodowisko:*` i odsyłacz do `nowe-issue`.
+- `skills/task-lifecycle/SKILL.md`, `README.md`: wpis w Integration i tabeli skilli.
+
 ## Run: 2026-09-25 — systematic-debugging: redakcja sekretów + gałąź wydajnościowa; code-reviewer: nazwana biblioteka smells w osi C (v1.5.32)
 
 Źródło: przegląd skills.sh na prośbę właściciela (2026-09-25, porównanie z `mattpocock/skills`) pod kątem jakości kodu i zużycia tokenów. Dwie realne luki znalezione przez porównanie z ich `diagnosing-bugs` i `code-review`; reszta porównania (TDD, resolving-merge-conflicts, git-guardrails) nie wykazała realnych ulepszeń — nasze wersje albo już pokrywają temat (`autoMode.soft_deny` zamiast hooka), albo są dojrzalsze.

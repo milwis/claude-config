@@ -55,6 +55,7 @@ Ground truth for the reviewer itself: [AACR-Bench](https://huggingface.co/datase
 | `/task-lifecycle` | Full autonomous cycle for one task: build (subagent) → code-review loop with auto-fix (cap 3) → security pass → `verify-e2e` in a fresh subagent → report package. Main session orchestrates, never codes |
 | `/retro` | Retrospective on a finished roadmapa queue run / session: ledger + subagent transcripts → ranked toolkit change proposals, each with a POMIAR (command / file:line) and final rule text. Runs after the run, applies nothing on its own |
 | `/roadmapa` | The issue queue: an explicit list or the bug backlog P0→P3 without end; a lead in tmux handles one issue per session (fresh subagent: triage on HEAD + `task-lifecycle`), merges locally with `[roadmapa]` and closes the issue, then `/clear`. Started by the owner with `scripts/kolejka.sh start`; never pushes, never builds features from the backlog |
+| `/nowe-issue` | Create GitHub issues sized for ONE `task-lifecycle` run (queue L2 or a single web session): duplicate check, measured anchors, a large problem split into an umbrella + independent portions in dependency order; mandatory label axes `modul:*` / `P0-P3` / `srodowisko:web\|lokalne` / `typ:*` read live from the repo and validated after creation (`scripts/sprawdz-etykiety.sh`, also `--otwarte` for a backlog audit) |
 
 ### Discipline skills (auto-triggered by matching context)
 
