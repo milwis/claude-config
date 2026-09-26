@@ -88,6 +88,12 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
   turn with an API error — `hook-stop-failure.sh` (StopFailure) writes `blad-api`; `rate_limit` at ≥ 98% weekly =
   the watcher waits for the reset + 5 min, below that (the 5-hour limit) `IDLE_MIN`, then a new lead resumes the
   same issue from `w-toku`. A one-off manual reset of the weekly limit moves `resets_at` — the owner intervenes.
+- **Status issue** — a closed issue titled `Kolejka — status (nie ruszać)` (`STATUS_ISSUE` in `config.env`,
+  found by title at `start`/`watcher`, `KOLEJKA_STATUS_ISSUE` overrides, empty = off). The watcher replaces its
+  body via `gh` (one sentence + a json block: `stan` pracuje|pauza-okno|pauza-limit|pusto|zatrzymana, `issue`,
+  `od`, `pauza_do`, `powod`, `limit_pct`, `reset`, `ts`, `wersja`) on every state change and at least every 5 min;
+  the owner's claude.ai dashboard reads it through a read-only GitHub connector. Closed = outside the queue and the
+  label audit; a body edit sends no notification. A `gh` error never stops the watcher.
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
   committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
 
@@ -106,7 +112,7 @@ It is the only file the lead reads; the `SessionStart` hook points to it.
 | `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
 | `scripts/hook-session-start.sh`, `scripts/hook-stop.sh`, `scripts/hook-stop-failure.sh` | hooks of the lead session only (passed with `--settings`); StopFailure marks a turn ended by an API error (`blad-api`) |
 
-State: `<repo>/.claude/tmp/kolejka/` (config, flags, L2 reports, `watcher.log`). Ledger:
+State: `<repo>/.claude/tmp/kolejka/` (config, flags, L2 reports, `watcher.log`, `status-github.md` = last status body). Ledger:
 `docs/plans/kolejka-ledger.md` (committed, append-only). L2 worktree: `<repo>/.claude/worktrees/kolejka`.
 
 ## Measurement discipline (lead, L2, ledger)

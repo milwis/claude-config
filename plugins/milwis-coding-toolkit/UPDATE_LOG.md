@@ -6,6 +6,15 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: watcher zapisuje status do zamkniętego issue dla dashboardu (v1.5.38)
+
+Źródło: plan właściciela `PLAN-dashboard-kolejki.md` (2026-09-26) — z telefonu w kilka sekund widać, czy kolejka żyje, co zamknięto, co zostało i co odłożono. Dashboard = artefakt na claude.ai czytający GitHuba przez konektor właściciela (GitHub App `claude_kolejka`, tylko Issues: Read-only); sygnał „żyję” = treść zamkniętego issue `Kolejka — status (nie ruszać)` (KonkretnyTMS #1093), którą watcher podmienia przez `gh`.
+
+- `scripts/watcher.sh`: `status_github <stan> [powód] [pauza_do]` pisze `gh issue edit --body-file` (zdanie + blok json: `stan` pracuje|pauza-okno|pauza-limit|pusto|zatrzymana, `issue` z `w-toku`, `od`, `pauza_do`, `powod`, `limit_pct`, `reset`, `ts`, `wersja`) przy starcie, nowym cyklu, pauzie do okna, pauzie po `rate_limit`, pustej kolejce, `zakoncz` i zniknięciu sesji tmux; `status_puls` powtarza stan co `KOLEJKA_STATUS_CO_S` (300 s) w pętli głównej i w `czekaj_do` oraz od razu po zmianie `w-toku`. `gh` pod `perl alarm` 30 s, błąd nigdy nie przerywa watchera, log tylko przy zmianie ok/błąd. Pusta kolejka czeka przez `czekaj_do` zamiast gołego `sleep` (puls i `kolejka.sh stop` działają w czasie czekania).
+- `scripts/kolejka.sh`: `STATUS_ISSUE` w `config.env` — `start` bierze `KOLEJKA_STATUS_ISSUE` (ustawione puste = wyłączone) albo szuka zamkniętego issue po dokładnym tytule; `watcher` dopisuje brakujący klucz do działającej kolejki; `status` pokazuje numer.
+- `SKILL.md`: niezmiennik „Status issue”.
+- `POMIAR` (2026-09-26, atrapy: fałszywy `gh` logujący wywołania i kopiujący treść, fałszywy `tmux`, sfabrykowany odczyt limitu, `KOLEJKA_STATUS_CO_S=60`): (A) start → `pracuje`, `w-toku`=777 → zapis z `issue: 777` po ≤ 20 s; 95% i reset za 10 h → `pauza-okno` z `pauza_do` = reset − 5 h; w pauzie 4 zapisy co 60 s; `zatrzymaj` → `zatrzymana`, watcher kończy. (B) `gh` zwraca błąd → jeden wpis „błąd zapisu” w logu, drugi nieudany puls bez wpisu, watcher żyje; po naprawie jeden wpis „zapis ok”; `rate_limit` → `pauza-limit` z `pauza_do` + puls, potem `pracuje` z nowym `od`; `pusto` → `pusto` z `pauza_do` + puls; brak sesji tmux → `zatrzymana`. (C/D) `gh` zawieszony → ubity po 30 s („timeout 30 s” w logu), watcher żyje. `kolejka.sh watcher` na atrapie: klucz dopisany z `KOLEJKA_STATUS_ISSUE`, `--limit` nie rusza `STATUS_ISSUE`. Wyszukiwanie po tytule na prawdziwym repo → 1093.
+
 ## Run: 2026-09-26 — Kolejka: caffeinate bez trzymania ekranu (v1.5.37)
 
 Źródło: prośba właściciela (2026-09-26) — przy wielodniowej pauzie do okna przed resetem monitor świecił non stop. `POMIAR` (`pmset -g`): `sleep 0` (system i tak nie zasypia), `displaysleep 3 (display sleep prevented by caffeinate)`.

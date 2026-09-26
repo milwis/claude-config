@@ -16,7 +16,9 @@
 #   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
 #   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (90), KOLEJKA_OKNO_H (5),
-#   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh)
+#   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
+#   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
+#   by its title, set empty = off)
 set -euo pipefail
 
 SKRYPTY="$(cd "$(dirname "$0")" && pwd)"
@@ -39,6 +41,14 @@ LIMIT_TYG="${LIMIT_ARG:-${KOLEJKA_LIMIT_TYG:-90}}"
 [[ "$LIMIT_TYG" =~ ^[0-9]+$ ]] || { echo "--limit: liczba procent, np. 90 (100 = bez limitu)"; exit 1; }
 OKNO_H="${OKNO_ARG:-${KOLEJKA_OKNO_H:-5}}"
 [[ "$OKNO_H" =~ ^[0-9]+$ ]] || { echo "--okno: liczba godzin przed resetem, np. 5 (0 = bez okna)"; exit 1; }
+TYTUL_STATUSU="Kolejka — status (nie ruszać)"
+# The closed status issue (see watcher.sh): KOLEJKA_STATUS_ISSUE if set (empty = off), else found by exact title.
+status_issue() {
+  if [ -n "${KOLEJKA_STATUS_ISSUE+x}" ]; then echo "$KOLEJKA_STATUS_ISSUE"; return; fi
+  (cd "$REPO" && gh issue list --state closed --search "\"$TYTUL_STATUSU\" in:title" --json number,title \
+    --jq ".[] | select(.title == \"$TYTUL_STATUSU\") | .number" 2>/dev/null | grep -xE '[0-9]+' | head -1) || true
+}
+numer_statusu() { local s; s=$(cfg STATUS_ISSUE ""); if [ -n "$s" ]; then echo "#$s"; else echo "wyłączone"; fi; }
 
 case "$CMD" in
 start)
@@ -77,6 +87,7 @@ KOLEJKA_LISTA="$LISTA"
 KOLEJKA_TYPY="${KOLEJKA_TYPY:-typ:bug,typ:point-fix,typ:structural,bug}"
 KOLEJKA_POMIJAJ="${KOLEJKA_POMIJAJ:-typ:pomysl,enhancement,new_idea,request,typ:analysis,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker}"
 KOLEJKA_ODROCZENIA="${KOLEJKA_ODROCZENIA:-docs/plans docs/runbook}"
+STATUS_ISSUE="$(status_issue)"
 EOF
   # Hooks live only in this file, passed with --settings: no other session in the repo sees them.
   jq -n --arg ss "$SKRYPTY/hook-session-start.sh" --arg st "$SKRYPTY/hook-stop.sh" \
@@ -102,8 +113,10 @@ EOF
 watcher)
   tmux has-session -t "$SESJA" 2>/dev/null || { echo "Sesja tmux '$SESJA' nie działa"; exit 1; }
   [ -f "$K/config.env" ] || { echo "Brak $K/config.env"; exit 1; }
-  # A queue started before the limit/window existed lacks the key in its config: add it (or replace on the flag).
-  for PARA in "LIMIT_TYG:$LIMIT_TYG:$LIMIT_ARG" "OKNO_H:$OKNO_H:$OKNO_ARG"; do
+  # A queue started before the limit/window/status issue existed lacks the key in its config: add it (or replace
+  # on the flag). The status issue is looked up only when missing.
+  STATUS_ISSUE=""; grep -q '^STATUS_ISSUE=' "$K/config.env" || STATUS_ISSUE="$(status_issue)"
+  for PARA in "LIMIT_TYG:$LIMIT_TYG:$LIMIT_ARG" "OKNO_H:$OKNO_H:$OKNO_ARG" "STATUS_ISSUE:$STATUS_ISSUE:"; do
     IFS=: read -r KLUCZ WART ARG <<<"$PARA"
     if grep -q "^$KLUCZ=" "$K/config.env"; then
       [ -n "$ARG" ] && sed -i '' "s/^$KLUCZ=.*/$KLUCZ=\"$WART\"/" "$K/config.env"
@@ -114,7 +127,7 @@ watcher)
   tmux kill-window -t "$SESJA:watcher" 2>/dev/null || true
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
     "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env' --bez-cyklu; echo 'watcher zakończony — Enter zamyka okno'; read"
-  echo "Watcher podmieniony (lider pracuje dalej). Limit tygodniowy: $(cfg LIMIT_TYG 90)%, okno przed resetem: $(cfg OKNO_H 5) h"
+  echo "Watcher podmieniony (lider pracuje dalej). Limit tygodniowy: $(cfg LIMIT_TYG 90)%, okno przed resetem: $(cfg OKNO_H 5) h, issue statusu: $(numer_statusu)"
   ;;
 stop)
   mkdir -p "$K" && touch "$K/zatrzymaj"
@@ -126,6 +139,7 @@ status)
   L=$(cfg KOLEJKA_LISTA ""); [ -n "$L" ] && echo "źródło: lista $L" || echo "źródło: backlog bugów P0→P3"
   [ -f "$K/w-toku" ] && echo "w toku: #$(cat "$K/w-toku")" || echo "w toku: -"
   echo "$("$SKRYPTY/limit-tygodniowy.sh" "$(cfg LIMIT_TYG 90)" "$(cfg OKNO_H 5)")"
+  echo "issue statusu (dashboard): $(numer_statusu)"
   for f in zatrzymaj stop pusto rotuj pauza blad-api; do [ -f "$K/$f" ] && echo "flaga: $f $(cat "$K/$f")"; done
   LEDGER=$(cfg LEDGER docs/plans/kolejka-ledger.md); MAIN=$(cfg MAIN main)
   echo "--- ledger ($LEDGER), ostatnie wiersze:"; grep '^| [0-9]' "$REPO/$LEDGER" 2>/dev/null | tail -5 || true
