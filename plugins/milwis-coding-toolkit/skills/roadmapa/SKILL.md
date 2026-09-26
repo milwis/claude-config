@@ -91,7 +91,8 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
 - **Status issue** — a closed issue titled `Kolejka — status (nie ruszać)` (`STATUS_ISSUE` in `config.env`,
   found by title at `start`/`watcher`, `KOLEJKA_STATUS_ISSUE` overrides, empty = off). The watcher replaces its
   body via `gh` (one sentence + a json block: `stan` pracuje|pauza-okno|pauza-limit|pusto|zatrzymana, `issue`,
-  `od`, `pauza_do`, `powod`, `limit_pct`, `reset`, `ts`, `wersja`) on every state change and at least every 5 min;
+  `od`, `pauza_do`, `powod`, `limit_pct`, `reset`, `ts`, `wersja`, `deploy` = commit time of the last successful run of
+  `DEPLOY_WORKFLOW`, default `deploy.yml` when the repo has it) on every state change and at least every 5 min;
   the owner's claude.ai dashboard reads it through a read-only GitHub connector. Closed = outside the queue and the
   label audit; a body edit sends no notification. A `gh` error never stops the watcher.
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`

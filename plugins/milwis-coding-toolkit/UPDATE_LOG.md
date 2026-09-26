@@ -6,6 +6,14 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: czas ostatniego deployu w issue statusu (v1.5.39)
+
+Źródło: prośba właściciela (2026-09-26) — licznik na dashboardzie „naprawione od ostatniego deployu”. Konektor dashboardu ma tylko Issues: Read-only (decyzja właściciela), więc nie widzi GitHub Actions; czas deployu dostarcza watcher przez `gh`, a strona liczy zamknięte issues z `status:zrobione-lokalnie` zamknięte po nim (`search_issues` z `closed:>`). Etykieta nie jest zdejmowana po deployu (`POMIAR`: 100 zamkniętych z tą etykietą od 2026-07-04), więc sama etykieta nie wystarcza.
+
+- `scripts/watcher.sh`: `odczyt_deployu` przy każdym zapisie statusu — ostatni udany run `DEPLOY_WORKFLOW` (`gh run list --status success -L 1`), pole `deploy` = czas commita `headSha` (push wyprzedza run o minuty), gdy commita nie ma lokalnie — start runu; błąd `gh` zostawia ostatnią wartość; puste `DEPLOY_WORKFLOW` = `null` bez wywołań.
+- `scripts/kolejka.sh`: `DEPLOY_WORKFLOW` w `config.env` — `KOLEJKA_DEPLOY_WORKFLOW`, domyślnie `deploy.yml`, gdy repo go ma (ustawione puste = wyłączone); `watcher` dopisuje brakujący klucz.
+- `POMIAR` (2026-09-26): na KonkretnyTMS `odczyt_deployu` → 1790417445 = commit e8481a4bb (12:10:45), run Deploy startował 12:22:24; `search_issues` `closed:>2026-09-26T10:22:24Z` → 1 issue (#546), `gh issue list` z tym samym filtrem → to samo. Atrapy: sha spoza repo → czas startu runu; `gh run list` z błędem → wartość zachowana w kolejnym pulsie; bez `DEPLOY_WORKFLOW` → `deploy: null`, 0 wywołań `run list`; `kolejka.sh watcher` dopisuje `""` bez `deploy.yml`, `deploy.yml` z nim, `inny.yml` z env.
+
 ## Run: 2026-09-26 — Kolejka: watcher zapisuje status do zamkniętego issue dla dashboardu (v1.5.38)
 
 Źródło: plan właściciela `PLAN-dashboard-kolejki.md` (2026-09-26) — z telefonu w kilka sekund widać, czy kolejka żyje, co zamknięto, co zostało i co odłożono. Dashboard = artefakt na claude.ai czytający GitHuba przez konektor właściciela (GitHub App `claude_kolejka`, tylko Issues: Read-only); sygnał „żyję” = treść zamkniętego issue `Kolejka — status (nie ruszać)` (KonkretnyTMS #1093), którą watcher podmienia przez `gh`.

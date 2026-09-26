@@ -18,7 +18,8 @@
 #   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (90), KOLEJKA_OKNO_H (5),
 #   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
-#   by its title, set empty = off)
+#   by its title, set empty = off), KOLEJKA_DEPLOY_WORKFLOW (workflow whose last successful run = the last deploy, for
+#   the dashboard's "fixed since deploy"; unset = deploy.yml when the repo has it, set empty = off)
 set -euo pipefail
 
 SKRYPTY="$(cd "$(dirname "$0")" && pwd)"
@@ -47,6 +48,10 @@ status_issue() {
   if [ -n "${KOLEJKA_STATUS_ISSUE+x}" ]; then echo "$KOLEJKA_STATUS_ISSUE"; return; fi
   (cd "$REPO" && gh issue list --state closed --search "\"$TYTUL_STATUSU\" in:title" --json number,title \
     --jq ".[] | select(.title == \"$TYTUL_STATUSU\") | .number" 2>/dev/null | grep -xE '[0-9]+' | head -1) || true
+}
+deploy_workflow() {
+  if [ -n "${KOLEJKA_DEPLOY_WORKFLOW+x}" ]; then echo "$KOLEJKA_DEPLOY_WORKFLOW"
+  elif [ -f "$REPO/.github/workflows/deploy.yml" ]; then echo deploy.yml; fi
 }
 numer_statusu() { local s; s=$(cfg STATUS_ISSUE ""); if [ -n "$s" ]; then echo "#$s"; else echo "wyłączone"; fi; }
 
@@ -88,6 +93,7 @@ KOLEJKA_TYPY="${KOLEJKA_TYPY:-typ:bug,typ:point-fix,typ:structural,bug}"
 KOLEJKA_POMIJAJ="${KOLEJKA_POMIJAJ:-typ:pomysl,enhancement,new_idea,request,typ:analysis,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker}"
 KOLEJKA_ODROCZENIA="${KOLEJKA_ODROCZENIA:-docs/plans docs/runbook}"
 STATUS_ISSUE="$(status_issue)"
+DEPLOY_WORKFLOW="$(deploy_workflow)"
 EOF
   # Hooks live only in this file, passed with --settings: no other session in the repo sees them.
   jq -n --arg ss "$SKRYPTY/hook-session-start.sh" --arg st "$SKRYPTY/hook-stop.sh" \
@@ -116,7 +122,8 @@ watcher)
   # A queue started before the limit/window/status issue existed lacks the key in its config: add it (or replace
   # on the flag). The status issue is looked up only when missing.
   STATUS_ISSUE=""; grep -q '^STATUS_ISSUE=' "$K/config.env" || STATUS_ISSUE="$(status_issue)"
-  for PARA in "LIMIT_TYG:$LIMIT_TYG:$LIMIT_ARG" "OKNO_H:$OKNO_H:$OKNO_ARG" "STATUS_ISSUE:$STATUS_ISSUE:"; do
+  for PARA in "LIMIT_TYG:$LIMIT_TYG:$LIMIT_ARG" "OKNO_H:$OKNO_H:$OKNO_ARG" "STATUS_ISSUE:$STATUS_ISSUE:" \
+      "DEPLOY_WORKFLOW:$(deploy_workflow):${KOLEJKA_DEPLOY_WORKFLOW:-}"; do
     IFS=: read -r KLUCZ WART ARG <<<"$PARA"
     if grep -q "^$KLUCZ=" "$K/config.env"; then
       [ -n "$ARG" ] && sed -i '' "s/^$KLUCZ=.*/$KLUCZ=\"$WART\"/" "$K/config.env"

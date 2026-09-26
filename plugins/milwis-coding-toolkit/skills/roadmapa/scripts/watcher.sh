@@ -22,7 +22,8 @@
 # Status issue (STATUS_ISSUE in config.env, empty = off): a closed issue whose body the watcher replaces with
 # the queue's state (one sentence + a json block) — the owner's dashboard reads it through a read-only connector.
 # Written on every state change and at least every 5 min (KOLEJKA_STATUS_CO_S), pauses included; a gh error
-# (no network) never stops the watcher and is logged only when ok/error flips.
+# (no network) never stops the watcher and is logged only when ok/error flips. With DEPLOY_WORKFLOW set, the json
+# also carries `deploy`: the commit time of the last successful deploy run, so the dashboard can count issues fixed since.
 #   watcher.sh <config.env> [--bez-cyklu]   --bez-cyklu: attach to a running lead without sending a new cycle
 # Flag names must differ in more than case — macOS file systems are case-insensitive (`STOP` = `stop`).
 set -uo pipefail
@@ -64,10 +65,26 @@ STATUS_CO_S="${KOLEJKA_STATUS_CO_S:-300}"
 WERSJA=$(jq -r '.version // empty' "$SKRYPTY/../../../.claude-plugin/plugin.json" 2>/dev/null)
 ST_STAN=pracuje; ST_POWOD=""; ST_PAUZA_DO=""; ST_ISSUE=""; ST_ZAPIS=0; ST_WYNIK=""; ST_OD=$(date +%s)
 nr_w_toku() { tr -dc 0-9 2>/dev/null < w-toku; }
+DEPLOY_WORKFLOW="${DEPLOY_WORKFLOW:-}"; ST_DEPLOY=""
+# Last deploy = the head commit of the newest successful DEPLOY_WORKFLOW run (push to main -> Tests -> Deploy): an
+# issue closed after that commit's time is fixed locally, not on the server yet. The commit time, not the run's
+# start: a push lands minutes before its deploy run. Failures keep the last known value.
+odczyt_deployu() {
+  [ -n "$DEPLOY_WORKFLOW" ] || return 0
+  local run sha t=""
+  run=$( ( perl -e 'alarm shift; exec @ARGV' 30 gh run list --workflow "$DEPLOY_WORKFLOW" --status success -L 1 \
+    --json headSha,createdAt -q '.[0] | "\(.headSha) \(.createdAt)"' ) 2>/dev/null) || return 0
+  sha="${run%% *}"
+  [[ "$sha" =~ ^[0-9a-f]{7,40}$ ]] && t=$(git -C "$REPO" show -s --format=%ct "$sha" 2>/dev/null)
+  [[ "$t" =~ ^[0-9]+$ ]] || t=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "${run#* }" +%s 2>/dev/null)
+  [[ "$t" =~ ^[0-9]+$ ]] && ST_DEPLOY="$t"
+  return 0
+}
 # status_github <stan> [powód] [pauza_do epoch]   stan: pracuje | pauza-okno | pauza-limit | pusto | zatrzymana
 status_github() {
   [ -n "$STATUS_ISSUE" ] || return 0
   ST_STAN="$1"; ST_POWOD="${2:-}"; ST_PAUZA_DO="${3:-}"; ST_ISSUE=$(nr_w_toku); ST_ZAPIS=$(date +%s)
+  odczyt_deployu
   local zdanie do_kiedy
   do_kiedy=$([ -n "$ST_PAUZA_DO" ] && date -r "$ST_PAUZA_DO" '+%d.%m %H:%M')
   case "$1" in
@@ -81,9 +98,9 @@ status_github() {
     echo "Issue techniczne dashboardu kolejki roadmapa: treść nadpisuje watcher (\`scripts/watcher.sh\`) co ≤ 5 min. Nie edytuj, nie otwieraj, nie etykietuj. Zapis: $(date -r "$ST_ZAPIS" '+%d.%m %H:%M:%S')."
     echo; echo '```json'
     jq -n --arg stan "$1" --arg issue "$ST_ISSUE" --arg od "$ST_OD" --arg pauza_do "$ST_PAUZA_DO" --arg powod "$ST_POWOD" \
-      --arg pct "$(odczyt used_percentage)" --arg reset "$(odczyt resets_at)" --arg ts "$ST_ZAPIS" --arg wersja "$WERSJA" \
+      --arg pct "$(odczyt used_percentage)" --arg reset "$(odczyt resets_at)" --arg ts "$ST_ZAPIS" --arg wersja "$WERSJA" --arg deploy "$ST_DEPLOY" \
       'def n: tonumber? // null; {stan: $stan, issue: ($issue | n), od: ($od | n), pauza_do: ($pauza_do | n),
-        powod: $powod, limit_pct: ($pct | n), reset: ($reset | n), ts: ($ts | n),
+        powod: $powod, limit_pct: ($pct | n), reset: ($reset | n), ts: ($ts | n), deploy: ($deploy | n),
         wersja: (if $wersja == "" then null else $wersja end)}'
     echo '```'
   } > status-github.md
