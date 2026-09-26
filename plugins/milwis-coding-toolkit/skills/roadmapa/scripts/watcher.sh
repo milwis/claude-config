@@ -15,6 +15,9 @@
 # Weekly limit: before every new issue the watcher reads ~/.claude/usage/limit-tygodniowy.json (written by the
 # owner's status line — the only place Claude Code exposes the weekly usage) and stops at >= LIMIT_TYG percent.
 # The running issue is always finished; a missing or stale reading also stops (fail closed). LIMIT_TYG=100 = off.
+# Window before the reset (OKNO_H, default 5 h): the gate is open then. Stopped by the limit earlier in the week,
+# the watcher does not exit but pauses until the window opens. The limit used up in the middle of an issue
+# (StopFailure rate_limit -> blad-api) = wait for the reset, then a new lead resumes the same issue via w-toku.
 #   watcher.sh <config.env> [--bez-cyklu]   --bez-cyklu: attach to a running lead without sending a new cycle
 # Flag names must differ in more than case — macOS file systems are case-insensitive (`STOP` = `stop`).
 set -uo pipefail
@@ -38,19 +41,40 @@ nowy_cykl() {
     wyslij "/exit"
     for _ in $(seq 30); do martwy && break; sleep 1; done
   fi
-  rm -f tura-koniec
+  rm -f tura-koniec blad-api
   tmux respawn-pane -k -t "$SESJA:0" -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
   STALL_ZGLOSZONY=0
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 }
-zakoncz() { powiadom "$1"; log "watcher: koniec"; exit 0; }
+zakoncz() { rm -f pauza; powiadom "$1"; log "watcher: koniec"; exit 0; }
 LIMIT_TYG="${LIMIT_TYG:-90}"
+OKNO_H="${OKNO_H:-5}"
+PLIK_LIMITU="${KOLEJKA_PLIK_LIMITU:-$HOME/.claude/usage/limit-tygodniowy.json}"
+odczyt() { v=$(jq -r ".$1 // empty" "$PLIK_LIMITU" 2>/dev/null); v="${v%.*}"; [[ "$v" =~ ^[0-9]+$ ]] && echo "$v"; }
+# Sleep until an epoch time; the owner's stop still works (checked every minute). $K/pauza is shown by `status`.
+czekaj_do() {
+  echo "do $(date -r "$1" '+%a %d.%m %H:%M') — $2" > pauza
+  while [ "$(date +%s)" -lt "$1" ]; do
+    [ -f zatrzymaj ] || [ -f "$HOME/.claude/relay-state/STOP-roadmapa" ] && zakoncz "Kolejka zatrzymana przez właściciela w trakcie pauzy (kolejka.sh stop)."
+    sleep 60
+  done
+  rm -f pauza
+}
 # The only place a new issue starts: every path to nowy_cykl goes through here.
 nastepny_cykl() {
-  local powod
-  if powod=$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG"); then
+  local powod reset start
+  while powod=$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG" "$OKNO_H"); do
+    reset=$(odczyt resets_at)
+    start=$(( ${reset:-0} - OKNO_H * 3600 ))
+    # Pause only with a known reset ahead and a window not yet open; otherwise (no reading, window off) stop.
+    if [ -n "$reset" ] && [ "$OKNO_H" -gt 0 ] && [ "$start" -gt "$(date +%s)" ]; then
+      powiadom "Kolejka wstrzymana: $powod. Wznowienie $(date -r "$start" '+%a %d.%m %H:%M') ($OKNO_H h przed resetem)."
+      czekaj_do "$start" "okno przed resetem limitu tygodniowego"
+      log "pauza: koniec, okno przed resetem otwarte"
+      continue
+    fi
     zakoncz "Kolejka zatrzymana: $powod. Bieżące issue dokończone. Start mimo limitu: kolejka.sh start --limit 100"
-  fi
+  done
   nowy_cykl
 }
 # Transcripts of every session in the repo, including subagents — any write means someone is working.
@@ -90,7 +114,25 @@ while sleep 20; do
     [ -f rotuj ] || [ -f pusto ] && zakoncz "Kolejka zatrzymana przez właściciela (kolejka.sh stop)."
   fi
 
-  if [ -f rotuj ]; then
+  if [ "$(cat blad-api 2>/dev/null)" = rate_limit ]; then
+    # The subscription limit ended the lead's turn mid-issue. Weekly one used up (>= 98% at the last reading)
+    # = wait for the weekly reset; otherwise the 5-hour one — try again after IDLE_MIN. The new lead resumes
+    # the same issue from w-toku, so the gate is skipped: the running issue is always finished, and right
+    # after a reset the reading may still be the stale pre-reset one.
+    rm -f blad-api
+    PCT=$(odczyt used_percentage); RESET=$(odczyt resets_at); TERAZ=$(date +%s)
+    if [ "${PCT:-0}" -ge 98 ] && [ -n "$RESET" ] && [ "$RESET" -gt "$TERAZ" ]; then
+      CEL=$((RESET + 300)); POWOD="limit tygodniowy wyczerpany w trakcie issue"
+    else
+      CEL=$((TERAZ + IDLE_MIN * 60)); POWOD="limit API w trakcie issue (${PCT:-?}% tygodniowego — pewnie 5-godzinny)"
+    fi
+    powiadom "Kolejka: $POWOD — wznowienie tego samego issue $(date -r "$CEL" '+%a %d.%m %H:%M')."
+    czekaj_do "$CEL" "$POWOD"
+    BEZ_FLAGI=0
+    log "pauza: koniec, wznawiam issue $(cat w-toku 2>/dev/null || echo '?') po limicie"
+    nowy_cykl
+  elif [ -f rotuj ]; then
+    rm -f blad-api
     BEZ_FLAGI=0
     log "cykl: koniec issue #$(grep '^| [0-9]' "$REPO/$LEDGER" 2>/dev/null | tail -1 | cut -d'|' -f4 | tr -d ' #')"
     nastepny_cykl

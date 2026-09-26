@@ -38,11 +38,11 @@ with L2 over a whole night — the first run on a project is a watched dry run.
 
 ```bash
 kolejka.sh lista [repo]                      # the queue in order (skips and reasons on stderr)
-kolejka.sh start [repo] [--issues 812,815] [--limit 90]   # lead + watcher in tmux session "kolejka"
+kolejka.sh start [repo] [--issues 812,815] [--limit 90] [--okno 5]   # lead + watcher in tmux session "kolejka"
 tmux attach -t kolejka                       # watch; Ctrl-b n = watcher window, Ctrl-b d = detach
 kolejka.sh status [repo]                     # current issue, flags, last ledger rows, unpushed [roadmapa] merges
 kolejka.sh stop [repo]                       # finish the current issue, then stop (hard: tmux kill-session -t kolejka)
-kolejka.sh watcher [repo] [--limit N]        # replace the watcher of a running queue (new limit), lead untouched
+kolejka.sh watcher [repo] [--limit N] [--okno H]   # replace the watcher of a running queue (new limit), lead untouched
 ```
 `kolejka.sh` = `scripts/kolejka.sh` of this skill; settings via environment (header of the script).
 
@@ -57,7 +57,7 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
 
 ## Invariants
 
-- **Authorisation.** The start prompt (written by `kolejka.sh start`, typed by the watcher every cycle,
+- **Authorisation.** The start prompt (written by `kolejka.sh start`, passed by `lider.sh` as the first message of every lead session,
   quoted in ledger row 0) is the owner's instruction to merge locally and close issues. It never covers
   `git push`, deploy, `npm run build`, production, KSeF.
 - **Only an interactive session merges.** The lead runs as a normal `claude` in tmux, never `claude --bg`:
@@ -80,6 +80,14 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
   status line input (`rate_limits.seven_day`), so the owner's status line must dump it to
   `~/.claude/usage/limit-tygodniowy.json` (`{used_percentage, resets_at, ts}`); a missing reading or one older
   than an hour stops the queue too (fail closed) — `scripts/limit-tygodniowy.sh` is the gate.
+- **Window before the reset** — the limit is a reserve for emergencies; in the last `--okno` hours before
+  `resets_at` (default 5, `KOLEJKA_OKNO_H`; 0 = off) the gate is open whatever the usage, and needs only
+  `resets_at`, so a stale reading does not close it. A queue stopped by the limit earlier in the week does not
+  exit: the watcher pauses until the window opens (`$K/pauza`, `kolejka.sh stop` still works), and after the reset
+  the new `resets_at` brings the limit back by itself. The limit used up in the middle of an issue ends the lead's
+  turn with an API error — `hook-stop-failure.sh` (StopFailure) writes `blad-api`; `rate_limit` at ≥ 98% weekly =
+  the watcher waits for the reset + 5 min, below that (the 5-hour limit) `IDLE_MIN`, then a new lead resumes the
+  same issue from `w-toku`. A one-off manual reset of the weekly limit moves `resets_at` — the owner intervenes.
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
   committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
 
@@ -96,7 +104,7 @@ It is the only file the lead reads; the `SessionStart` hook points to it.
 | `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--settings`, session named after the issue, start prompt as the first message |
 | `scripts/wybierz-issue.sh` | the picker: list source or backlog source |
 | `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
-| `scripts/hook-session-start.sh`, `scripts/hook-stop.sh` | hooks of the lead session only (passed with `--settings`) |
+| `scripts/hook-session-start.sh`, `scripts/hook-stop.sh`, `scripts/hook-stop-failure.sh` | hooks of the lead session only (passed with `--settings`); StopFailure marks a turn ended by an API error (`blad-api`) |
 
 State: `<repo>/.claude/tmp/kolejka/` (config, flags, L2 reports, `watcher.log`). Ledger:
 `docs/plans/kolejka-ledger.md` (committed, append-only). L2 worktree: `<repo>/.claude/worktrees/kolejka`.

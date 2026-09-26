@@ -6,6 +6,16 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: okno przed resetem limitu tygodniowego + czekanie na reset po wyczerpaniu limitu (v1.5.36)
+
+Źródło: decyzja właściciela (2026-09-26) — próg 90% to rezerwa na awarie, ale w ostatnich ~5 h przed resetem (wt 12:00) szansa na pilną awarię jest mała, a niewykorzystana rezerwa przepada. Kolejka ma wtedy sama znosić limit i wracać do niego po resecie. Jednorazowy ręczny reset limitu (przesuwa `resets_at`) właściciel obsługuje sam.
+
+- `scripts/limit-tygodniowy.sh`: drugi argument / `KOLEJKA_OKNO_H` (domyślnie 5, 0 = wyłączone) — w ostatnich N h przed `resets_at` bramka przepuszcza bez względu na zużycie; okno potrzebuje tylko `resets_at`, więc nieaktualny odczyt go nie zamyka. Poza oknem bez zmian (fail closed).
+- `scripts/watcher.sh`: zatrzymanie przez limit przy znanym przyszłym resecie = pauza do otwarcia okna (`$K/pauza`, stop właściciela sprawdzany co minutę), nie koniec watchera. Nowa gałąź `blad-api = rate_limit`: ≥ 98% tygodniowego → czekanie do resetu + 5 min, poniżej (limit 5-godzinny) → `IDLE_MIN`; potem nowy lider wznawia to samo issue z `w-toku` bez pytania bramki (bieżące issue zawsze się kończy; tuż po resecie odczyt bywa jeszcze sprzed resetu). Nie liczy się jako tura bez flagi.
+- `scripts/hook-stop-failure.sh` (nowy): hook `StopFailure` (odpala zamiast `Stop`, gdy turę kończy błąd API) zapisuje typ błędu do `blad-api` i `tura-koniec`; strażnik `agent_id`. Inne błędy niż `rate_limit` idą ścieżką tury bez flagi (wcześniej watcher widział je dopiero jako brak aktywności po `STALL_MIN`).
+- `scripts/kolejka.sh`: `--okno N` w `start` i `watcher`, `OKNO_H` w `config.env`, hook `StopFailure` w `settings.json`, `status` pokazuje okno, `pauza` i `blad-api`.
+- `POMIAR` (2026-09-26, atrapy): bramka na 9 sfabrykowanych odczytach — 95% i reset za 10 h → stop; za 4 h → okno (także z odczytem sprzed 3 h); dokładnie 5 h → okno, 5 h 1 min → stop; `--okno 0` → stop; reset minął + 3% → idzie. Watcher z fałszywym `tmux`: (A) 95%, okno za 60 s → pauza, po 60 s `/exit` + `respawn-pane`; (B) `rate_limit` przy 99%, reset za 60 s → czekanie do reset + 5 min, potem nowy lider; (C) `rate_limit` przy 50% → `IDLE_MIN`, potem nowy lider; (D) pauza do okna za 10 h + `zatrzymaj` → koniec watchera po ≤ 60 s. Claude Code 2.1.283 przyjmuje `StopFailure` w pliku `--settings` (`claude -p` z tym plikiem → OK); hook z payloadem `rate_limit` zapisuje oba pliki, z `agent_id` nic.
+
 ## Run: 2026-09-26 — Kolejka: nowy proces lidera na każde issue zamiast /clear (v1.5.35)
 
 Źródło: prośba właściciela (2026-09-26) — każde issue ma być osobną sesją, żeby z telefonu (Remote Control) widzieć, co dzieje się w konkretnym issue. Po `/clear` proces był ten sam, więc cała noc szła w jednej sesji Remote Control, a lider miał wersję pluginu z chwili startu (dzisiejsza v1.5.34 nie dotarłaby do niego bez ręcznego restartu). Koszt tokenów bez zmian: kontekst startowy jest płacony przy każdym issue w obu wariantach, cache promptów jest po stronie serwera.
