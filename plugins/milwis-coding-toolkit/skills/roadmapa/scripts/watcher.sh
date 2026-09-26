@@ -1,6 +1,8 @@
 #!/bin/bash
-# Watcher of the queue: after every issue it clears the lead's context and starts the next
-# cycle by typing into the lead's tmux pane, exactly as the owner would (/clear, then the start prompt).
+# Watcher of the queue: after every issue it ends the lead's claude process (/exit) and starts a new one
+# in the same tmux pane (lider.sh, the start prompt as its first message) — one issue = one session, each
+# visible on its own in /resume and in Remote Control. Replaced /clear in v1.5.35: /clear kept one process
+# (one Remote Control session for the whole night) and the plugin version from the moment of start.
 # Started by `kolejka.sh start` in the second window of the tmux session, under caffeinate.
 #
 # Flags written by the LEAD in $K (the watcher never guesses the lead's state from the screen):
@@ -26,12 +28,18 @@ powiadom() {
   osascript -e "display notification \"${1//\"/\'}\" with title \"Kolejka roadmapa\"" 2>/dev/null
 }
 wyslij() { tmux send-keys -t "$SESJA:0" -l "$1"; sleep 1; tmux send-keys -t "$SESJA:0" Enter; }
+martwy() { [ "$(tmux display-message -p -t "$SESJA:0" '#{pane_dead}' 2>/dev/null)" = 1 ]; }
 nowy_cykl() {
   rm -f rotuj pusto
-  wyslij "/clear"
-  sleep 5
+  # remain-on-exit keeps the pane (and its index 0) after claude exits, so respawn has a target.
+  tmux set-option -w -t "$SESJA:0" remain-on-exit on
+  # /exit lets claude close its Remote Control session cleanly; -k below kills whatever is left.
+  if ! martwy; then
+    wyslij "/exit"
+    for _ in $(seq 30); do martwy && break; sleep 1; done
+  fi
   rm -f tura-koniec
-  wyslij "$(cat start-prompt.txt)"
+  tmux respawn-pane -k -t "$SESJA:0" -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
   STALL_ZGLOSZONY=0
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 }
@@ -53,14 +61,20 @@ log "watcher: start (sesja $SESJA, repo $REPO)"
 if [ "${2:-}" = "--bez-cyklu" ]; then
   log "watcher: dołączam do pracującego lidera (bez nowego cyklu), limit tygodniowy $LIMIT_TYG%"
 else
-  sleep 10          # let the claude UI come up before typing
-  nastepny_cykl
+  # kolejka.sh start has already launched the first lead (lider.sh) after checking the limit.
+  log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 fi
 BEZ_FLAGI=0
 STALL_ZGLOSZONY=0
 
 while sleep 20; do
   tmux has-session -t "$SESJA" 2>/dev/null || { log "sesja tmux zniknęła"; exit 1; }
+
+  if martwy && [ ! -f tura-koniec ]; then
+    # claude exited on its own (crash, owner's /exit): no Stop hook ran, so treat it as a turn without a flag.
+    date +%s > tura-koniec
+    log "lider: proces claude zakończył się poza cyklem"
+  fi
 
   if [ ! -f tura-koniec ]; then
     # The lead is working (or hung). A subagent on a Large issue may run for hours — only notify.

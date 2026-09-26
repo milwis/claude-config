@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the bug backlog by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh general-purpose subagent runs triage + task-lifecycle), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then /clears the lead and starts the next. Never builds new features from the backlog, never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
+description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the bug backlog by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh general-purpose subagent runs triage + task-lifecycle), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then ends the lead's process and starts a new lead session for the next. Never builds new features from the backlog, never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
 ---
 
 # Roadmapa — the issue queue
@@ -10,12 +10,17 @@ description: "Use when GitHub issues must be resolved autonomously one after ano
 
 **Core idea.** Quality degrades before a context window fills, so the work is split by context, not by
 time: every issue is solved by a fresh subagent (L2), and the lead that dispatches it lives for exactly
-one issue — after it, a watcher types `/clear` and the start prompt again. Everything that must survive
+one issue — after it, a watcher ends that claude process (`/exit`) and starts a new one in the same tmux pane
+(`lider.sh`, the start prompt as the first message). One issue = one session: its own entry in `/resume` and in
+Remote Control (named `kolejka #<issue>`), and the current plugin version. Everything that must survive
 lives outside any context: GitHub labels, `git` merges, a committed ledger, flag files.
 
 `POMIAR` (2026-09-24, scratch repo, Claude Code 2.1.281, auto mode): an interactive session in tmux merged
 `--no-ff`, received `/clear` via `tmux send-keys`, did not remember the previous turn, received the
-`SessionStart:clear` hook's context, and merged again — no classifier bounce. `NIEZMIERZONE`: a real issue
+`SessionStart:clear` hook's context, and merged again — no classifier bounce. `POMIAR` (2026-09-26, KonkretnyTMS,
+Claude Code 2.1.283, v1.5.35): two cycles on the watcher — `/exit`, `respawn-pane`, a new pid and a new session
+named `kolejka #999 …`, the start prompt answered, the Stop hook fired in both; the default model comes up in
+auto mode (haiku does not — it falls back to manual). `NIEZMIERZONE`: a real issue
 with L2 over a whole night — the first run on a project is a watched dry run.
 
 ## When — and when not
@@ -86,7 +91,8 @@ It is the only file the lead reads; the `SessionStart` hook points to it.
 |---|---|
 | `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, L2 brief, dispatch, control, merge, close, ledger |
 | `scripts/kolejka.sh` | owner's control: start / stop / status / lista / watcher |
-| `scripts/watcher.sh` | `/clear` + start prompt after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
+| `scripts/watcher.sh` | a new lead process (`/exit` + `respawn-pane`) after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
+| `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--settings`, session named after the issue, start prompt as the first message |
 | `scripts/wybierz-issue.sh` | the picker: list source or backlog source |
 | `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
 | `scripts/hook-session-start.sh`, `scripts/hook-stop.sh` | hooks of the lead session only (passed with `--settings`) |

@@ -2,7 +2,7 @@
 # The issue queue (roadmapa) — owner's control script. Rules for the lead: ../references/cykl-lidera.md
 #
 #   kolejka.sh start  [repo] [--issues 812,815] [--limit 90]
-#                              start the lead in tmux + the watcher (owner's terminal); without --issues: the bug
+#                              start the lead in tmux (a new claude session per issue) + the watcher (owner's terminal); without --issues: the bug
 #                              backlog by priority, no end; --limit: stop before a new issue at this weekly usage %
 #                              (default 90, 100 = off)
 #   kolejka.sh stop   [repo]   finish the current issue, then stop
@@ -63,6 +63,7 @@ LEDGER="${KOLEJKA_LEDGER:-docs/plans/kolejka-ledger.md}"
 WT="$REPO/.claude/worktrees/kolejka"
 ETYKIETA_ZROBIONE="${KOLEJKA_ETYKIETA_ZROBIONE:-status:zrobione-lokalnie}"
 MODEL_L2="${KOLEJKA_MODEL_L2:-opus}"
+MODEL_LIDER="${KOLEJKA_MODEL_LIDER:-}"
 IDLE_MIN="${KOLEJKA_IDLE_MIN:-30}"
 STALL_MIN="${KOLEJKA_STALL_MIN:-90}"
 GRACE_MIN="${KOLEJKA_GRACE_MIN:-10}"
@@ -76,14 +77,15 @@ EOF
   jq -n --arg ss "$SKRYPTY/hook-session-start.sh" --arg st "$SKRYPTY/hook-stop.sh" '{hooks: {
     SessionStart: [{matcher: "startup|clear|compact", hooks: [{type: "command", command: $ss}]}],
     Stop: [{hooks: [{type: "command", command: $st}]}]}}' > "$K/settings.json"
-  # The owner's authorisation. The watcher types it verbatim at the start of every cycle; the lead
-  # quotes it in ledger row 0. One line — a newline would submit it early.
+  # The owner's authorisation. lider.sh passes it verbatim as the first message of every lead session;
+  # the lead quotes it in ledger row 0. One line.
   if [ -n "$LISTA" ]; then ZRODLO="weź następne issue z listy $LISTA (w tej kolejności)"
   else ZRODLO="weź jedno issue z kolejki bugów wg priorytetu P0→P3 (nowe funkcje pomijasz)"; fi
   echo "Kolejka roadmapa: $ZRODLO, rozwiąż je podagentem, scal lokalnie do $MAIN (--no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
 
-  tmux new-session -d -s "$SESJA" -n lider -x 220 -y 50 -c "$REPO" \
-    "claude --permission-mode auto ${KOLEJKA_MODEL_LIDER:+--model $KOLEJKA_MODEL_LIDER} --settings '$K/settings.json'"
+  # One claude process per issue: the watcher replaces it (respawn-pane) after every issue.
+  tmux new-session -d -s "$SESJA" -n lider -x 220 -y 50 -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
+  tmux set-option -w -t "$SESJA:0" remain-on-exit on
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
     "caffeinate -dimsu '$SKRYPTY/watcher.sh' '$K/config.env'; echo 'watcher zakończony — Enter zamyka okno'; read"
   echo "Kolejka ruszyła. Podgląd: tmux attach -t $SESJA  (Ctrl-b d = odłącz, Ctrl-b n = okno watchera)"

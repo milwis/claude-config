@@ -6,6 +6,16 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: nowy proces lidera na każde issue zamiast /clear (v1.5.35)
+
+Źródło: prośba właściciela (2026-09-26) — każde issue ma być osobną sesją, żeby z telefonu (Remote Control) widzieć, co dzieje się w konkretnym issue. Po `/clear` proces był ten sam, więc cała noc szła w jednej sesji Remote Control, a lider miał wersję pluginu z chwili startu (dzisiejsza v1.5.34 nie dotarłaby do niego bez ręcznego restartu). Koszt tokenów bez zmian: kontekst startowy jest płacony przy każdym issue w obu wariantach, cache promptów jest po stronie serwera.
+
+- `scripts/lider.sh` (nowy): jeden lider = jeden proces `claude` — `--permission-mode auto`, `--settings`, `-n`/`--remote-control "kolejka #<issue> <data>"` (numer z `w-toku` albo z wybieraka), prompt startowy jako pierwsza wiadomość sesji interaktywnej (nie `-p`).
+- `scripts/watcher.sh`: `nowy_cykl` zamiast `/clear` + wpisania promptu robi `/exit` (do 30 s), potem `respawn-pane -k` z `lider.sh`; okno lidera ma `remain-on-exit`, więc martwy proces bez `tura-koniec` jest traktowany jak tura bez flagi. Start bez `--bez-cyklu` już nie wysyła pierwszego cyklu — robi to `kolejka.sh start`.
+- `scripts/kolejka.sh`: `start` uruchamia lidera przez `lider.sh`; `MODEL_LIDER` trafia do `config.env`.
+- `SKILL.md`, `references/cykl-lidera.md`, komentarze hooków: opis cyklu bez `/clear`.
+- `POMIAR` (2026-09-26, KonkretnyTMS, osobna sesja tmux `kolejka-test`, config w scratchpadzie): dwa cykle na prawdziwym watcherze — pid 95580 → 95862, obie sesje nazwane `kolejka #999 09-26 09:37`, prompt obsłużony, Stop hook w obu, `zatrzymaj` zakończył watcher. Domyślny model (Opus 5.5) startuje w auto mode; haiku spada do manual.
+
 ## Run: 2026-09-26 — Kolejka: domyślny limit tygodniowy 90% (v1.5.34)
 
 Źródło: decyzja właściciela (2026-09-26) — kolejka ma nie zaczynać nowego issue od 90% tygodniowego limitu (wcześniej 92%, potem czasowo 100% na spalenie tygodnia przed resetem).

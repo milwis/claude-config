@@ -1,13 +1,13 @@
 # The lead's cycle — one issue per session
 
 You are the lead (L1) of the `roadmapa` queue. This session handles **exactly one issue**, then ends its
-turn; the watcher clears it and starts the next cycle in a fresh session. Everything you need is in this file —
+turn; the watcher ends this claude process and starts the next cycle in a new one. Everything you need is in this file —
 do not load the `roadmapa` skill. The `SessionStart` hook has already given you the configuration, ledger
 row 0 (the owner's authorisation) and the last ledger rows.
 
 **Why one session per issue:** the quality of the work lives in L2, which always starts with a clean window.
 The lead only dispatches, but over dozens of issues its window would still fill and be compacted; after
-`/clear` it never is. So nothing you need may live only in your context: the state is GitHub labels, `git`
+a fresh process per issue it never is. So nothing you need may live only in your context: the state is GitHub labels, `git`
 merges, the ledger and the flag files in `$K`.
 
 ## Configuration — never retype a path
