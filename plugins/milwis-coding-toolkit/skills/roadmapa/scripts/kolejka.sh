@@ -94,7 +94,7 @@ EOF
   tmux new-session -d -s "$SESJA" -n lider -x 220 -y 50 -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
   tmux set-option -w -t "$SESJA:0" remain-on-exit on
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
-    "caffeinate -dimsu '$SKRYPTY/watcher.sh' '$K/config.env'; echo 'watcher zakończony — Enter zamyka okno'; read"
+    "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env'; echo 'watcher zakończony — Enter zamyka okno'; read"
   echo "Kolejka ruszyła. Podgląd: tmux attach -t $SESJA  (Ctrl-b d = odłącz, Ctrl-b n = okno watchera)"
   echo "Pierwsze issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || true)"
   echo "$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG" "$OKNO_H") — po przekroczeniu kolejka czeka na okno $OKNO_H h przed resetem"
@@ -113,7 +113,7 @@ watcher)
   done
   tmux kill-window -t "$SESJA:watcher" 2>/dev/null || true
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
-    "caffeinate -dimsu '$SKRYPTY/watcher.sh' '$K/config.env' --bez-cyklu; echo 'watcher zakończony — Enter zamyka okno'; read"
+    "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env' --bez-cyklu; echo 'watcher zakończony — Enter zamyka okno'; read"
   echo "Watcher podmieniony (lider pracuje dalej). Limit tygodniowy: $(cfg LIMIT_TYG 90)%, okno przed resetem: $(cfg OKNO_H 5) h"
   ;;
 stop)

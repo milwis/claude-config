@@ -3,7 +3,8 @@
 # in the same tmux pane (lider.sh, the start prompt as its first message) — one issue = one session, each
 # visible on its own in /resume and in Remote Control. Replaced /clear in v1.5.35: /clear kept one process
 # (one Remote Control session for the whole night) and the plugin version from the moment of start.
-# Started by `kolejka.sh start` in the second window of the tmux session, under caffeinate.
+# Started by `kolejka.sh start` in the second window of the tmux session, under `caffeinate -ims`: the system
+# never sleeps while the watcher lives (pauses included), the display does — no -d/-u (owner, 2026-09-26).
 #
 # Flags written by the LEAD in $K (the watcher never guesses the lead's state from the screen):
 #   rotuj  — issue finished (merged, deferred or closed), start the next cycle

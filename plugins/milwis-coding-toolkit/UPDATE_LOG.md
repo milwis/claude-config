@@ -6,6 +6,12 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: caffeinate bez trzymania ekranu (v1.5.37)
+
+Źródło: prośba właściciela (2026-09-26) — przy wielodniowej pauzie do okna przed resetem monitor świecił non stop. `POMIAR` (`pmset -g`): `sleep 0` (system i tak nie zasypia), `displaysleep 3 (display sleep prevented by caffeinate)`.
+
+- `scripts/kolejka.sh`: watcher pod `caffeinate -ims` zamiast `-dimsu` — system nadal nie zasypia (zabezpieczenie, gdyby ustawienie usypiania się zmieniło), ekran gaśnie wg `displaysleep`; bez `-u`, bo budzi ekran przy starcie.
+
 ## Run: 2026-09-26 — Kolejka: okno przed resetem limitu tygodniowego + czekanie na reset po wyczerpaniu limitu (v1.5.36)
 
 Źródło: decyzja właściciela (2026-09-26) — próg 90% to rezerwa na awarie, ale w ostatnich ~5 h przed resetem (wt 12:00) szansa na pilną awarię jest mała, a niewykorzystana rezerwa przepada. Kolejka ma wtedy sama znosić limit i wracać do niego po resecie. Jednorazowy ręczny reset limitu (przesuwa `resets_at`) właściciel obsługuje sam.

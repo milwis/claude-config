@@ -48,7 +48,7 @@ kolejka.sh watcher [repo] [--limit N] [--okno H]   # replace the watcher of a ru
 
 **Before start:** `tmux`, `jq`, `gh` (logged in); the main tree on `main` with no uncommitted tracked changes
 (the lead merges there); **no other lead working in the repo** — two leads in one tree collide on the index
-lock and one commit sweeps up the other's uncommitted edit. The machine stays awake (`caffeinate` is built in).
+lock and one commit sweeps up the other's uncommitted edit. The machine stays awake (`caffeinate -ims` is built in; the display still sleeps).
 
 **Afterwards:** `kolejka.sh status`, full suite + the project's CI-parity gate on `main`, push when satisfied.
 The push rule treats unpushed `[roadmapa]` merges (`git log origin/main..main --merges --grep '\[roadmapa\]'`)
