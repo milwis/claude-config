@@ -1,21 +1,21 @@
 #!/bin/bash
 # The issue queue (roadmapa) — owner's control script. Rules for the lead: ../references/cykl-lidera.md
 #
-#   kolejka.sh start  [repo] [--issues 812,815] [--limit 90] [--okno 5]
+#   kolejka.sh start  [repo] [--issues 812,815] [--limit 92] [--okno 5]
 #                              start the lead in tmux (a new claude session per issue) + the watcher (owner's terminal); without --issues: the bug
 #                              backlog by priority, no end; --limit: stop before a new issue at this weekly usage %
-#                              (default 90, 100 = off); --okno: in the last N hours before the weekly reset the limit
+#                              (default 92, 100 = off); --okno: in the last N hours before the weekly reset the limit
 #                              is lifted, and a queue stopped by the limit pauses until then (default 5, 0 = off)
 #   kolejka.sh stop   [repo]   finish the current issue, then stop
 #   kolejka.sh status [repo]   where the queue stands
 #   kolejka.sh lista  [repo]   the queue in the order it will be taken (skips with reasons on stderr)
-#   kolejka.sh watcher [repo] [--limit 90] [--okno 5]   replace the watcher of a running queue without a new cycle
+#   kolejka.sh watcher [repo] [--limit 92] [--okno 5]   replace the watcher of a running queue without a new cycle
 #                              (after a toolkit update); the lead keeps working
 #
 # Configuration (environment, read at start):
 #   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
-#   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (90), KOLEJKA_OKNO_H (5),
+#   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
 #   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
 #   by its title, set empty = off), KOLEJKA_DEPLOY_WORKFLOW (workflow whose last successful run = the last deploy, for
@@ -29,7 +29,7 @@ REPO_ARG="."; LISTA=""; LIMIT_ARG=""; OKNO_ARG=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --issues) LISTA="$(tr -d ' #' <<<"${2:?--issues wymaga listy numerów, np. 812,815}")"; shift 2 ;;
-    --limit) LIMIT_ARG="${2:?--limit wymaga procentu, np. 90}"; shift 2 ;;
+    --limit) LIMIT_ARG="${2:?--limit wymaga procentu, np. 92}"; shift 2 ;;
     --okno) OKNO_ARG="${2:?--okno wymaga liczby godzin, np. 5}"; shift 2 ;;
     *) REPO_ARG="$1"; shift ;;
   esac
@@ -38,8 +38,8 @@ REPO="$(cd "$REPO_ARG" && git rev-parse --show-toplevel)"
 K="$REPO/.claude/tmp/kolejka"
 SESJA="${KOLEJKA_SESJA:-kolejka}"
 cfg() { (. "$K/config.env" 2>/dev/null; eval "echo \"\${$1:-$2}\""); }
-LIMIT_TYG="${LIMIT_ARG:-${KOLEJKA_LIMIT_TYG:-90}}"
-[[ "$LIMIT_TYG" =~ ^[0-9]+$ ]] || { echo "--limit: liczba procent, np. 90 (100 = bez limitu)"; exit 1; }
+LIMIT_TYG="${LIMIT_ARG:-${KOLEJKA_LIMIT_TYG:-92}}"
+[[ "$LIMIT_TYG" =~ ^[0-9]+$ ]] || { echo "--limit: liczba procent, np. 92 (100 = bez limitu)"; exit 1; }
 OKNO_H="${OKNO_ARG:-${KOLEJKA_OKNO_H:-5}}"
 [[ "$OKNO_H" =~ ^[0-9]+$ ]] || { echo "--okno: liczba godzin przed resetem, np. 5 (0 = bez okna)"; exit 1; }
 TYTUL_STATUSU="Kolejka — status (nie ruszać)"
@@ -134,7 +134,7 @@ watcher)
   tmux kill-window -t "$SESJA:watcher" 2>/dev/null || true
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
     "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env' --bez-cyklu; echo 'watcher zakończony — Enter zamyka okno'; read"
-  echo "Watcher podmieniony (lider pracuje dalej). Limit tygodniowy: $(cfg LIMIT_TYG 90)%, okno przed resetem: $(cfg OKNO_H 5) h, issue statusu: $(numer_statusu)"
+  echo "Watcher podmieniony (lider pracuje dalej). Limit tygodniowy: $(cfg LIMIT_TYG 92)%, okno przed resetem: $(cfg OKNO_H 5) h, issue statusu: $(numer_statusu)"
   ;;
 stop)
   mkdir -p "$K" && touch "$K/zatrzymaj"
@@ -145,7 +145,7 @@ status)
   tmux has-session -t "$SESJA" 2>/dev/null && echo "sesja: działa ($SESJA)" || echo "sesja: nie działa"
   L=$(cfg KOLEJKA_LISTA ""); [ -n "$L" ] && echo "źródło: lista $L" || echo "źródło: backlog bugów P0→P3"
   [ -f "$K/w-toku" ] && echo "w toku: #$(cat "$K/w-toku")" || echo "w toku: -"
-  echo "$("$SKRYPTY/limit-tygodniowy.sh" "$(cfg LIMIT_TYG 90)" "$(cfg OKNO_H 5)")"
+  echo "$("$SKRYPTY/limit-tygodniowy.sh" "$(cfg LIMIT_TYG 92)" "$(cfg OKNO_H 5)")"
   echo "issue statusu (dashboard): $(numer_statusu)"
   for f in zatrzymaj stop pusto rotuj pauza blad-api; do [ -f "$K/$f" ] && echo "flaga: $f $(cat "$K/$f")"; done
   LEDGER=$(cfg LEDGER docs/plans/kolejka-ledger.md); MAIN=$(cfg MAIN main)

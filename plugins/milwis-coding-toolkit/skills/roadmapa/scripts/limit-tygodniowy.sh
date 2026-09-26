@@ -9,7 +9,7 @@
 # whatever the usage — the owner's reserve is for emergencies, and one arriving in those few hours is unlikely.
 # The window needs only `resets_at` (fixed for the week), so a stale reading does not close it; after the reset
 # the next reading carries the new `resets_at` and the limit is back by itself.
-LIMIT="${1:-90}"
+LIMIT="${1:-92}"
 OKNO_H="${2:-${KOLEJKA_OKNO_H:-5}}"
 PLIK="${KOLEJKA_PLIK_LIMITU:-$HOME/.claude/usage/limit-tygodniowy.json}"
 MAX_WIEK_S="${KOLEJKA_LIMIT_MAX_WIEK_S:-3600}"

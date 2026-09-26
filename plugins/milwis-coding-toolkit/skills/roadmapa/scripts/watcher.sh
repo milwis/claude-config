@@ -55,7 +55,7 @@ nowy_cykl() {
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 }
 zakoncz() { rm -f pauza; status_github zatrzymana "$1"; powiadom "$1"; log "watcher: koniec"; exit 0; }
-LIMIT_TYG="${LIMIT_TYG:-90}"
+LIMIT_TYG="${LIMIT_TYG:-92}"
 OKNO_H="${OKNO_H:-5}"
 PLIK_LIMITU="${KOLEJKA_PLIK_LIMITU:-$HOME/.claude/usage/limit-tygodniowy.json}"
 odczyt() { v=$(jq -r ".$1 // empty" "$PLIK_LIMITU" 2>/dev/null); v="${v%.*}"; [[ "$v" =~ ^[0-9]+$ ]] && echo "$v"; }

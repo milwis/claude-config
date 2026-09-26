@@ -6,6 +6,13 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-26 — Kolejka: domyślny limit tygodniowy 92% (v1.5.40)
+
+Źródło: decyzja właściciela (2026-09-26) — kolejka nie zaczyna nowego issue od 92% tygodniowego limitu (wcześniej 90%, v1.5.34). Działająca kolejka KonkretnyTMS przestawiona przez `kolejka.sh watcher --limit 92`.
+
+- `scripts/kolejka.sh`, `scripts/watcher.sh`, `scripts/limit-tygodniowy.sh`, `SKILL.md`: domyślne `LIMIT_TYG` / `KOLEJKA_LIMIT_TYG` 90 → 92 (pomoc, przykłady, `cfg` w `status`/`watcher`). `--limit N` i `KOLEJKA_LIMIT_TYG` nadal nadpisują; `100` = wyłączony.
+- `POMIAR` (2026-09-26, sfabrykowany odczyt): bramka bez argumentu — 91% → idzie (exit 1), 92% → stop (exit 0).
+
 ## Run: 2026-09-26 — Kolejka: czas ostatniego deployu w issue statusu (v1.5.39)
 
 Źródło: prośba właściciela (2026-09-26) — licznik na dashboardzie „naprawione od ostatniego deployu”. Konektor dashboardu ma tylko Issues: Read-only (decyzja właściciela), więc nie widzi GitHub Actions; czas deployu dostarcza watcher przez `gh`, a strona liczy zamknięte issues z `status:zrobione-lokalnie` zamknięte po nim (`search_issues` z `closed:>`). Etykieta nie jest zdejmowana po deployu (`POMIAR`: 100 zamkniętych z tą etykietą od 2026-07-04), więc sama etykieta nie wystarcza.
