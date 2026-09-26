@@ -14,7 +14,7 @@
 - `scripts/watcher.sh`: `nowy_cykl` zamiast `/clear` + wpisania promptu robi `/exit` (do 30 s), potem `respawn-pane -k` z `lider.sh`; okno lidera ma `remain-on-exit`, więc martwy proces bez `tura-koniec` jest traktowany jak tura bez flagi. Start bez `--bez-cyklu` już nie wysyła pierwszego cyklu — robi to `kolejka.sh start`.
 - `scripts/kolejka.sh`: `start` uruchamia lidera przez `lider.sh`; `MODEL_LIDER` trafia do `config.env`.
 - `SKILL.md`, `references/cykl-lidera.md`, komentarze hooków: opis cyklu bez `/clear`.
-- `POMIAR` (2026-09-26, KonkretnyTMS, osobna sesja tmux `kolejka-test`, config w scratchpadzie): dwa cykle na prawdziwym watcherze — pid 95580 → 95862, obie sesje nazwane `kolejka #999 09-26 09:37`, prompt obsłużony, Stop hook w obu, `zatrzymaj` zakończył watcher. Domyślny model (Opus 5.5) startuje w auto mode; haiku spada do manual.
+- `POMIAR` (2026-09-26, KonkretnyTMS, osobna sesja tmux `kolejka-test`, config w scratchpadzie): dwa cykle na prawdziwym watcherze — pid 95580 → 95862, obie sesje nazwane `kolejka #999 09-26 09:37`, prompt obsłużony, Stop hook w obu, `zatrzymaj` zakończył watcher. Domyślny model (Opus 5.5) startuje w auto mode; haiku spada do manual. Merge: lider z `lider.sh` (Opus 5.5, auto mode) w repo testowym zrobił `git merge --no-ff agent/test` do `main` — „Allowed by auto mode classifier” (prompt jako argument startowy przechodzi klasyfikator tak samo jak wpisany).
 
 ## Run: 2026-09-26 — Kolejka: domyślny limit tygodniowy 90% (v1.5.34)
 

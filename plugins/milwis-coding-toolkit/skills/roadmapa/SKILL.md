@@ -20,7 +20,8 @@ lives outside any context: GitHub labels, `git` merges, a committed ledger, flag
 `SessionStart:clear` hook's context, and merged again — no classifier bounce. `POMIAR` (2026-09-26, KonkretnyTMS,
 Claude Code 2.1.283, v1.5.35): two cycles on the watcher — `/exit`, `respawn-pane`, a new pid and a new session
 named `kolejka #999 …`, the start prompt answered, the Stop hook fired in both; the default model comes up in
-auto mode (haiku does not — it falls back to manual). `NIEZMIERZONE`: a real issue
+auto mode (haiku does not — it falls back to manual); a lead started by `lider.sh` in a scratch repo ran
+`git merge --no-ff agent/test -m '… [roadmapa]'` into `main` — "Allowed by auto mode classifier". `NIEZMIERZONE`: a real issue
 with L2 over a whole night — the first run on a project is a watched dry run.
 
 ## When — and when not
