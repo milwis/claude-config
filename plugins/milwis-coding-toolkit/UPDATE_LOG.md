@@ -6,6 +6,15 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-09-27 — Kolejka: brakujące testy (`typ:test`) w backlogu (v1.5.41)
+
+Źródło: decyzja właściciela (2026-09-27) — brakujące testy też rozwiązuje kolejka. Dotąd `typ:test` nie było w `KOLEJKA_TYPY`, więc 24 otwarte P3 z tą etykietą nigdy nie trafiały do kolejki (wyszło przy dashboardzie: „dlaczego tylko połowa P3 jest w kolejce”).
+
+- `scripts/wybierz-issue.sh`, `scripts/kolejka.sh`: domyślne `KOLEJKA_TYPY` + `typ:test`. Działająca kolejka KonkretnyTMS: `KOLEJKA_TYPY` w `config.env` poprawione ręcznie (plik ma pierwszeństwo przed domyślną wartością).
+- `references/cykl-lidera.md`: opis selektora; w prompcie L2 triage dla `typ:test` = brak pokrycia na HEAD, a brakujący test dla istniejącego zachowania to nie `feature.`.
+- `SKILL.md`, `nowe-issue/SKILL.md`: „bugi i brakujące testy”; poza kolejką zostają `typ:pomysl` i `typ:analysis`.
+- `POMIAR` (2026-09-27, KonkretnyTMS, `wybierz-issue.sh --lista` z nowym `config.env`): P2 11, P3 60 → 82. Z 26 otwartych `typ:test` wchodzi 22; pominięte #805, #787 (lokalna gałąź `agent/issue-*`) oraz #905, #897 (`status:do-scalenia`).
+
 ## Run: 2026-09-26 — Kolejka: domyślny limit tygodniowy 92% (v1.5.40)
 
 Źródło: decyzja właściciela (2026-09-26) — kolejka nie zaczyna nowego issue od 92% tygodniowego limitu (wcześniej 90%, v1.5.34). Działająca kolejka KonkretnyTMS przestawiona przez `kolejka.sh watcher --limit 92`.

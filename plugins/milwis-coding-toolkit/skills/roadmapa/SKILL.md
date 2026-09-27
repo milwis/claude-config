@@ -67,7 +67,7 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
   specialists work on `agent/issue-<nr>` in the queue worktree and never merge, push, close or create issues.
 - **One issue at a time**, each branch from the `main` that already contains the previous merge — so no
   two branches ever race for the same base.
-- **Bugs only from the backlog.** The picker filters by label; L2's triage is the second filter (`feature.`).
+- **Bugs and missing tests only from the backlog** (`typ:test` since v1.5.41). The picker filters by label; L2's triage is the second filter (`feature.`).
   The error is asymmetric: an idea taken = functionality nobody ordered, built overnight; a fix skipped =
   it waits one cycle. With unclear content, defer.
 - **Deferral lives in the issue** — `status:odlozone` plus a comment saying what unblocks it. A deferral

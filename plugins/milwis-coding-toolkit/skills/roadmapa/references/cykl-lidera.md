@@ -66,7 +66,7 @@ N=$("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>"$K/pominiete.txt"); echo "N=$N RC=$?"
   source = backlog → `touch "$K/pusto"`, end the turn. No ledger row for an empty cycle.
 
 The picker (backlog source) takes only open issues with a bug-type label (`typ:bug`, `typ:point-fix`,
-`typ:structural`, legacy `bug`) and a priority, P0 → P3 then oldest; it skips features (`typ:pomysl`,
+`typ:structural`, legacy `bug`) or a missing-test label (`typ:test`) and a priority, P0 → P3 then oldest; it skips features (`typ:pomysl`,
 `enhancement`, `new_idea`, `request`), `typ:analysis`, `status:odlozone`/`do-scalenia`/`zrobione-lokalnie`,
 `tor:remediacja-danych`, issues with an existing local `agent/issue-<nr>` branch (someone started it — the
 owner's call) and deferrals written in `docs/plans`/`docs/runbook`. On the list source only closed and
@@ -110,11 +110,13 @@ Never touch <$REPO> (the main tree).
    whether the suite collects the file at all). Re-derive file:line yourself. An anchor is a command plus
    its raw output; a zero counts only after a second pattern or a positive control; no `| head` on an
    anchor grep. A claim about the DB engine or infrastructure is measured on dev, not asserted.
+   For `typ:test` the problem is the missing coverage: VALID when the named behaviour has no test on HEAD.
    Verdict: VALID / ALREADY-FIXED / NOT-A-BUG / NEEDS-CLARIFICATION.
    Not VALID → report `closed-on-head. <verdict>` (with the decisive measurement) or
    `ambiguous. ask: <question>` and stop.
 2. Bugs only. If the issue in fact asks for new functionality (a new feature, screen, report, option,
-   integration — not restoring behaviour that is broken), report `feature. <one sentence why>` and stop
+   integration — not restoring behaviour that is broken; a missing test for existing behaviour is not a
+   feature), report `feature. <one sentence why>` and stop
    without changing code.
 3. Run the task-lifecycle skill IN FULL, including every delegation step. Size class per its Step 0;
    Large → /writingplans with Pass 2, commit the plan, then /executingplans. Spawn only specialist types and

@@ -6,7 +6,7 @@
 # Two sources, set in the queue's config.env (written by kolejka.sh start):
 #   KOLEJKA_LISTA set    — the owner's explicit list, in the owner's order. No type filter (the owner chose);
 #                          skipped only when closed or carrying a done/deferred status label.
-#   KOLEJKA_LISTA empty  — the bug backlog: open, one of KOLEJKA_TYPY, none of KOLEJKA_POMIJAJ, a priority
+#   KOLEJKA_LISTA empty  — the bug + missing-test backlog: open, one of KOLEJKA_TYPY, none of KOLEJKA_POMIJAJ, a priority
 #                          label, P0 -> P3, oldest first; skips issues with a local agent/issue-<nr> branch
 #                          and issues whose deferral is written in the repo (KOLEJKA_ODROCZENIA dirs).
 # Skip reasons go to stderr as "pominięto #<nr>: <reason>" — the lead labels those (see cykl-lidera.md).
@@ -17,7 +17,7 @@ LISTA_TRYB=0
 cd "${1:-.}"
 
 KOLEJKA_LISTA=""
-KOLEJKA_TYPY="typ:bug,typ:point-fix,typ:structural,bug"
+KOLEJKA_TYPY="typ:bug,typ:point-fix,typ:structural,typ:test,bug"
 KOLEJKA_POMIJAJ="typ:pomysl,enhancement,new_idea,request,typ:analysis,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker"
 KOLEJKA_ODROCZENIA="docs/plans docs/runbook"
 # shellcheck disable=SC1091

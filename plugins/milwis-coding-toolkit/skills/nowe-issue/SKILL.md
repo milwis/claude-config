@@ -116,10 +116,10 @@ before merge (the label's own description).
 
 ## 5. What the queue takes
 
-The roadmapa backlog source takes open issues with `typ:bug` / `typ:point-fix` / `typ:structural` and a
+The roadmapa backlog source takes open issues with `typ:bug` / `typ:point-fix` / `typ:structural` / `typ:test` and a
 priority, P0→P3 then oldest; it skips `typ:pomysl`, `typ:analysis`, `status:odlozone`/`do-scalenia`/
-`zrobione-lokalnie`, `tor:remediacja-danych` (`roadmapa/scripts/wybierz-issue.sh`). So `typ:test` and
-`typ:pomysl` issues reach an agent only through `kolejka.sh start --issues …` or a manual web session — say so
+`zrobione-lokalnie`, `tor:remediacja-danych` (`roadmapa/scripts/wybierz-issue.sh`). So `typ:pomysl` and
+`typ:analysis` issues reach an agent only through `kolejka.sh start --issues …` or a manual web session — say so
 in the report when you create them.
 
 ## 6. Body templates (Polish — the repo's issue language)
