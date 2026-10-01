@@ -6,6 +6,52 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-01 — Monthly maintenance sweep
+
+### Updated
+- `skills/lang-guidelines/SKILL.md`: added a mandatory rule to the "hallucinated libraries" category — generated language agents must verify a package actually exists in its official registry (PyPI/npm/crates.io/etc.) before recommending or importing it, since attackers register the exact non-existent names LLMs repeatedly hallucinate (slopsquatting supply-chain attacks). Added its first `<!-- Updated: ... -->` comment + `Last updated:` line (file previously had none).
+
+### Skipped (up to date)
+- `agents/backend-security-coder.md`: last updated 2026-09-24 (7 days)
+- `agents/code-reviewer.md`: last updated 2026-09-25 (6 days)
+- `agents/database-optimizer.md`: last updated 2026-09-24 (7 days)
+- `agents/debugger.md`: last updated 2026-09-24 (7 days)
+- `agents/javascript-pro.md`: last updated 2026-09-24 (7 days)
+- `agents/mobile-pwa-developer.md`: last updated 2026-09-24 (7 days)
+- `agents/nextjs-pro.md`: last updated 2026-09-24 (7 days)
+- `agents/php-pro.md`: last updated 2026-09-24 (7 days)
+- `agents/python-pro.md`: last updated 2026-09-24 (7 days)
+- `agents/refactoring-orchestrator.md`: last updated 2026-09-15 (16 days)
+- `agents/sql-pro.md`: last updated 2026-09-24 (7 days)
+- `agents/test-automator.md`: last updated 2026-09-24 (7 days)
+- `skills/new-project/SKILL.md`: last updated 2026-09-24 (7 days)
+
+### Skipped (methodology/stable)
+- `skills/audit-360/SKILL.md`
+- `skills/brainstorming/SKILL.md`
+- `skills/executingplans/SKILL.md`
+- `skills/migration/SKILL.md`
+- `skills/nowe-issue/SKILL.md`
+- `skills/resolving-merge-conflicts/SKILL.md`
+- `skills/retro/SKILL.md`
+- `skills/roadmapa/SKILL.md`
+- `skills/systematic-debugging/SKILL.md`
+- `skills/task-lifecycle/SKILL.md`
+- `skills/test-driven-development/SKILL.md`
+- `skills/verification-before-completion/SKILL.md`
+- `skills/verify-e2e/SKILL.md`
+- `skills/writingplans/SKILL.md`
+
+### Deferred to next run
+- None (no 10-file limit hit; only one file needed research/changes this run)
+
+### Issues
+- None. `gh pr list` was unavailable in this environment; the GitHub MCP `list_pull_requests` tool was used instead to confirm no open maintenance PR exists.
+
+### Next run priorities
+- `agents/refactoring-orchestrator.md` (16 days since last update — will cross 30 days around 2026-10-15)
+- All other agents + `skills/new-project/SKILL.md` updated very recently (6-7 days); unlikely to need attention next month unless a new run lands late.
+
 ## Run: 2026-09-27 — Kolejka: brakujące testy (`typ:test`) w backlogu (v1.5.41)
 
 Źródło: decyzja właściciela (2026-09-27) — brakujące testy też rozwiązuje kolejka. Dotąd `typ:test` nie było w `KOLEJKA_TYPY`, więc 24 otwarte P3 z tą etykietą nigdy nie trafiały do kolejki (wyszło przy dashboardzie: „dlaczego tylko połowa P3 jest w kolejce”).

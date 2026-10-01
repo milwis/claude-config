@@ -68,7 +68,7 @@ Build a catalog of mistakes AI commonly makes in `$ARGUMENTS`.
 
 ### Common categories to investigate
 
-Deprecated/removed APIs, incorrect error handling, security vulnerabilities (injection, XSS, unsafe deserialization), memory leaks, race conditions, type misuse, performance anti-patterns, platform-specific behavior, hallucinated libraries, mixed language versions, incorrect imports.
+Deprecated/removed APIs, incorrect error handling, security vulnerabilities (injection, XSS, unsafe deserialization), memory leaks, race conditions, type misuse, performance anti-patterns, platform-specific behavior, hallucinated libraries (treat as a supply-chain risk, not just a correctness one — attackers register the exact non-existent package names LLMs repeatedly invent, a technique known as slopsquatting, so every generated agent's Error Prevention section must include a rule to verify a package actually exists in the official registry, e.g. PyPI/npm/crates.io, before recommending or importing it), mixed language versions, incorrect imports.
 
 ---
 
@@ -224,3 +224,6 @@ Use the template at [references/agent-template.md](references/agent-template.md)
 - WebSearch fails → try alternative phrasings
 - WebFetch fails → note and move on
 - Niche language → do your best with available info, note gaps explicitly
+
+<!-- Updated: 2026-10-01 — added mandatory package-existence verification rule (slopsquatting / hallucinated-package supply-chain risk) to the hallucinated-libraries category -->
+Last updated: 2026-10-01
