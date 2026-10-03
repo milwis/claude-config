@@ -18,24 +18,19 @@ For any repository — regardless of language, framework, or domain:
 - `audit/repro/P0-NNN.md` — PoC reproduction artefacts for every P0
 - `audit/AGENT_UPDATES.md` — proposed additions to specialist agents derived from recurring patterns (closes the feedback loop)
 
-## 1. Prerequisites — `milwis-coding-toolkit` plugin
+## 1. Prerequisites — the specialist agents
 
-This skill DELEGATES to specialists from the `milwis-coding-toolkit` plugin. Without it, the skill cannot run.
+This skill DELEGATES to the toolkit's specialist agents. Preferred source: the project's vendored copies in `.claude/agents/` (they register locally and in Claude Code on the web); the `milwis-coding-toolkit` plugin is the fallback for projects that don't vendor them. STEP 0 confirms they are registered — every agent in the table below must appear in the session's agent list; a missing one is BLOCKED for that row, not replaced by a generic agent.
 
-```bash
-/plugin list                                  # verify the plugin is enabled
-/plugin install milwis-coding-toolkit         # if missing
-```
+Specialists are invoked via the `Agent` tool by bare name (`subagent_type: <name>`, no plugin prefix — plugin-scoped subagents do not register in the cloud).
 
-Specialists invoked via the `Agent` tool (`subagent_type: <name>`).
-
-The **Model** column is the model the audit RUNS each specialist on — since 2026-08-19 the agents' own frontmatter defaults to `sonnet` for daily work (token economy on subscription quota), so the orchestrator must pass an explicit **`model: opus`** override on every `Agent` call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
+The **Model** column is the model the audit RUNS each specialist on. In frontmatter, writer agents default to `sonnet` and reviewer agents (`code-reviewer`, `backend-security-coder`, `refactoring-orchestrator`) to `opus`, so the orchestrator passes an explicit **`model: opus`** override on every `Agent` call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
 
 | # | Agent | Model | Domain | Prompt file |
 |---|-------|-------|--------|-------------|
 | 1 | `backend-security-coder` | opus | Three-tier security boundary (Always/Ask/Never) | `prompts/01-backend-security.md` |
-| 2 | `php-pro` | opus | PHP 8.3+ — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
-| 3 | `python-pro` | opus | Python 3.13+ — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
+| 2 | `php-pro` | opus | PHP — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
+| 3 | `python-pro` | opus | Python — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
 | 4 | `javascript-pro` | opus | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
 | 5 | `sql-pro` | opus | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
 | 6 | `database-optimizer` | opus | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
@@ -47,7 +42,7 @@ The **Model** column is the model the audit RUNS each specialist on — since 20
 | 12 | `debugger` | opus | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
 | 13 | `code-reviewer` | opus | Self-review (forked instance) | `prompts/12-self-review.md` |
 
-Discipline skills active throughout (auto-loaded by the plugin):
+Discipline skills active throughout (loaded from the project's `.claude/skills/` or the plugin):
 
 - `verification-before-completion` — no specialist reports "done" without evidence
 - `systematic-debugging` — guards `debugger` during PoC reproduction
@@ -65,7 +60,7 @@ Discipline skills active throughout (auto-loaded by the plugin):
 
 The MAIN agent (current Claude Code session) drives the procedure. All specialists are invoked via the `Agent` tool.
 
-**Announce at start**: "Running the audit-360 skill. I will delegate to N specialists from milwis-coding-toolkit and consolidate via code-reviewer (opus)."
+**Announce at start**: "Running the audit-360 skill. I will delegate to N specialist agents and consolidate via code-reviewer (opus)."
 
 ### STEP 0 — Pre-flight sanity check
 
@@ -75,8 +70,9 @@ claude --version
 # Required: ≥ 2.0.65 (CVE-2026-21852), ≥ 1.0.111 (CVE-2025-59536),
 #           ≥ 1.0.20  (CVE-2025-54795),  ≥ 1.0.4   (CVE-2025-55284)
 
-# 2. Marketplace plugin
-/plugin list | grep milwis-coding-toolkit
+# 2. Specialist agents registered (vendored .claude/agents/ preferred, plugin as fallback)
+ls .claude/agents/ 2>/dev/null
+#    + confirm every §1 agent name is in this session's Agent tool list
 
 # 3. Hostile .claude/ contents in the repo
 ls -la .claude/ 2>/dev/null
@@ -282,7 +278,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 **Date**: <YYYY-MM-DD>
 **Branch / commit**: <branch> / <sha>
 **Performer**: Claude Code <version> + skill `audit-360` v<x.y>
-**Plugin marketplace**: milwis-coding-toolkit
+**Specialist source**: <.claude/agents/ (vendored) | milwis-coding-toolkit plugin>
 **Specialists**: <list of subagent_types invoked>
 **Consolidator**: code-reviewer (model: opus)
 
@@ -373,7 +369,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 4. **Read-only on the project**: specialists write only to `audit/findings/`. Consider `chmod -R a-w` on the audit branch as an extra guardrail.
 5. **Time/token budget**: each specialist has a budget of ~50 tool calls. The prompt already says so.
 6. **No nested subagents**: specialists never spawn further `Agent` calls (budget and single-findings-file discipline, see §4 rule 7).
-7. **Discipline overlay**: `verification-before-completion`, `systematic-debugging`, `test-driven-development` activate automatically inside each specialist (they're plugin-bundled).
+7. **Discipline overlay**: `verification-before-completion`, `systematic-debugging`, `test-driven-development` activate inside each specialist (they ship with the toolkit, vendored or plugin).
 8. **Consolidation, self-review and P0 reproduction must be opus**: STEP 4, STEP 6 and STEP 5 carry the audit's judgment — Sonnet misses cross-confirmations and mis-attributes root causes, and both failures are silent (no later step re-checks them). Every other specialist is on Opus too; the toolkit does not currently mix classes.
 9. **PoC reproduction is mandatory**: STEP 5 — P0 without reproduction = P1 with note.
 10. **Self-review is mandatory**: STEP 6 — fresh forked `code-reviewer` checks the consolidator's work.
@@ -400,7 +396,7 @@ The main agent:
 
 1. **Announce** the skill.
 2. `git checkout -b "audit/360-$(date +%Y%m%d)" $(git rev-parse --abbrev-ref HEAD)`
-3. **STEP 0** — pre-flight (`.claude/`, Claude Code version, plugin enabled).
+3. **STEP 0** — pre-flight (`.claude/`, Claude Code version, specialist agents registered).
 4. **STEP 1** — `audit/INVENTORY.md` (auto-detect stack, dump dependencies, classify integrations, extract hard-rules).
 5. **STEP 2** — read the relevant `prompts/` files, spawn specialists in one tool block.
 6. After all return — **STEP 3** (critical-stop gate).
@@ -416,4 +412,4 @@ The main agent:
 
 **Skill version**: 1.2 (1.1: skill+references pattern; 1.2: drop discipline + DROPPED.md, budget checkpoint, pre-dispatch estimate, per-specialist state table in RUN_META — adapted from alibaba/open-code-review, 2026-09-15)
 **Required Claude Code version**: ≥ 2.0.65 (CVE-fixed)
-**Required plugin**: milwis-coding-toolkit (any version with the agents listed in §1)
+**Required agents**: the §1 specialists — vendored in `.claude/agents/` or from the `milwis-coding-toolkit` plugin

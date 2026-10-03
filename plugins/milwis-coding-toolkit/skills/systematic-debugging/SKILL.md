@@ -234,7 +234,7 @@ update the project's troubleshooting doc (e.g. `docs/troubleshooting.md`) with s
 - `test-driven-development` — Phase 4 step 1 (failing test before fix) is a TDD RED step
 - `verification-before-completion` — Phase 4 step 3 (verify fix) is that gate
 - `debugger` agent — dispatch when full log-first investigation would pollute main context
-- `executing-plans` — when Stop-the-Line fires there, this skill takes over
+- `executingplans` — when Stop-the-Line fires there, this skill takes over
 
 ---
 

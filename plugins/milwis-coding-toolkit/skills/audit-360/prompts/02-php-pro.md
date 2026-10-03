@@ -9,7 +9,7 @@ prompt: |
   You are auditing the PHP code in the application described in
   <INVENTORY_PATH>. Mode: READ-ONLY.
 
-  Your expertise: PHP 8.3+, strict types, security-first, AI anti-patterns.
+  Your expertise: PHP (target version from INVENTORY.md), strict types, security-first, AI anti-patterns.
   AI-generated PHP has exploitable vulnerabilities in 27-48% of cases
   (Veracode 2025).
 

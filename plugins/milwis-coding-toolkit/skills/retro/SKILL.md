@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Retro (wave → toolkit changes with measurements)
 
-**Core:** The toolkit improves only from measured runs. A retro turns one finished run into a short list of rule changes, each anchored to the transcript line or ledger row that justifies it — the same shape as the A–L corrections of 2026-09-15. Proposals without a POMIAR are opinions and do not enter `UPDATE_LOG.md`.
+**Core:** The toolkit improves only from measured runs. A retro turns one finished run into a short list of rule changes, each anchored to the transcript line or ledger row that justifies it. Proposals without a POMIAR are opinions and do not enter `UPDATE_LOG.md`.
 
 **Entry:** the user names a wave / batch / session (ledger path, date, or "the last one"). Default: the roadmapa queue ledger (`docs/plans/kolejka-ledger.md`) — the rows since the last retro.
 **Stop:** the user has a ranked list of candidates, each with POMIAR + affected file + proposed rule text, and has chosen which to apply. Applying them is a separate step (this skill edits nothing in the toolkit on its own).
@@ -75,4 +75,4 @@ Show the ranked list and ask which to apply. The apply step is ordinary toolkit 
 
 - `task-lifecycle` hard rule 5 ("manual step spotted twice → automate it") is the in-flight version of this skill; retro is the batch version.
 - `lang-guidelines` — the pruning lens (no-ops, sediment, positive phrasing, cache-vs-environment) is the same one used when creating or updating an agent.
-- `roadmapa` §7 measurement discipline — POMIAR / WNIOSEK labels are mandatory here as there.
+- `roadmapa` § Measurement discipline — POMIAR / WNIOSEK labels are mandatory here as there.

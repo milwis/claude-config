@@ -108,7 +108,7 @@ Generate based on stack from Step 0:
 | Refactoring | `refactoring-orchestrator` | Orchestrated, zero-regression process |
 | PWA / mobile | `mobile-pwa-developer` | Only if PWA |
 
-**Workflow:** `/brainstorming → /writing-plans → /executing-plans → code-reviewer → commit`
+**Workflow:** `/brainstorming → /writingplans → /executingplans → code-reviewer → commit`
 ```
 
 Rules for generating the table:

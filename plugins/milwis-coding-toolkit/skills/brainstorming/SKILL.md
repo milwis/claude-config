@@ -55,7 +55,7 @@ Dispatch an Explore agent with a prompt that:
 1. Dispatch Explore (rules above; include the Gate A canon lookup when it fires)
 2. Ask 2-3 focused questions — one at a time, prefer multiple choice
 3. Propose ONE recommended approach with brief reasoning
-4. User agrees → hand off: multi-step work goes to `writing-plans`; a 1-2 step change may be implemented directly
+4. User agrees → hand off: multi-step work goes to `writingplans`; a 1-2 step change may be implemented directly
 5. Record the decision as a comment in the plan
 
 ---
@@ -111,7 +111,7 @@ One-pager contents:
 ## After the Design
 
 - Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
-- Ask: "Ready to create the implementation plan with `writing-plans`?"
+- Ask: "Ready to create the implementation plan with `writingplans`?"
 
 ---
 

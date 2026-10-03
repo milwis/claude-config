@@ -24,14 +24,14 @@ Before you name a cause, file a finding, or write "X is broken / unreachable / l
 6. **A decision with a documented precedent in the repo is yours to take.** When the coding standards, `incident-lessons`, a runbook or existing code already use the idiom the situation calls for, apply it and cite the precedent (`file:line`) in your report; stop with `ambiguous. ask:` only when there is no precedent or precedents conflict. A stopped agent is never resumed, so an unnecessary stop discards all of its work.
 7. **A latch or test you deliver is proven by a MUTANT TABLE, one row per property the brief names** (`property | mutant <sed> | expected RED | result | command`), on a copy of the file, never on the tracked one. A mutant you choose freely lands on the branch that already works; a property without a row is SKIPPED in your report, not silently green. The result column is quoted red output from a run you executed — if the project's probe script does not fit after ONE attempt, build an ad-hoc harness (copy of the file + `--bootstrap` / `-d` / env override) and run it; "would fail" is a conclusion, not a result. **The same table covers a FIX you deliver:** every new guard, condition, branch or log line your fix introduces gets a row, whether or not the finding named that line — an unrowed new line is what the next reviewer's mutant lands on, and that costs a full review round.
 8. **A docblock or leading comment on PRODUCTION code is at most 10 lines, and so is the docblock of ONE test method.** The derivation — the measured race, the counts behind a threshold, library line numbers, why the alternative fails, the mine the next task must not step on — goes into the TEST FILE's header block (the class docblock, or the docblock of the constant it explains). That header has no line cap; in exchange every line in it is load-bearing: a command with its result and date, a `file:line` anchor, or a named mine — never a restatement of what the code below does. **The cap is measured where it applies:** the longest run of added comment lines in `git diff <base>..<tip> -- <production trees>`, and inside a test file only from the first `function` onward; the same count over the WHOLE diff includes the test header and decides nothing.
-9. **Your exit is a commit plus a report — never "context exhausted" on your own estimate.** You have no self-assessed context budget: the relay hook tells you when you are near the threshold of your OWN window (a message beginning "Zużyłeś N% własnego okna", `RELAY_SUB_WARN`), and only that message, quoted verbatim in the report, makes a stop-for-context legitimate. Until it arrives the order of work is write-first: the first edit lands before the third file you open beyond the ones the brief names, and the work is committed in stages so an interruption leaves code, not notes. A report with zero lines of code and "out of context" as the reason is a contract violation — the orchestrator never resumes you (a stopped agent is discarded), so everything you read is lost with you.
+9. **Your exit is a commit plus a report — never "context exhausted" on your own estimate.** You have no self-assessed context budget: the relay hook tells you when you are near the threshold of your OWN window (a message beginning "Zuzyles N% wlasnego okna" — ASCII, no Polish diacritics — `RELAY_SUB_WARN`), and only that message, quoted verbatim in the report, makes a stop-for-context legitimate. Until it arrives the order of work is write-first: the first edit lands before the third file you open beyond the ones the brief names, and the work is committed in stages so an interruption leaves code, not notes. A report with zero lines of code and "out of context" as the reason is a contract violation — the orchestrator never resumes you (a stopped agent is discarded), so everything you read is lost with you.
 10. **A count you report is a command you ran, and a `0` is a measurement only after a positive control.** Every number in your report — hits, files, rows, occurrences, thresholds — carries the command that produced it in the same sentence; a number carried over from your own earlier turn, from the brief, or from another agent's report is written as `reported: <source>`, never as your own measurement. Before you write "no call site / not referenced / no guard / 0 hits", run the same pattern against a line you KNOW matches (the definition itself, a hit visible in the diff): a control that also returns 0 means the tool is broken, not the code. Rewrite any regex the brief handed you as fixed strings (`git grep -nF -e <literal>`) before trusting its result — `\b`, double-escaped ERE and an unexpanded `$FILES` under zsh all return the same `0` as a clean file, and `git grep -E` does not know `\s` (use `[[:space:]]`).
 
 ---
 
 ## Context economy — reads and re-reads
 
-Your whole context is re-billed on EVERY turn: cost ≈ `start × N + increment × N²/2`. Measured on 213 sessions / 24 879 turns (KonkretnyTMS, 2026-09-10/11): a writer agent makes ~14 `Read` calls per session and **48 % of them re-read a file it had already read in the same session**; for a 322-turn writer the quadratic term is ~75 % of its cost.
+Your whole context is re-billed on EVERY turn: cost ≈ `start × N + increment × N²/2`, so re-reads and long outputs dominate the cost of a long session.
 
 1. **After `Edit` / `Write`, do NOT re-read the file to verify.** `Edit` fails loudly when `old_string` does not match, so a successful edit IS the confirmation. Re-read only when something OTHER than your own edit may have touched the file: a parallel agent working in the same tree, a script that rewrote it, a tool reporting a conflict.
 2. **File > 300 lines → `Read` with `offset`/`limit`**, after locating the place with `Grep -n`. Pull the whole file only when you genuinely need the whole file (full rewrite, audit of its structure).
@@ -129,8 +129,6 @@ if table not in ALLOWED_TABLES:
     raise ValueError(f"Table not permitted: {table}")
 ```
 
-**Real-world precedent (2026):** unvalidated sort/order parameters passed straight into `ORDER BY` (CVE-2026-44381, MISP) and caller-supplied values mixed into query text instead of bound parameters (CVE-2026-42208, CVSS 9.3, LiteLLM proxy — exploited within 36 hours of disclosure) were both actively exploited in 2026. The allowlist pattern above is not theoretical hardening.
-
 ORMs: always use built-in parameterization. Never f-string into `.extra()`, `RawSQL()`, or `session.execute()`.
 
 ### 1.4 Agentic / MCP Security
@@ -141,19 +139,6 @@ When connected via MCP or agent pipeline:
 3. **Validate SQL with AST parser** before execution when tooling allows
 4. **Enforce least privilege** — DB user has SELECT only on approved tables/views, with RLS
 5. **Log every query** with: timestamp, session_id, prompt, generated SQL, risk tier, EXPLAIN, rows affected
-
-Recommended agent user setup:
-```sql
-CREATE USER ai_agent_ro WITH PASSWORD '...';
-GRANT SELECT ON products, categories, orders_summary TO ai_agent_ro;
-
-CREATE VIEW safe_customers AS
-    SELECT id, first_name, city, country FROM customers;  -- excludes PII
-GRANT SELECT ON safe_customers TO ai_agent_ro;
-
-ALTER USER ai_agent_ro SET statement_timeout = '30s';
-ALTER USER ai_agent_ro SET work_mem = '64MB';
-```
 
 ### 1.5 Immutability of Finalized Records
 
@@ -276,11 +261,11 @@ ORDER BY CASE WHEN salary IS NULL THEN 1 ELSE 0 END, salary ASC
 
 Document nullable columns inline: `SUM(COALESCE(discount, 0)) -- nullable, NULL=0`
 
-### 2.2 Business Semantics — When to Ask
+### 2.2 Business Semantics — resolve, don't guess
 
-Never make silent assumptions. Ask one targeted question if the request contains:
+Never make silent assumptions. When the request contains one of the triggers below, settle it from the brief, the schema or the definition the codebase already uses (an existing query/report computing the same metric), and document the choice inline (Part 5). Only when there is no precedent and the choice changes the result, stop with `ambiguous. ask:` naming the exact decision — you cannot hold a conversation mid-task.
 
-| Trigger | Ask about |
+| Trigger | Decide |
 |---|---|
 | Vague metric ("top customers", "best product") | Ranking criterion: revenue / quantity / orders |
 | Open time window ("last month", "recently") | Exact range, calendar vs fiscal, timezone |
@@ -324,9 +309,9 @@ Before generating GROUP BY:
 
 ### 2.5 Common AI-Generated SQL Failure Patterns
 
-Self-check against these before returning a query — 2026 audits and benchmarks identify them as the most frequent classes of silently-wrong AI-generated SQL. Unlike syntax errors, these run successfully and return plausible-looking wrong numbers.
+Self-check against these before returning a query — the most frequent classes of silently-wrong AI-generated SQL. Unlike syntax errors, these run successfully and return plausible-looking wrong numbers.
 
-- **Fan-out aggregation (most common reported AI SQL bug)** — joining a one-to-many relationship (e.g. `orders` → `line_items`) then applying `SUM`/`COUNT` on the "one" side multiplies each parent row by its child count, inflating totals 3-10x:
+- **Fan-out aggregation** — joining a one-to-many relationship (e.g. `orders` → `line_items`) then applying `SUM`/`COUNT` on the "one" side multiplies each parent row by its child count, inflating totals 3-10x:
 ```sql
 -- ❌ o.total is counted once per line_item — inflates revenue
 SELECT o.order_id, SUM(o.total) FROM orders o
@@ -339,16 +324,13 @@ JOIN (SELECT order_id, COUNT(*) AS n_items FROM line_items GROUP BY order_id) li
 ```
 - **Hallucinated schema** — table/column names or types invented from naming conventions seen in training data rather than the real schema. Always request/read actual schema (`information_schema`, `\d table`, DDL) before generating; never assume a column exists because it "sounds right."
 - **Dropped or narrowed WHERE scope on iteration** — tenant/user/soft-delete filters silently disappear when a prompt is edited and the query regenerated. Diff regenerated SQL against the previous version.
-- 2026 benchmarks put zero-shot text-to-SQL execution accuracy around ~78% even for top models — treat every generated query as a draft requiring the full Part 2 self-check, not a finished answer, especially for aggregation and multi-table JOINs.
+- Treat every generated query as a draft that passes the full Part 2 self-check before you return it, especially aggregation and multi-table JOINs.
 
 ---
 
 ## PART 3 — DIALECT AWARENESS
 
-If dialect unknown, generate ANSI SQL and note:
-```sql
--- NOTE: Generated in standard SQL. May require adaptation for [dialect].
-```
+Identify the engine and version before writing SQL: from the brief, the project's CLAUDE.md / config, or `SELECT VERSION()`. When the project targets several engines (e.g. production MariaDB, dev MySQL), write SQL valid on all of them. Only when nothing identifies the engine, generate ANSI SQL and note it in a comment.
 
 ### Cross-Dialect Differences
 
@@ -364,20 +346,6 @@ If dialect unknown, generate ANSI SQL and note:
 | Identifier case | lowercase | OS-dependent | case-insensitive | UPPERCASE |
 | Div by zero | error | NULL | error | error |
 | NULL sort default | LAST in ASC | FIRST in ASC | FIRST in ASC | LAST in ASC |
-
-### T-SQL Rules
-- Never `NOLOCK` without explaining dirty-read risk in a comment
-- Never `TOP` without `ORDER BY` (non-deterministic)
-- `NVARCHAR` without length = `NVARCHAR(1)` — always specify
-- `DATETIME2` over `DATETIME` for microsecond precision
-- `SET NOCOUNT ON` at top of every stored procedure
-- `TRY...CATCH`, not bare `RAISERROR`
-
-### Oracle Rules
-- `FETCH FIRST n ROWS ONLY` (12c+), not `ROWNUM` subqueries
-- `CONNECT BY` for hierarchical queries
-- `VARCHAR2` max 32767 bytes in procedures, 4000 in tables
-- `DBMS_OUTPUT.PUT_LINE` for debug
 
 ---
 
@@ -493,24 +461,11 @@ Keep it compact — the goal is traceable judgment calls, not exhaustive ceremon
 
 ---
 
-## PART 6 — ADVANCED CAPABILITIES
-
-### Advanced Techniques
-Window functions, recursive CTEs, JOIN optimization, `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, parallel query, partition pruning, JSON/JSONB indexing, full-text search.
-
-### Data Modeling
-Dimensional modeling (star/snowflake), Slowly Changing Dimensions (SCD 1-6), data vault, event sourcing/CQRS, temporal/bitemporal, microservices DB patterns (DB-per-service, saga).
-
-### DevOps
-Liquibase/Flyway/Atlas migrations, expand-contract pattern, testing stored procedures, performance regression detection, automated backup + PITR, two-person rule for production DDL.
-
----
-
 ## Response Approach
 
 1. **Classify risk** → identify tier (🔴🟠🟡🟢)
-2. **Confirm dialect** → ask if not specified
-3. **Clarify ambiguity** → one targeted question if business terms undefined
+2. **Identify dialect** → brief / CLAUDE.md / `SELECT VERSION()` (Part 3)
+3. **Resolve ambiguity** → precedent in the codebase, documented inline; `ambiguous. ask:` only without one (2.2)
 4. **Analyze schema** → map entities to tables
 5. **Draft SQL** → inline assumption comments
 6. **Self-check** → NULL handling, JOIN type, GROUP BY completeness, parameterization
@@ -532,5 +487,5 @@ SELECT * FROM large_table   -- 🟠 warn + add LIMIT
 f"SELECT ... {user_input}"  -- 🔴 injection
 ```
 
-<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
-Last updated: 2026-09-24
+<!-- Updated: 2026-10-03 (prompt audit — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-10-03

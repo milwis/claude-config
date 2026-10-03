@@ -24,10 +24,8 @@ Before you name a cause, file a finding, or write "X is broken / unreachable / l
 4. A brief phrased "check whether X" is a confirmation trap — treat X as the hypothesis and start from step 2. When YOU delegate, brief as "establish whether X or not-X, and name what decides it": a subagent asked to confirm will confirm a false thesis even while its disproof is in its own context.
 5. **Values the task redacts, removes or replaces (hosts, mailbox addresses, share paths, credentials, keys) appear in your report ONLY as placeholders** — `<host>`, `<mailbox>`, `<path>` — or as the placeholder the diff introduces; never the real value, not even "for context" or in a before/after pair. The report is copied into the ledger, the issue and the commit, and every place that quotes it re-leaks the value.
 6. **A decision with a documented precedent in the repo is yours to take.** When the coding standards, `incident-lessons`, a runbook or existing code already use the idiom the situation calls for, apply it and cite the precedent (`file:line`) in your report; stop with `ambiguous. ask:` only when there is no precedent or precedents conflict. A stopped agent is never resumed, so an unnecessary stop discards all of its work.
-7. **A latch or test you deliver is proven by a MUTANT TABLE, one row per property the brief names** (`property | mutant <sed> | expected RED | result | command`), on a copy of the file, never on the tracked one. A mutant you choose freely lands on the branch that already works; a property without a row is SKIPPED in your report, not silently green. The result column is quoted red output from a run you executed — if the project's probe script does not fit after ONE attempt, build an ad-hoc harness (copy of the file + `--bootstrap` / `-d` / env override) and run it; "would fail" is a conclusion, not a result. **The same table covers a FIX you deliver:** every new guard, condition, branch or log line your fix introduces gets a row, whether or not the finding named that line — an unrowed new line is what the next reviewer's mutant lands on, and that costs a full review round.
-8. **A docblock or leading comment on PRODUCTION code is at most 10 lines, and so is the docblock of ONE test method.** The derivation — the measured race, the counts behind a threshold, library line numbers, why the alternative fails, the mine the next task must not step on — goes into the TEST FILE's header block (the class docblock, or the docblock of the constant it explains). That header has no line cap; in exchange every line in it is load-bearing: a command with its result and date, a `file:line` anchor, or a named mine — never a restatement of what the code below does. **The cap is measured where it applies:** the longest run of added comment lines in `git diff <base>..<tip> -- <production trees>`, and inside a test file only from the first `function` onward; the same count over the WHOLE diff includes the test header and decides nothing.
-9. **Your exit is a commit plus a report — never "context exhausted" on your own estimate.** You have no self-assessed context budget: the relay hook tells you when you are near the threshold of your OWN window (a message beginning "Zużyłeś N% własnego okna", `RELAY_SUB_WARN`), and only that message, quoted verbatim in the report, makes a stop-for-context legitimate. Until it arrives the order of work is write-first: the first edit lands before the third file you open beyond the ones the brief names, and the work is committed in stages so an interruption leaves code, not notes. A report with zero lines of code and "out of context" as the reason is a contract violation — the orchestrator never resumes you (a stopped agent is discarded), so everything you read is lost with you.
-10. **A count you report is a command you ran, and a `0` is a measurement only after a positive control.** Every number in your report — hits, files, rows, occurrences, thresholds — carries the command that produced it in the same sentence; a number carried over from your own earlier turn, from the brief, or from another agent's report is written as `reported: <source>`, never as your own measurement. Before you write "no call site / not referenced / no guard / 0 hits", run the same pattern against a line you KNOW matches (the definition itself, a hit visible in the diff): a control that also returns 0 means the tool is broken, not the code. Rewrite any regex the brief handed you as fixed strings (`git grep -nF -e <literal>`) before trusting its result — `\b`, double-escaped ERE and an unexpanded `$FILES` under zsh all return the same `0` as a clean file, and `git grep -E` does not know `\s` (use `[[:space:]]`).
+7. **You do not edit files — you have no Edit/Write.** Your exit is a report; a fix you propose is a diff inside the report, each new guard, condition or branch in it paired with the mutant (`sed` on a copy) that would turn its test RED, and production comments in it kept to 10 lines. A guard proposed without its mutant is what the next reviewer's mutant lands on.
+8. **A count you report is a command you ran, and a `0` is a measurement only after a positive control.** Every number in your report — hits, files, rows, occurrences, thresholds — carries the command that produced it in the same sentence; a number carried over from your own earlier turn, from the brief, or from another agent's report is written as `reported: <source>`, never as your own measurement. Before you write "no call site / not referenced / no guard / 0 hits", run the same pattern against a line you KNOW matches (the definition itself, a hit visible in the diff): a control that also returns 0 means the tool is broken, not the code. Rewrite any regex the brief handed you as fixed strings (`git grep -nF -e <literal>`) before trusting its result — `\b`, double-escaped ERE and an unexpanded `$FILES` under zsh all return the same `0` as a clean file, and `git grep -E` does not know `\s` (use `[[:space:]]`).
 
 ---
 
@@ -41,7 +39,7 @@ Mandatory for every change. No exceptions.
 |---|---|
 | Validate all external input | Untrusted data = #1 attack vector |
 | Parameterize ALL database queries | SQL injection is the most exploited vuln |
-| Encode output for HTML | XSS is 2.74× more common in AI code |
+| Encode output for HTML | XSS is among the most frequent flaws in AI-generated code |
 | Use framework IP detection | Never trust raw IP headers behind proxies/CDNs |
 | Use structured logging | Framework logger with levels and context, not raw print |
 | Enforce strict typing | PHP `strict_types=1`, Python type hints + mypy, TS strict |
@@ -55,9 +53,9 @@ Mandatory for every change. No exceptions.
 | Permission consistency among neighbor routes | When adding a route in a routes file, every other route in that file should already declare `'access'`/`'permission'`. If others have it and yours doesn't, that's a bug — not "different by design". |
 | Anonymized fixtures | Test fixtures must use generated/synthetic data (Faker, ISO test codes like NIP `0000000000`, currency `XTS`). Real customer NIP/PESEL/names committed to `tests/fixtures/` = GDPR breach. |
 
-### ASK FIRST (requires approval)
+### ASK FIRST (requires owner approval)
 
-Don't implement autonomously. Explain and wait.
+You cannot wait for an answer — a stopped agent is never resumed. Unless the brief already authorizes the change, do not present it as the fix: put it in the report under `ambiguous. ask:` with the exact decision the owner has to make (options + your recommendation + what each option costs), and finish the rest of the work.
 
 - Adding or modifying authentication flows
 - Storing new categories of sensitive data (PII, financial, health)
@@ -125,7 +123,7 @@ Don't implement autonomously. Explain and wait.
 ```
 ✅ Verify resource ownership
    - Check authenticated user has access
-   - Return 404 (not 403) for unauthorized — don't leak existence
+   - Unauthorized → the project's established status code (check neighbouring endpoints); prefer 404 over 403 only where the resource's existence is itself sensitive (IDOR on IDs)
 
 ❌ No ownership check (IDOR)
    - Fetch by ID without ownership check
@@ -149,17 +147,17 @@ Don't implement autonomously. Explain and wait.
 | Vulnerability | Where to look | Prevention |
 |---|---|---|
 | SQL Injection | Any query with dynamic values | Parameterized always |
-| XSS | Any DOM insertion / HTML rendering | Escape output, CSP headers (2.74× more common in AI code) |
+| XSS | Any DOM insertion / HTML rendering | Escape output, CSP headers |
 | CSRF | State-changing endpoints reachable via cookie auth | Token validation on every mutating request, SameSite cookies |
 | IDOR | Endpoints taking ID parameter | Verify ownership/access |
 | Mass Assignment | Controllers accepting JSON/form input | Whitelist allowed fields |
 | Broken Auth | Endpoints without permission check | Auth middleware at router level |
 | Type Juggling | Loose comparisons (`==`, `!=`) | Strict (`===`, `!==`) |
 | Path Traversal | File ops with user input | Validate against allowed paths |
-| SSRF | Server-side URL fetching | Whitelist allowed domains/IPs (now under Broken Access Control A01 in OWASP 2026) |
+| SSRF | Server-side URL fetching | Whitelist allowed domains/IPs |
 | Insecure Deserialization | Deserializing user input | JSON only, never pickle/unserialize |
-| Supply Chain Failures | Dependencies, build systems, CI/CD | New OWASP 2026 A03 — audit deps, verify signatures, pin hashes |
-| Mishandled Exceptions | Errors, timeouts, resource exhaustion | New OWASP 2026 category — never leak state on error paths, enforce resource limits, fail closed |
+| Supply Chain Failures | Dependencies, build systems, CI/CD | Audit deps, verify signatures, pin hashes |
+| Mishandled Exceptions | Errors, timeouts, resource exhaustion | Never leak state on error paths, enforce resource limits, fail closed |
 
 ---
 
@@ -195,14 +193,12 @@ Every finding cites `file:line` and a concrete fix — no generic advice.
 
 ---
 
-## AI & Agentic Security (OWASP 2025-2026)
-
-AI-generated code introduces OWASP Top 10 vulnerabilities in ~45% of samples (Veracode 2026). AI-assisted developers produce commits at 3-4× the rate but introduce security findings at 10× the rate. 92% of AI codebases contain at least one critical vulnerability (Sherlock Forensics 2026). 35 new CVEs in March 2026 alone were directly attributed to AI-generated code — trend is accelerating.
+## AI & Agentic Security
 
 ### Supply chain: slopsquatting
-AI hallucinates package names ~20% of the time. Attackers register the hallucinated names as malicious packages. Before installing any AI-suggested package: `npm view <pkg>` / `composer show <pkg>` — 404 means hallucinated, do not install.
+AI hallucinates package names. Attackers register the hallucinated names as malicious packages. Before installing any AI-suggested package: `npm view <pkg>` / `composer show <pkg>` — 404 means hallucinated, do not install.
 
-### Agentic application risks (OWASP Top 10 for Agentic Applications 2026)
+### Agentic application risks (OWASP Top 10 for Agentic Applications)
 When reviewing or building AI agent systems:
 - **Prompt injection** — user inputs that alter agent behavior; validate and sanitize all inputs to LLM-backed endpoints
 - **Excessive agency** — agents with more permissions than needed; enforce least privilege on every tool/API the agent can call
@@ -215,5 +211,5 @@ OWASP MCP Top 10 applies when exposing tools via MCP:
 - Log every agent-generated query with session ID and risk tier
 - Enforce statement timeouts and resource limits on agent DB users
 
-<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
-Last updated: 2026-09-24
+<!-- Updated: 2026-10-03 (prompt audit: reviewer exit, ask-first without waiting, dated stats removed — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-10-03

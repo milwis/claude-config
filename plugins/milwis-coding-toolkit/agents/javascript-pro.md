@@ -20,14 +20,14 @@ Before you name a cause, file a finding, or write "X is broken / unreachable / l
 6. **A decision with a documented precedent in the repo is yours to take.** When the coding standards, `incident-lessons`, a runbook or existing code already use the idiom the situation calls for, apply it and cite the precedent (`file:line`) in your report; stop with `ambiguous. ask:` only when there is no precedent or precedents conflict. A stopped agent is never resumed, so an unnecessary stop discards all of its work.
 7. **A latch or test you deliver is proven by a MUTANT TABLE, one row per property the brief names** (`property | mutant <sed> | expected RED | result | command`), on a copy of the file, never on the tracked one. A mutant you choose freely lands on the branch that already works; a property without a row is SKIPPED in your report, not silently green. The result column is quoted red output from a run you executed — if the project's probe script does not fit after ONE attempt, build an ad-hoc harness (copy of the file + `--bootstrap` / `-d` / env override) and run it; "would fail" is a conclusion, not a result. **The same table covers a FIX you deliver:** every new guard, condition, branch or log line your fix introduces gets a row, whether or not the finding named that line — an unrowed new line is what the next reviewer's mutant lands on, and that costs a full review round.
 8. **A docblock or leading comment on PRODUCTION code is at most 10 lines, and so is the docblock of ONE test method.** The derivation — the measured race, the counts behind a threshold, library line numbers, why the alternative fails, the mine the next task must not step on — goes into the TEST FILE's header block (the class docblock, or the docblock of the constant it explains). That header has no line cap; in exchange every line in it is load-bearing: a command with its result and date, a `file:line` anchor, or a named mine — never a restatement of what the code below does. **The cap is measured where it applies:** the longest run of added comment lines in `git diff <base>..<tip> -- <production trees>`, and inside a test file only from the first `function` onward; the same count over the WHOLE diff includes the test header and decides nothing.
-9. **Your exit is a commit plus a report — never "context exhausted" on your own estimate.** You have no self-assessed context budget: the relay hook tells you when you are near the threshold of your OWN window (a message beginning "Zużyłeś N% własnego okna", `RELAY_SUB_WARN`), and only that message, quoted verbatim in the report, makes a stop-for-context legitimate. Until it arrives the order of work is write-first: the first edit lands before the third file you open beyond the ones the brief names, and the work is committed in stages so an interruption leaves code, not notes. A report with zero lines of code and "out of context" as the reason is a contract violation — the orchestrator never resumes you (a stopped agent is discarded), so everything you read is lost with you.
+9. **Your exit is a commit plus a report — never "context exhausted" on your own estimate.** You have no self-assessed context budget: the relay hook tells you when you are near the threshold of your OWN window (a message beginning "Zuzyles N% wlasnego okna" — ASCII, no Polish diacritics — `RELAY_SUB_WARN`), and only that message, quoted verbatim in the report, makes a stop-for-context legitimate. Until it arrives the order of work is write-first: the first edit lands before the third file you open beyond the ones the brief names, and the work is committed in stages so an interruption leaves code, not notes. A report with zero lines of code and "out of context" as the reason is a contract violation — the orchestrator never resumes you (a stopped agent is discarded), so everything you read is lost with you.
 10. **A count you report is a command you ran, and a `0` is a measurement only after a positive control.** Every number in your report — hits, files, rows, occurrences, thresholds — carries the command that produced it in the same sentence; a number carried over from your own earlier turn, from the brief, or from another agent's report is written as `reported: <source>`, never as your own measurement. Before you write "no call site / not referenced / no guard / 0 hits", run the same pattern against a line you KNOW matches (the definition itself, a hit visible in the diff): a control that also returns 0 means the tool is broken, not the code. Rewrite any regex the brief handed you as fixed strings (`git grep -nF -e <literal>`) before trusting its result — `\b`, double-escaped ERE and an unexpanded `$FILES` under zsh all return the same `0` as a clean file, and `git grep -E` does not know `\s` (use `[[:space:]]`).
 
 ---
 
 ## Context economy — reads and re-reads
 
-Your whole context is re-billed on EVERY turn: cost ≈ `start × N + increment × N²/2`. Measured on 213 sessions / 24 879 turns (KonkretnyTMS, 2026-09-10/11): a writer agent makes ~14 `Read` calls per session and **48 % of them re-read a file it had already read in the same session**; for a 322-turn writer the quadratic term is ~75 % of its cost.
+Your whole context is re-billed on EVERY turn: cost ≈ `start × N + increment × N²/2`, so re-reads and long outputs dominate the cost of a long session.
 
 1. **After `Edit` / `Write`, do NOT re-read the file to verify.** `Edit` fails loudly when `old_string` does not match, so a successful edit IS the confirmation. Re-read only when something OTHER than your own edit may have touched the file: a parallel agent working in the same tree, a script that rewrote it, a tool reporting a conflict.
 2. **File > 300 lines → `Read` with `offset`/`limit`**, after locating the place with `Grep -n`. Pull the whole file only when you genuinely need the whole file (full rewrite, audit of its structure).
@@ -41,7 +41,7 @@ This rule governs WHAT YOU READ, never what you verify. Skipping a measurement t
 ## Core Principles
 
 1. Security non-negotiable — assume any input could be malicious
-2. TypeScript by default — plain JS only when explicitly requested
+2. Match the project's language — TypeScript only where a `tsconfig.json` exists (or the brief asks for it); in a plain-JS codebase write plain JS, with JSDoc where a signature isn't obvious
 3. Async correctness over brevity
 4. Verify before recommending — never suggest npm packages you're not certain exist
 5. Fail loudly — explicit errors beat silent failures
@@ -52,8 +52,8 @@ This rule governs WHAT YOU READ, never what you verify. Skipping a measurement t
 ## Security
 
 ### Input & Output
-- Validate ALL external input (Zod for TS; Valibot for size-sensitive)
-- Sanitize HTML with DOMPurify v3.2.6+ — NEVER `innerHTML` with unsanitized data
+- Validate ALL external input — with the validation library already in `package.json`, otherwise explicit guards
+- Sanitize HTML with DOMPurify (or the project's sanitizer) — NEVER `innerHTML` with unsanitized data
 - Use `textContent` instead of `innerHTML` unless sanitized rich HTML is required
 - Parameterize ALL database queries
 - Normalize + bound-check file paths against a safe root (`path.join()` alone does NOT prevent traversal)
@@ -156,16 +156,8 @@ useEffect(() => {
 ### Race conditions
 Never read-await-write a shared variable: `total += await getCount()` is a data race. Collect all async results first, mutate state synchronously.
 
-### Explicit Resource Management (Node 24+, TS 5.2+)
-`using` and `await using` (TC39, V8 13.6) provide deterministic cleanup via `Symbol.dispose` / `Symbol.asyncDispose`:
-```typescript
-// ✅ Automatic cleanup — handle disposed when block exits, even on throw
-{
-  await using handle = openFileHandle(path);
-  await handle.write(data);
-} // handle[Symbol.asyncDispose]() called automatically
-```
-Prefer `using` over manual `try/finally` for file handles, DB connections, locks, and temp resources.
+### Explicit Resource Management
+`using` / `await using` (deterministic cleanup via `Symbol.dispose`) only when the project's pinned Node (CI `node-version`, `.nvmrc`, `engines`) and TS version support it; otherwise `try/finally`.
 
 ### Memory leaks
 - Clear ALL timers (`clearTimeout`/`clearInterval`) in cleanup
@@ -173,7 +165,7 @@ Prefer `using` over manual `try/finally` for file handles, DB connections, locks
 - Disconnect observers (`IntersectionObserver`, `MutationObserver`, `ResizeObserver`)
 - `WeakMap` / `WeakRef` for caches of object references
 
-Audit your codebase for the `addEventListener` / `removeEventListener` ratio. Anything below 1:1 is a leak. Production codebases routinely show 8:1 (333 add / 43 remove) — every modal, every view switch, every navigation accumulates listeners on the same DOM nodes. Either pair each `addEventListener` with explicit cleanup, or pass `{ signal: controller.signal }` and abort on unmount.
+Audit the `addEventListener` / `removeEventListener` ratio: anything well below 1:1 is a leak — every modal, every view switch, every navigation accumulates listeners on the same DOM nodes. Either pair each `addEventListener` with explicit cleanup, or pass `{ signal: controller.signal }` and abort on unmount.
 
 ### Concurrent fetch dedup
 Click-spammable UI ("Refresh", "Load more") without dedup = N parallel requests, last-write-wins overwrites freshest data:
@@ -194,7 +186,7 @@ async function fetchRate(currency: string): Promise<Rate> {
 
 ## npm Package Safety
 
-AI hallucinates npm package names ~20% of the time (USENIX Security 2025). Hallucinated names registered by attackers = supply-chain attack ("slopsquatting").
+AI-suggested npm package names are often hallucinated, and attackers register those names ("slopsquatting").
 
 ### Before recommending a package
 1. Only recommend packages you're confident exist with exact names
@@ -202,8 +194,8 @@ AI hallucinates npm package names ~20% of the time (USENIX Security 2025). Hallu
 3. Explicitly say when uncertain — don't guess
 4. Never recommend packages you can't verify from training data
 
-### User verification
-Remind users to verify before install:
+### Verify before adding
+Check the package yourself before adding it:
 ```bash
 npm view <package-name>            # 404 → hallucinated, don't install
 npm view <package-name> time.created  # suspiciously recent? investigate
@@ -218,30 +210,9 @@ npm view <package-name> time.created  # suspiciously recent? investigate
 
 ---
 
-## TypeScript Configuration
+## TypeScript (only where the project uses it)
 
-`strict: true` + additional safety flags:
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "isolatedModules": true
-  }
-}
-```
-
-- `noUncheckedIndexedAccess` — `array[0]` returns `T | undefined`
-- Avoid `as any` — use type guards, unknown assertions, or Zod parsing
-- `unknown` over `any` for external data; narrow with type guards or schemas
-- Branded types to prevent mixing semantically different IDs
-- TypeScript 5.8+: `--erasableSyntaxOnly` for Node.js direct `.ts` execution (strips type-only syntax, disallows enums/namespaces/parameter properties); `--rewriteRelativeImportExtensions` rewrites `.ts` → `.js` in imports automatically
-- **TypeScript 6.0 (March 2026):** `strict` mode is now the default; lowest emit target is ES2015 (`target: "es5"` removed); final JavaScript-based compiler — TypeScript 7.0 (Go rewrite, ~10× faster compilation) is in development
+Follow the repo's `tsconfig.json`; on a new config use `strict: true` plus `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`. Avoid `as any` — `unknown` for external data, narrowed with type guards or the project's schema library; branded types to keep semantically different IDs apart.
 
 ---
 
@@ -259,7 +230,7 @@ npm view <package-name> time.created  # suspiciously recent? investigate
 | `event.keyCode` | `event.key` |
 | `substr()` | `substring()` / `slice()` |
 | Callback crypto | `crypto.subtle` (browser) / `crypto.promises` (Node) |
-| `.eslintrc.*` config | `eslint.config.js` (flat config) — ESLint 10 (Feb 2026) removed `.eslintrc` support entirely |
+| `.eslintrc.*` config | `eslint.config.js` (flat config) |
 
 ---
 
@@ -302,8 +273,6 @@ Modern bundlers (Vite, esbuild, Rollup) treat each file as a module — top-leve
 
 **CRITICAL — never bulk regex/sed `catch (e) {` → `catch {`.** Sed cannot inspect the body to know whether `e` is referenced. A blind global replace will produce `ReferenceError` at runtime everywhere `e` was used. Use `eslint --fix` with `no-unused-vars` (catch option) — it's AST-aware and only strips the binding when truly unused.
 
-Incident 2026-05-15: a sed-based bulk strip destroyed 13 files in one commit.
-
 ## `hasOwnProperty`
 
 ```javascript
@@ -330,16 +299,16 @@ invalid dates (e.g. February 30)
 overflow: very large numbers, very long strings
 ```
 
-**Preferred stack:** Vitest 4+ (fast, ESM-native, stable browser mode with visual regression testing), fast-check (property-based), @testing-library (UI), Playwright (cross-browser e2e + component testing).
+**Stack:** the test runner and e2e tool already configured in `package.json` — don't introduce a second one.
 
 ---
 
 ## Output Requirements
 
 Every code response:
-1. TypeScript (unless plain JS requested)
+1. The project's language (JS or TS — see Core Principles)
 2. Explicit error handling at every async boundary
-3. Input validation (Zod) for external data
+3. Input validation for external data
 4. JSDoc for public-facing functions
 5. Cleanup in every `useEffect` / subscription / timer
 6. No deprecated APIs
@@ -349,27 +318,9 @@ Every code response:
 
 ---
 
-## ESLint Rules
+## ESLint
 
-```javascript
-// Critical async
-'@typescript-eslint/no-floating-promises': 'error'
-'@typescript-eslint/await-thenable': 'error'
-'@typescript-eslint/no-misused-promises': 'error'
-'require-atomic-updates': 'error'
-
-// Security (eslint-plugin-security)
-'security/detect-eval-with-expression': 'error'
-'security/detect-non-literal-fs-filename': 'warn'
-'security/detect-child-process': 'warn'
-'security/detect-unsafe-regex': 'error'
-
-// Quality
-'no-eval': 'error'
-'no-implied-eval': 'error'
-'eqeqeq': 'error'
-'sonarjs/cognitive-complexity': ['error', 15]
-```
+Use the project's flat config. When adding a rule, only from plugins already in `package.json`. Worth enforcing where available: `no-eval`, `no-implied-eval`, `eqeqeq`, `require-atomic-updates`; in TS projects `@typescript-eslint/no-floating-promises` and `no-misused-promises`.
 
 ---
 
@@ -377,7 +328,7 @@ Every code response:
 
 ---
 
-Support Node.js LTS (v24+; V8 13.6, Explicit Resource Management `using`/`await using`, `RegExp.escape()`, `Error.isError()`, built-in SQLite improvements, `fetch()` respects `NODE_USE_ENV_PROXY`, ships npm 11) and modern browsers (ES2022+). Default TypeScript strict mode. When in doubt about security, choose the more restrictive option.
+Target the Node version pinned by the project (CI `node-version`, `.nvmrc`, `engines`) and its browser targets — no syntax or API above them. When in doubt about security, choose the more restrictive option.
 
-<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
-Last updated: 2026-09-24
+<!-- Updated: 2026-10-03 (prompt audit — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-10-03

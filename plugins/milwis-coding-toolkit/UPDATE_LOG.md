@@ -6,6 +6,18 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-03 — Poprawki z prompt-audit KonkretnyTMS (v1.5.42)
+
+Źródło: raport `/doctor prompt-audit` w KonkretnyTMS (`.claude/tmp/prompt-audit-2026-10-03.md`): martwe odwołania, sprzeczności z CLAUDE.md projektu, szum w agentach ładowany przy każdym spawnie. Wdrożone pozycje upstream; ID w nawiasach = ID z raportu.
+
+- **Martwe odwołania:** `writing-plans`/`executing-plans` → `writingplans`/`executingplans` wszędzie (H3); `$allowedResources` → `views`/`group_views` + `permissions_new` (H4); `roadmapa §3/§7` → § Measurement discipline (H6).
+- **Agenci — reguły „sprawdź w projekcie” zamiast założeń:** php-pro bierze minimum PHP z `composer.json`, składnia 8.5 tylko przy takim minimum, PHPStan z `phpstan.neon`, bez Psalm/Rector/Pest (H14, H16); javascript-pro — TS tylko z `tsconfig.json`, Node z workflow CI (H15); python-pro — wersja z `requires-python`/shebang/CI (H22); test-automator — framework i harness DB z repo, zakaz zamiany silnika na SQLite (M19); database-optimizer — `ANALYZE SELECT` na MariaDB, przykład PDO zamiast Django (M20); sql-pro — dialekt z briefu/CLAUDE.md/`SELECT VERSION()`, bez „ask” (M27).
+- **Odchudzenie (tokeny przy każdym spawnie):** usunięte generyczne bloki security/OpCache/JIT (php-pro), Postgres/T-SQL/Oracle (sql-pro), katalogi narzędzi (test-automator), wersje przeglądarek i on-device AI (mobile-pwa-developer), statystyki z datą/źródłem i ogony historyczne we wszystkich agentach (M24–M26). Agenci łącznie 276 124 → 258 509 B (php-pro −14%). Dowody `POMIAR` przeniesione z treści reguł do `references/evidence.md` (czytane na żądanie): `task-lifecycle` 41 079 → 33 348 B, `verify-e2e` 15 346 → 13 381 B, akapit wersji Claude Code z `roadmapa` (M9, F17).
+- **Sprzeczności z progami projektu:** code-reviewer, executingplans, task-lifecycle Small — próg recenzji z CLAUDE.md projektu wygrywa (F3, M7); `test-automator` tylko gdy potrzebne nowe testy.
+- **Recenzenci bez czekania na użytkownika:** backend-security-coder nie ma overlayu pisarza (nie edytuje plików, fix = diff w raporcie z mutantem) (H17); „ASK FIRST… wait” → `ambiguous. ask:` z decyzją (F5); 403/404 wg konwencji projektu (F6). verify-e2e: tryb bez nadzoru zapisuje pytanie w raporcie/issue zamiast pytać (F8).
+- **Pozostałe:** nextjs-pro „Use only in Next.js/React projects” zamiast „PROACTIVELY” (H21); audit-360 — vendorowane `.claude/agents/` preferowane, plugin fallback, poprawny opis modeli (H7, M11); lang-guidelines — NEVER/ALWAYS wg reguły 5 szablonu, ścieżka agentów (H23, M16); writingplans bez kwoty „10–20 issues” (M6); task-lifecycle Step 2 przenumerowany (M8); verify-e2e bez nazwy modelu jako uzasadnienia (M10); cytat hooka `Zuzyles N% wlasnego okna` (ASCII, jak w `relay-post.sh`) w 9 agentach-pisarzach (F15); `Get-FileHash` → `shasum` (F13).
+- **Celowo bez zmian:** F4 (sql-pro DDL vs migracje dev — decyzja właściciela), F16 (idiomy), frontmatter `model:`.
+
 ## Run: 2026-09-27 — Kolejka: brakujące testy (`typ:test`) w backlogu (v1.5.41)
 
 Źródło: decyzja właściciela (2026-09-27) — brakujące testy też rozwiązuje kolejka. Dotąd `typ:test` nie było w `KOLEJKA_TYPY`, więc 24 otwarte P3 z tą etykietą nigdy nie trafiały do kolejki (wyszło przy dashboardzie: „dlaczego tylko połowa P3 jest w kolejce”).

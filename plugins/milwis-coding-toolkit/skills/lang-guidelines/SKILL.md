@@ -28,7 +28,7 @@ Example: if today is 2026-04-14, search `"Python best practices 2026"`, NOT `"Py
 
 ## Step 0: Detect Mode (CREATE vs UPDATE)
 
-1. **Check for existing agent** in `~/.claude/agents/`:
+1. **Check for existing agent** in the toolkit source (`plugins/milwis-coding-toolkit/agents/` in the `milwis/claude-config` repo) when agents are vendored — a project's `.claude/agents/` copy is overwritten by the sync — otherwise in the project's `.claude/agents/`:
    - `{language}-pro.md` (standard name this skill generates)
    - Any other file whose name suggests it covers this language
 
@@ -150,7 +150,7 @@ Use the template at [references/agent-template.md](references/agent-template.md)
 
 ### File path
 
-`~/.claude/agents/{language}-pro.md` where `{language}` is lowercased and hyphenated:
+`<agents dir>/{language}-pro.md` — the same directory Step 0 checked (toolkit source when vendored, else the project's `.claude/agents/`) — where `{language}` is lowercased and hyphenated:
 - `Python` → `python`
 - `Ruby on Rails` → `ruby-on-rails`
 - `TypeScript` → `typescript`
@@ -176,7 +176,7 @@ Use the template at [references/agent-template.md](references/agent-template.md)
 
 - **Specific to this language** — no generic advice
 - **Code examples** for every major point (correct AND incorrect)
-- **Imperative language**: "Use X", "Never Y", "Always Z"
+- **Plain imperatives with the reason**: "Use X because …"; keep NEVER/ALWAYS for the few rules whose violation causes real damage (template rule 5)
 - **Cite sources**: "Per the official style guide...", "Google's X style guide..."
 - **Opinionated** — clear preferences, not options equally
 - **Actionable** — every rule is something the agent can follow when writing code

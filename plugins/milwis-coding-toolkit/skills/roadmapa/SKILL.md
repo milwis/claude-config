@@ -15,14 +15,8 @@ one issue — after it, a watcher ends that claude process (`/exit`) and starts 
 Remote Control (named `kolejka #<issue>`), and the current plugin version. Everything that must survive
 lives outside any context: GitHub labels, `git` merges, a committed ledger, flag files.
 
-`POMIAR` (2026-09-24, scratch repo, Claude Code 2.1.281, auto mode): an interactive session in tmux merged
-`--no-ff`, received `/clear` via `tmux send-keys`, did not remember the previous turn, received the
-`SessionStart:clear` hook's context, and merged again — no classifier bounce. `POMIAR` (2026-09-26, KonkretnyTMS,
-Claude Code 2.1.283, v1.5.35): two cycles on the watcher — `/exit`, `respawn-pane`, a new pid and a new session
-named `kolejka #999 …`, the start prompt answered, the Stop hook fired in both; the default model comes up in
-auto mode (haiku does not — it falls back to manual); a lead started by `lider.sh` in a scratch repo ran
-`git merge --no-ff agent/test -m '… [roadmapa]'` into `main` — "Allowed by auto mode classifier". `NIEZMIERZONE`: a real issue
-with L2 over a whole night — the first run on a project is a watched dry run.
+The session-per-issue cycle (`/exit` → `respawn-pane` → fresh lead, `--no-ff` merge passing the auto-mode classifier
+in an interactive session) is measured — `references/evidence.md`. The first run on a new project is a watched dry run.
 
 ## When — and when not
 
@@ -106,6 +100,7 @@ It is the only file the lead reads; the `SessionStart` hook points to it.
 | file | role |
 |---|---|
 | `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, L2 brief, dispatch, control, merge, close, ledger |
+| `references/evidence.md` | measurements behind the session-per-issue cycle (read when changing it, not at run time) |
 | `scripts/kolejka.sh` | owner's control: start / stop / status / lista / watcher |
 | `scripts/watcher.sh` | a new lead process (`/exit` + `respawn-pane`) after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
 | `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--settings`, session named after the issue, start prompt as the first message |

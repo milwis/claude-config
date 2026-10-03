@@ -1,5 +1,5 @@
 ---
-name: executing-plans
+name: executingplans
 description: Use when you have a written implementation plan to execute. Drives task-by-task execution with parallel groups, scope discipline, and verification at group boundaries.
 ---
 
@@ -7,7 +7,7 @@ description: Use when you have a written implementation plan to execute. Drives 
 
 **Core:** Execute the plan group by group. Stop immediately when something breaks. Verify at group boundaries, not after every micro-step.
 
-**Announce at start:** "I'm using the executing-plans skill."
+**Announce at start:** "I'm using the executingplans skill."
 
 ---
 
@@ -59,7 +59,7 @@ If ANY fails → sequential.
 
 **Same-file rule (critical):** if N tasks touch the same file, **dispatch ONE agent with all N tasks in its prompt**. Never dispatch parallel agents on the same file — they clobber each other, AND you pay N× the agent boot-up cost.
 
-**Always sequential:** migrations before queries on new columns, git commits, the final `code-reviewer` + `test-automator` group.
+**Always sequential:** migrations before queries on new columns, git commits, the final review/test group.
 
 **When in doubt → sequential.**
 
@@ -130,7 +130,7 @@ For each group G:
 
 **Final group** is always sequential and always contains:
 - Comprehensive test pass — the single FULL-suite run of this execution (dispatch `test-automator` if new tests are needed)
-- Code review (dispatch `code-reviewer`)
+- Code review (dispatch `code-reviewer`). If the project defines a review threshold (e.g. CLAUDE.md), it wins: a diff it exempts gets the project's self-audit checklist instead.
 - **Surface verification** for user-facing changes: run the `verify-e2e` skill in a FRESH subagent (GUI → browser + screenshots, API → real request). Tests passing ≠ the surface working.
 - Commit
 
@@ -175,7 +175,7 @@ For tasks that modify existing files: read the file IF you need context you don'
 | Test creation | `test-automator` |
 | PWA / mobile | `mobile-pwa-developer` |
 
-`code-reviewer` and `test-automator` always in the final sequential group.
+`code-reviewer` (subject to the project's review threshold) and `test-automator` (when new tests are needed) run only in the final sequential group.
 
 ---
 

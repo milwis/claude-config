@@ -1,5 +1,5 @@
 ---
-name: writing-plans
+name: writingplans
 description: Use when you have a spec for a multi-step task. Creates implementation plans with vertical slicing, risk-first ordering, and acceptance criteria — describes intent, not inline code.
 ---
 
@@ -7,7 +7,7 @@ description: Use when you have a spec for a multi-step task. Creates implementat
 
 **Core:** A plan describes WHAT and WHY clearly enough for a subagent to execute — WITHOUT spelling out every line of code. Bite-sized tasks ordered by risk. Vertical slicing. DRY. YAGNI.
 
-**Announce at start:** "I'm using the writing-plans skill."
+**Announce at start:** "I'm using the writingplans skill."
 
 **Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
 
@@ -19,7 +19,7 @@ description: Use when you have a spec for a multi-step task. Creates implementat
 2. **Read the files** that will be modified. Note patterns: naming, error handling, imports, formatting
 3. **Check DB schema** for affected tables (grep for CREATE/ALTER or inspect the DB)
 4. **Map dependencies** — which JS calls which endpoint, which controllers use which services
-5. **Identify risks** — missing `updated_at`, missing `$allowedResources`, cross-file JS without `window.`, missing `views`/`group_views` entries
+5. **Identify risks** — missing `updated_at`, missing access migration (`views`/`group_views` AND `permissions_new` — both required), cross-file JS without `window.`
 6. **Write a findings summary** (2-3 sentences) at the top of the plan
 
 Plans based on reading code work the first time. Plans based on imagination cause rework.
@@ -47,7 +47,7 @@ Why mandatory: a variant path (correction, delete, batch, offline, import, a rep
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For Claude:** execute with the `executing-plans` skill.
+> **For Claude:** execute with the `executingplans` skill.
 
 **Goal:** [one sentence describing what this builds]
 
@@ -160,7 +160,7 @@ Token efficiency: inline code means paying to generate the same code twice (in t
 
 ## Step 2: Self-Audit & Refinement (mandatory before handoff)
 
-**Do not present the plan to the user until this step is complete.** An un-audited plan typically contains 10-20 gaps the user would otherwise catch manually. Find and fix them first.
+**Do not present the plan to the user until this step is complete.** Gaps you don't catch here, the user has to catch manually.
 
 ### Pass 1 — General audit (main agent)
 
@@ -174,7 +174,7 @@ Re-read the entire saved plan as a reviewer seeing it for the first time. Hunt f
 - **Operational:** logging, migrations reversible, feature flags, backward compatibility, data migration for existing rows
 - **DRY/YAGNI:** duplicated work across tasks, speculative features, premature abstractions
 
-Write findings as a checklist. Don't stop at the first few — aim to match the 10-20 issues a fresh reviewer would find.
+Write findings as a checklist. Record every real gap you find, each with the task number, file:line or command that shows it. A short list is a valid result — don't pad it.
 
 ### Pass 2 — Language-specialist audits (parallel; conditional)
 
@@ -215,7 +215,7 @@ Only now announce the plan as ready. Include a one-paragraph audit summary:
 - Which specialists were consulted
 - Which findings were fixed vs. deliberately deferred (with reason)
 
-If zero issues were found, state it explicitly — that is unusual and worth flagging so the user can sanity-check.
+If no issues were found, say so and name what you checked, so the user can judge the coverage.
 
 ---
 
@@ -223,13 +223,13 @@ If zero issues were found, state it explicitly — that is unusual and worth fla
 
 After the self-audit is complete and the plan is clean:
 
-**"Plan saved to `docs/plans/<filename>.md`. Audited by [list specialists]; [N] issues found and resolved. Ready to execute with the `executing-plans` skill?"**
+**"Plan saved to `docs/plans/<filename>.md`. Audited by [list specialists]; [N] issues found and resolved. Ready to execute with the `executingplans` skill?"**
 
 ---
 
 ## Companion Skills (active during execution, not pre-loaded)
 
-- `executing-plans` — drives the execution loop
+- `executingplans` — drives the execution loop
 - `test-driven-development` — for new production code (failing test first)
 - `systematic-debugging` — when anything breaks during execution
 - `verification-before-completion` — the verification gate (at group boundaries)

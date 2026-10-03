@@ -61,7 +61,7 @@ make test          # all pass
 - [ ] `code-reviewer` row marked **MANDATORY** before commit
 - [ ] `debugger` row mentions "start from logs"
 - [ ] Non-negotiable rules section present (5–8 bullets)
-- [ ] Workflow line: `brainstorming → writing-plans → executing-plans → code-reviewer → commit`
+- [ ] Workflow line: `brainstorming → writingplans → executingplans → code-reviewer → commit`
 - [ ] Agent names match the marketplace (no typos like `code_reviewer` or `php_pro`)
 
 ## Domain safety (skip if N/A)

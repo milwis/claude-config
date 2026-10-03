@@ -17,7 +17,7 @@ issue is wrong, not the agent: split it before it is created, never after it fai
 gh label list --limit 300 --json name,description -q '.[] | [.name, .description] | @tsv' | sort
 ```
 
-Mandatory axes (the taxonomy of KonkretnyTMS, measured 2026-09-26 — 142 open issues, 50 without `srodowisko:*`):
+Mandatory axes (the KonkretnyTMS taxonomy):
 
 | axis | how many | values | how to choose |
 |---|---|---|---|

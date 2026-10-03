@@ -81,7 +81,7 @@ Before any statement implying success:
 
 ## Integration
 
-- `executing-plans` — runs this gate at each group boundary
+- `executingplans` — runs this gate at each group boundary
 - `test-driven-development` — Verify RED and Verify GREEN are this gate
 - `systematic-debugging` — Phase 4 "Verify Fix" is this gate
 - `code-reviewer` — before reporting "addressed"
