@@ -131,6 +131,8 @@ watcher)
       echo "$KLUCZ=\"$WART\"" >> "$K/config.env"
     fi
   done
+  # A replacement, not a stop: the old watcher's hard-stop trap must not write "zatrzymana" over the new one.
+  touch "$K/podmiana-watchera"
   tmux kill-window -t "$SESJA:watcher" 2>/dev/null || true
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
     "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env' --bez-cyklu; echo 'watcher zakończony — Enter zamyka okno'; read"

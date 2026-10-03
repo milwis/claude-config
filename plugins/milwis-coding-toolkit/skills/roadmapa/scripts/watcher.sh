@@ -162,6 +162,21 @@ else
   # kolejka.sh start has already launched the first lead (lider.sh) after checking the limit.
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 fi
+# Hard stop (tmux kill-session, closed window, kill): write "zatrzymana" before exiting. Without it the dashboard
+# keeps the last state and turns red after 30 min as "no signal — Mac, power, network?" (2026-10-02: kill-session
+# during a pause left "pauza-okno" for good). `kolejka.sh watcher` replaces the watcher with kill-window and touches
+# $K/podmiana-watchera first: a replacement, not a stop, so nothing is written — the new watcher writes its own state.
+twardy_stop() {
+  trap - HUP TERM INT
+  if [ -n "$(find podmiana-watchera -mmin -2 2>/dev/null)" ]; then log "watcher: podmieniony ($1)"; exit 0; fi
+  status_github zatrzymana "Kolejka zatrzymana twardo ($1, np. tmux kill-session). Bieżące issue podejmie odzysk przy następnym starcie."
+  log "watcher: twardy stop ($1)"
+  exit 0
+}
+trap 'twardy_stop SIGHUP' HUP
+trap 'twardy_stop SIGTERM' TERM
+trap 'twardy_stop SIGINT' INT
+
 # Attached to a running lead: the cycle started when it took the issue.
 [ "${2:-}" = "--bez-cyklu" ] && [ -f w-toku ] && ST_OD=$(stat -f %m w-toku)
 status_github pracuje

@@ -6,6 +6,14 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-03 — Kolejka: twardy stop zostawia „zatrzymana” na dashboardzie (v1.5.44)
+
+Źródło: dashboard kolejki KonkretnyTMS pokazywał 305 „naprawionych od ostatniego deployu” zamiast 1. `POMIAR`: watcher pisał status do #1093 ostatni raz 2026-10-02 18:00:39; o 18:02 powstał `zatrzymaj`, a sesję tmux zamknięto twardo — watcher zginął od SIGHUP bez zapisu. Pole `deploy` zostało na 2026-09-26, deploy z 2026-10-02 21:50 nie trafił nigdzie, a stan na zawsze „pauza-okno” → po 30 min czerwone „brak sygnału”.
+
+- `scripts/watcher.sh`: pułapka na HUP/TERM/INT zapisuje `zatrzymana` z powodem przed wyjściem. `POMIAR` (atrapy `gh`/`tmux`, SIGHUP do całej grupy procesów jak przy `kill-session`): nowa wersja zapisuje `pracuje` → `zatrzymana`, stara tylko `pracuje`.
+- `scripts/kolejka.sh watcher`: przed `kill-window` dotyka `$K/podmiana-watchera`; pułapka starego watchera przy świeżym (< 2 min) znaczniku nic nie zapisuje — to podmiana, nie stop. `POMIAR`: przy znaczniku zapisane tylko `pracuje`.
+- Czas deployu niezależny od kolejki to sprawa projektu, nie toolkitu: w KonkretnyTMS workflow `znacznik-deployu.yml` po każdym udanym Deploy pisze do osobnego issue (#1473), a dashboard bierze nowszą z dwóch wartości.
+
 ## Run: 2026-10-03 — Gdzie trafia nowa reguła prozą (v1.5.43)
 
 Źródło: w KonkretnyTMS `incident-lessons.md` urósł z 15 do 37 KB w 4 tygodnie po redukcji z 2026-09-05, a `CLAUDE.md` z 44 do 54 KB — każda lekcja dopisywana do pliku ładowanego w każdej sesji i u każdego podagenta. Projekt dostał zapadkę budżetu (`AlwaysLoadedContextBudgetLatchTest`) i reguły dziedzinowe pod `paths:` (66 KB zamiast 91 KB ładowanych zawsze).
