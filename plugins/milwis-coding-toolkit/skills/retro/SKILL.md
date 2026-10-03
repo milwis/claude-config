@@ -38,6 +38,8 @@ For each category, look for the evidence named under *Use when*; skip the catego
 | **Information access** | BLOCKED verdicts; a verifier without a test account/port/browser; logs the builder could not see | a `docs/VERIFICATION_ENV.md` entry, a teed log, a read-only credential |
 | **Queue mechanics** (roadmapa only) | a lead that read code or pulled suite output; a watcher rotation that cut a running issue; a picker that took a feature or a deferred issue; a recovery that re-ran an interrupted issue | a rule in `roadmapa/references/cykl-lidera.md` or a script in `roadmapa/scripts/` — remember the project's latch test on the skill, if it has one |
 
+Where a prose proposal lands: a rule tied to recognizable paths → a `.claude/rules/*.md` file with `paths:` frontmatter; `CLAUDE.md` and always-loaded rules files only for rules that apply everywhere (they are paid by every session and subagent — respect the project's budget latch, if any).
+
 ### A "rule did not hold" verdict is itself a measurement
 
 When the run's annex walks the toolkit's rules as *held / did not hold*, each verdict is checked the way any other measurement is:

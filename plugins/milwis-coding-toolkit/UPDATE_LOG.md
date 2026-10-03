@@ -6,6 +6,12 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-03 — Gdzie trafia nowa reguła prozą (v1.5.43)
+
+Źródło: w KonkretnyTMS `incident-lessons.md` urósł z 15 do 37 KB w 4 tygodnie po redukcji z 2026-09-05, a `CLAUDE.md` z 44 do 54 KB — każda lekcja dopisywana do pliku ładowanego w każdej sesji i u każdego podagenta. Projekt dostał zapadkę budżetu (`AlwaysLoadedContextBudgetLatchTest`) i reguły dziedzinowe pod `paths:` (66 KB zamiast 91 KB ładowanych zawsze).
+
+- `skills/task-lifecycle/SKILL.md` (zasada 5) i `skills/retro/SKILL.md` (pod tabelą kategorii): reguła związana z rozpoznawalnymi ścieżkami trafia do `.claude/rules/*.md` z `paths:`; `CLAUDE.md` i pliki reguł bez `paths:` tylko dla reguł ogólnych, z poszanowaniem zapadki budżetu projektu.
+
 ## Run: 2026-10-03 — Poprawki z prompt-audit KonkretnyTMS (v1.5.42)
 
 Źródło: raport `/doctor prompt-audit` w KonkretnyTMS (`.claude/tmp/prompt-audit-2026-10-03.md`): martwe odwołania, sprzeczności z CLAUDE.md projektu, szum w agentach ładowany przy każdym spawnie. Wdrożone pozycje upstream; ID w nawiasach = ID z raportu.
