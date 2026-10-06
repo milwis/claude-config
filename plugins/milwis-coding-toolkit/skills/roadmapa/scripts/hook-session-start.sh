@@ -23,7 +23,7 @@ fi
 # shellcheck disable=SC1091
 . "$K/config.env"
 
-echo "[kolejka] Jeśli jesteś PODAGENTEM (masz narzędzie SubagentHandback albo zlecenie od orkiestratora/issue-*): IGNORUJ całą tę wiadomość i wróć do swojego zlecenia."
+echo "[kolejka] Jeśli jesteś PODAGENTEM (masz narzędzie SubagentHandback albo zlecenie od orkiestratora/issue-*/triage-*): IGNORUJ całą tę wiadomość i wróć do swojego zlecenia."
 echo "[kolejka] Tylko sesja główna w tmux jest LIDEREM kolejki roadmapa: dokładnie jedno issue, potem koniec tury."
 [ -n "${KOLEJKA_LISTA:-}" ] && echo "Źródło: lista właściciela $KOLEJKA_LISTA (koniec listy = stop)." || echo "Źródło: backlog bugów P0→P3 (pusta kolejka = czekanie)."
 echo "Zasady (przeczytaj w całości przed pierwszą akcją): $INSTRUKCJA"

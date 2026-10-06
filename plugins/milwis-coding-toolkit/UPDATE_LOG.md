@@ -6,6 +6,15 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-06 — Kolejka: triage jako osobny podagent przed L2 (v1.5.45)
+
+Źródło: pomiar kosztu L2 na transkryptach KonkretnyTMS (393 uruchomienia L2, 2026-09-22…10-04, ceny katalogowe Opus 5.5 / Sonnet 5.5). `POMIAR`: L2 = 42% kosztu issue (mediana na uruchomienie 50%). Z kosztu L2: 59% to zapisy do cache, 40% odczyty, <1% output. Z zapisów 41% to ponowny zapis całego okna po przerwie dłuższej niż 5 min (TTL cache 5 min; mediana przerwy 5,9 min, p90 17,5 min), 15% to start (prefiks 74k). Triage robiony przez L2 we własnym oknie podnosił je z 74k do 165k (mediana) przed pierwszym spawnem i to obciążenie szło przez ~30 wywołań orkiestracji (68% kosztu L2). Grep/find i cat/sed = 84% treści, jaką Bash wnosił do okna L2. Szacunek (`WNIOSEK`, niezmierzony po zmianie): −25–30% kosztu L2 przy tym samym modelu.
+
+- `references/cykl-lidera.md`: krok 4 dzieli się na 4a (podagent `triage-<nr>`, `general-purpose`, `${MODEL_TRIAGE:-opus}`, nic nie commituje, nikogo nie spawnuje) i 4b (L2 tylko po `VALID.`). Raport triage ma stały szablon pod potrzeby orkiestratora: werdykt, decydujący pomiar, przyczyna, powierzchnia poprawki, testy (RED na HEAD + testy referujące symbole + zapadki), fakty do klasy rozmiaru, wykluczone hipotezy, otwarte punkty, NOWE PROBLEMY. Twardy limit 120 linii, surowe wyjścia ponad 10 linii trafiają do `triage-<nr>-<k>.txt`. L2 nie powtarza triage; kotwice z raportu to `reported`, przed wejściem do briefu jeden ponowny pomiar, a sprzeczność kończy się `ambiguous.`. Tokeny inne niż `VALID.` idą do kroku 5 bez startu L2. Spin-offy z obu raportów, wiersz ledgera zaczyna się od tokenu triage.
+- `scripts/kolejka.sh`: `KOLEJKA_MODEL_TRIAGE` (domyślnie opus) → `MODEL_TRIAGE` w `config.env`. Działająca kolejka bez tego wpisu używa opusa (`${MODEL_TRIAGE:-opus}`).
+- `scripts/hook-session-start.sh`: podagent `triage-*` ignoruje wiadomość lidera, jak `issue-*`.
+- Do zmierzenia po ~10 issue: koszt L2 i całego issue, kontekst L2 przy pierwszym spawnie, rundy review, stopy `ambiguous.` z powodu sprzeczności z raportem triage.
+
 ## Run: 2026-10-03 — Kolejka: twardy stop zostawia „zatrzymana” na dashboardzie (v1.5.44)
 
 Źródło: dashboard kolejki KonkretnyTMS pokazywał 305 „naprawionych od ostatniego deployu” zamiast 1. `POMIAR`: watcher pisał status do #1093 ostatni raz 2026-10-02 18:00:39; o 18:02 powstał `zatrzymaj`, a sesję tmux zamknięto twardo — watcher zginął od SIGHUP bez zapisu. Pole `deploy` zostało na 2026-09-26, deploy z 2026-10-02 21:50 nie trafił nigdzie, a stan na zawsze „pauza-okno” → po 30 min czerwone „brak sygnału”.

@@ -15,7 +15,7 @@
 # Configuration (environment, read at start):
 #   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
-#   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
+#   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_TRIAGE (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
 #   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
 #   by its title, set empty = off), KOLEJKA_DEPLOY_WORKFLOW (workflow whose last successful run = the last deploy, for
@@ -82,6 +82,7 @@ LEDGER="${KOLEJKA_LEDGER:-docs/plans/kolejka-ledger.md}"
 WT="$REPO/.claude/worktrees/kolejka"
 ETYKIETA_ZROBIONE="${KOLEJKA_ETYKIETA_ZROBIONE:-status:zrobione-lokalnie}"
 MODEL_L2="${KOLEJKA_MODEL_L2:-opus}"
+MODEL_TRIAGE="${KOLEJKA_MODEL_TRIAGE:-opus}"
 MODEL_LIDER="${KOLEJKA_MODEL_LIDER:-}"
 IDLE_MIN="${KOLEJKA_IDLE_MIN:-30}"
 STALL_MIN="${KOLEJKA_STALL_MIN:-90}"

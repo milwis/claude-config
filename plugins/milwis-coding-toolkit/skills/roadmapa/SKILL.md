@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the bug backlog by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh general-purpose subagent runs triage + task-lifecycle), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then ends the lead's process and starts a new lead session for the next. Never builds new features from the backlog, never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
+description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the bug backlog by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh triage subagent decides whether the bug exists, then a fresh general-purpose subagent runs task-lifecycle on its report), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then ends the lead's process and starts a new lead session for the next. Never builds new features from the backlog, never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
 ---
 
 # Roadmapa — the issue queue
@@ -9,7 +9,7 @@ description: "Use when GitHub issues must be resolved autonomously one after ano
 > A project that vendors a copy into `.claude/skills/` gets it overwritten by its sync — change it upstream.
 
 **Core idea.** Quality degrades before a context window fills, so the work is split by context, not by
-time: every issue is solved by a fresh subagent (L2), and the lead that dispatches it lives for exactly
+time: every issue is triaged by a fresh subagent and solved by another fresh one (L2), and the lead that dispatches it lives for exactly
 one issue — after it, a watcher ends that claude process (`/exit`) and starts a new one in the same tmux pane
 (`lider.sh`, the start prompt as the first message). One issue = one session: its own entry in `/resume` and in
 Remote Control (named `kolejka #<issue>`), and the current plugin version. Everything that must survive
@@ -57,11 +57,11 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
 - **Only an interactive session merges.** The lead runs as a normal `claude` in tmux, never `claude --bg`:
   `POMIAR` (waves E and G, 2026-09-08) — `git merge` from a background session bounces off the auto-mode
   classifier; the same merge in an interactive session passed (batch 2.3, 2026-09-15; scratch run 2026-09-24).
-- **One writer.** Only the lead merges into `main`, writes to the tracker and commits the ledger. L2 and its
+- **One writer.** Only the lead merges into `main`, writes to the tracker and commits the ledger. Triage, L2 and its
   specialists work on `agent/issue-<nr>` in the queue worktree and never merge, push, close or create issues.
 - **One issue at a time**, each branch from the `main` that already contains the previous merge — so no
   two branches ever race for the same base.
-- **Bugs and missing tests only from the backlog** (`typ:test` since v1.5.41). The picker filters by label; L2's triage is the second filter (`feature.`).
+- **Bugs and missing tests only from the backlog** (`typ:test` since v1.5.41). The picker filters by label; the triage subagent is the second filter (`feature.`).
   The error is asymmetric: an idea taken = functionality nobody ordered, built overnight; a fix skipped =
   it waits one cycle. With unclear content, defer.
 - **Deferral lives in the issue** — `status:odlozone` plus a comment saying what unblocks it. A deferral
@@ -92,14 +92,14 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
   committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
 
-The lead's procedure, the L2 brief, the report tokens and the stop conditions → `references/cykl-lidera.md`.
+The lead's procedure, the triage and L2 briefs, the report tokens and the stop conditions → `references/cykl-lidera.md`.
 It is the only file the lead reads; the `SessionStart` hook points to it.
 
 ## Files
 
 | file | role |
 |---|---|
-| `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, L2 brief, dispatch, control, merge, close, ledger |
+| `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, triage + L2 briefs, dispatch, control, merge, close, ledger |
 | `references/evidence.md` | measurements behind the session-per-issue cycle (read when changing it, not at run time) |
 | `scripts/kolejka.sh` | owner's control: start / stop / status / lista / watcher |
 | `scripts/watcher.sh` | a new lead process (`/exit` + `respawn-pane`) after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
@@ -108,7 +108,7 @@ It is the only file the lead reads; the `SessionStart` hook points to it.
 | `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
 | `scripts/hook-session-start.sh`, `scripts/hook-stop.sh`, `scripts/hook-stop-failure.sh` | hooks of the lead session only (passed with `--settings`); StopFailure marks a turn ended by an API error (`blad-api`) |
 
-State: `<repo>/.claude/tmp/kolejka/` (config, flags, L2 reports, `watcher.log`, `status-github.md` = last status body). Ledger:
+State: `<repo>/.claude/tmp/kolejka/` (config, flags, triage and L2 reports, `watcher.log`, `status-github.md` = last status body). Ledger:
 `docs/plans/kolejka-ledger.md` (committed, append-only). L2 worktree: `<repo>/.claude/worktrees/kolejka`.
 
 ## Measurement discipline (lead, L2, ledger)
