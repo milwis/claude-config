@@ -126,8 +126,12 @@ Issue text: <title + body>.
 2. Bugs only. If the issue in fact asks for new functionality (a new feature, screen, report, option,
    integration — not restoring behaviour that is broken; a missing test for existing behaviour is not a
    feature), the verdict is `feature.`.
-3. Defects found OUTSIDE this issue go to NOWE PROBLEMY (title, path:line, the POMIAR that shows it, proposed
-   modul:* / P* / typ:* / srodowisko:*), never into the scope.
+3. Defects found OUTSIDE this issue go to NOWE PROBLEMY, never into the scope, and only when they pass the
+   value gate of the nowe-issue skill (§2a). Each entry needs a `skutek:` line naming the consequence for
+   users, data, money, security, operations or CI, plus the title, path:line, the POMIAR that shows it, and
+   the proposed modul:* / P* / typ:* / srodowisko:*. A repeat of a known class (§2b) is one entry: the class
+   plus its sites. Do not report stale line numbers or prose, holes in latches or scanners that no real
+   code goes through, or missing tests for working code. Do not spend measurements on them.
 4. Forbidden: git commit/merge/push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
    production. Before your final message stop every background shell, Monitor and timer you started (TaskStop);
    `git -C <$WT> status --short` must be empty.
@@ -188,8 +192,11 @@ Never touch <$REPO> (the main tree).
    woke 10 minutes after its report). Then, before ANY report token, commit everything on the branch — `git status --short` must be empty, also for
    BLOCKED / ambiguous. Near your window cap (the hook's own-window message) on a Large issue: commit, report
    `partial.` with what remains.
-7. Defects found OUTSIDE this issue's scope are not fixed: list them in a `NOWE PROBLEMY` section (title,
-   path:line, the POMIAR that shows it, proposed modul:* / P* / typ:* / srodowisko:*).
+7. Defects found OUTSIDE this issue's scope are not fixed. List them in a `NOWE PROBLEMY` section only when
+   they pass the value gate of the nowe-issue skill (§2a). Each entry needs a `skutek:` line, title,
+   path:line, the POMIAR that shows it, and the proposed modul:* / P* / typ:* / srodowisko:*. A repeat of a
+   known class (§2b) is one entry with its sites. Reviewer findings outside the scope pass the same gate.
+   Docs and comments you write cite symbols (`Class::method`), never line numbers, so they do not go stale.
 Write the full report to <$K>/raport-<N>.md: first line one terminal token (done. / closed-on-head. /
 partial. / feature. / ambiguous. / needs-confirm. / too-big. / regressed. / BLOCKED), then tip SHA, commits,
 evidence paths, review iterations, POMIAR/WNIOSEK labels, NOWE PROBLEMY. Your message to the lead
@@ -241,7 +248,16 @@ from taking the same issue.
 with the conflicting paths, continue — the next issue branches from the new `$MAIN`. Never resolve a
 conflict in the main tree (`/resolving-merge-conflicts` is the owner's tool).
 
-**Spin-offs** from the `NOWE PROBLEMY` of both reports (triage and L2), whatever the token — check for a duplicate first, then create:
+**Spin-offs** from the `NOWE PROBLEMY` of both reports (triage and L2), whatever the token. Before
+creating, the lead applies the gate itself, because a report can carry a finding the subagent should have
+dropped:
+- drop an entry with no `skutek:` line, or one that falls into a "never an issue" category (`nowe-issue` §2a);
+- an entry of a class (§2b) with an open class issue becomes a comment on that issue, with the new sites;
+- what remains: check for a duplicate first, then create.
+
+The ledger `uwagi` record it as `spin-off: #a, #b; do klasy: #c; odrzucone: <n>`. A queue that keeps more
+spin-offs than it closes issues grows its backlog without end.
+
 ```bash
 gh issue list --state all --search "<2-3 distinctive words>" --json number,title,state
 printf '%s\n' "<body: evidence, source issue #N, found by the roadmapa queue>" > "$K/spinoff.md" \

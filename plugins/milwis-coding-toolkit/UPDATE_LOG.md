@@ -6,6 +6,24 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-08 — Kolejka: bramka wartości i reguła klasy dla spin-offów (v1.5.46)
+
+Źródło: analiza backlogu KonkretnyTMS na prośbę właściciela („naprawiając jedno, pojawia się kilka innych”).
+
+- `POMIAR`: issues scalone przez kolejkę od 2026-09-24 (358 sztuk). Do każdego z nich odwołuje się średnio 2,05 nowych issues; to górna granica, bo liczone po wzmiankach `#N`. W tygodniach 39–40 powstało 635 issues, zamknięto 537. Z 722 issues od 2026-09-21 tylko 4–6 mówi o regresji po poprawce, a 75 wprost o stanie zastanym. Kolejka więc odkrywa defekty, a nie je wprowadza.
+- `POMIAR`: weryfikacja 14 otwartych issues na HEAD. Tylko jedno miało poważny skutek, a i ono nie wystąpiło na produkcji ani razu. Jedno było już naprawione innym numerem. Reszta miała skutek kosmetyczny, teoretyczny albo żaden: dziury w skanerach bez trafienia w realny kod (0 trafień) i martwy kod.
+- Właściciel zamknął issues bez znaczenia jako not planned, a powtarzalne wzorce połączył w issues klasowe.
+- `skills/nowe-issue/SKILL.md`:
+  - **§2a bramka wartości.** Issue powstaje tylko przy skutku dla użytkownika, danych, pieniędzy/KSeF/magazynu, bezpieczeństwa, operacji produkcyjnych albo stabilności CI, opisanym linią `skutek:`. Lista „nigdy issue”: nieaktualne numery linii i proza, dziura w narzędziu kontroli bez realnego trafienia, brak testu dla działającego kodu, kosmetyka, wyłącznie lokalny dev, audyt „niskiego ryzyka” bez defektu.
+  - **§2b jedna klasa = jedno issue.** Klasa jest naprawiana jedną zmianą: wspólny helper plus przegląd wszystkich miejsc. Nowe miejsca idą komentarzem do otwartego issue klasy, a nie jako „slice N”. Mechaniczne podmiany liczą się w rozmiarze jako jedna jednostka.
+  - Preferencja podziału „po jednostce wzorca” obowiązuje już tylko wtedy, gdy miejsca wymagają osobnej oceny.
+- `skills/roadmapa/references/cykl-lidera.md`:
+  - Triage (pkt 3) i L2 (pkt 7) raportują w NOWE PROBLEMY wyłącznie znaleziska przechodzące bramkę; poza zakresem obejmuje to też znaleziska recenzenta.
+  - L2 cytuje w dokumentacji symbole (`Klasa::metoda`), a nie numery linii.
+  - Lider przed utworzeniem spin-offu sam stosuje bramkę: odrzuca wpis bez `skutek:`, wpis z klasy zamienia na komentarz w issue klasy. W `uwagi` zapisuje `spin-off / do klasy / odrzucone`.
+- `skills/roadmapa/SKILL.md`: zasada „Spin-offs” odsyła do bramki.
+- Do zmierzenia po ~20 issue: liczba spin-offów na scalone issue (cel < 1), ile odrzuceń, czy odrzucone wracają jako realne błędy.
+
 ## Run: 2026-10-06 — Kolejka: triage jako osobny podagent przed L2 (v1.5.45)
 
 Źródło: pomiar kosztu L2 na transkryptach KonkretnyTMS (393 uruchomienia L2, 2026-09-22…10-04, ceny katalogowe Opus 5.5 / Sonnet 5.5). `POMIAR`: L2 = 42% kosztu issue (mediana na uruchomienie 50%). Z kosztu L2: 59% to zapisy do cache, 40% odczyty, <1% output. Z zapisów 41% to ponowny zapis całego okna po przerwie dłuższej niż 5 min (TTL cache 5 min; mediana przerwy 5,9 min, p90 17,5 min), 15% to start (prefiks 74k). Triage robiony przez L2 we własnym oknie podnosił je z 74k do 165k (mediana) przed pierwszym spawnem i to obciążenie szło przez ~30 wywołań orkiestracji (68% kosztu L2). Grep/find i cat/sed = 84% treści, jaką Bash wnosił do okna L2. Szacunek (`WNIOSEK`, niezmierzony po zmianie): −25–30% kosztu L2 przy tym samym modelu.

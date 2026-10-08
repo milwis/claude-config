@@ -49,6 +49,46 @@ one without the owner's OK. A repo without these axes at all (only GitHub defaul
    decision goes into the body, or the decision becomes its own `typ:analysis` issue that the implementation
    depends on.
 
+## 2a. Value gate: is it worth an issue at all?
+
+An issue costs a full task-lifecycle run, and every fix adds tests, latches and docs that age and breed issues
+of their own. `POMIAR` (KonkretnyTMS, 2026-10-08): each issue merged by the queue produced ~2 new ones; of 224
+open, about half changed nothing for users or for the code. Those were stale line numbers, holes in latches
+that no real code goes through, and missing tests for working code. The owner closed them.
+
+Create an issue ONLY when the defect has a consequence in at least one of:
+- data integrity, money/VAT, regulated submissions (e.g. KSeF), stock, document numbering;
+- permissions, authentication, session, XSS, or a leak of a secret, password or personal data with a concrete path;
+- behaviour a user sees, such as a wrong value or message, a button that fails, or 401/403 in normal use;
+- production operations: backups, monitoring, crons, performance;
+- CI stability: order-dependent or flaky tests.
+
+The finder states the consequence in one line (`skutek: …`). A finding without one is not an issue.
+
+**Never an issue.** The finder drops these, or fixes them in passing when it edits that file anyway:
+1. stale line numbers, anchors, quotes or prose in docs, comments, docblocks, provenance notes;
+2. a hole in a control tool (latch, scanner, harness, inventory, measure/diag script) that no real code goes
+   through today; when real code does, the issue is about that code;
+3. a missing test for behaviour that works, outside the consequence areas above;
+4. cosmetics of comments, names or prose; a problem of the local dev environment only;
+5. a low-risk audit note with no concrete defect.
+
+Dead code, HTTP 500 instead of 4xx on malformed input, log-sanitising detail, and similar repeated-pattern
+defects with no consequence of their own are NOT single issues: they go to their class (§2b).
+
+## 2b. One class = one issue, fixed by one change
+
+When the same cause repeats in many places, there is ONE open issue for the class, fixed by ONE change: a
+shared helper or canon plus a sweep of every call site. Examples: malformed input → 500, LIKE without escaping,
+raw error text to the client, log sanitising, dead code, hand-written `.env` parsers, explicit ids in
+fixtures, XML parser flags.
+
+- Before creating, run `gh issue list --state open --search "<class words>"`. An open class issue gets a
+  comment with the new sites. Never open a new issue, a "part 2" or a "slice N" for a class.
+- Size (§3.3) counts the helper and its proof. Mechanical call-site edits (the same ≤ 3-line change per site)
+  count as one unit.
+- Split by unit only when the sites need individual judgement.
+
 ## 3. Size: does it fit one task-lifecycle run?
 
 It fits ONLY when **all** hold:
@@ -72,7 +112,8 @@ issue (the bundle rule), not several.
 ### Splitting — preference order
 
 1. **By unit of one repeating pattern** (files, controllers, tables, call sites), balanced counts, disjoint
-   files → portions run in parallel or in any order.
+   files → portions run in parallel or in any order. Only when the sites need individual judgement; a
+   mechanical sweep behind one helper stays one issue (§2b).
 2. **By layer in dependency order** for shape changes: migration expand → backend → frontend → contract
    (`migration` skill); each step leaves `main` working.
 3. **Safety net first:** a characterization test or latch as its own `typ:test` portion when the refactor has
@@ -210,6 +251,6 @@ One list: `#<n> <title> — <labels>`, the umbrella first; for a queue-able spli
 
 - `task-lifecycle` — the consumer: its Step 0 classes are the sizing target; its `too-big. split:` token is
   input for this skill.
-- `roadmapa` — the lead creates spin-offs from `NOWE PROBLEMY` under these rules (`references/cykl-lidera.md`
-  step 6).
+- `roadmapa` — the lead creates spin-offs from `NOWE PROBLEMY` under these rules, the value gate (§2a) and
+  the class rule (§2b) first (`references/cykl-lidera.md` step 6).
 - `migration` — the order of layer portions for shape changes.

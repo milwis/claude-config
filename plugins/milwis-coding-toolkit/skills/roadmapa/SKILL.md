@@ -67,8 +67,10 @@ Issues the queue could not finish carry `status:odlozone` and the question in a 
 - **Deferral lives in the issue** — `status:odlozone` plus a comment saying what unblocks it. A deferral
   written only in a plan is one GitHub does not know about; the picker greps `docs/plans`/`docs/runbook`
   for those and the lead labels them.
-- **Spin-offs** — defects found outside the issue become new issues (duplicate check first, three label
-  axes `modul:*`/`P*`/`typ:*`), never "while we are here" fixes.
+- **Spin-offs** — defects found outside the issue become new issues only through the value gate and the
+  class rule (`nowe-issue` §2a/§2b). A finding needs a consequence for users, data, money, security, operations
+  or CI; a repeat of a known class is a comment on that class's open issue. Duplicate check first, four label
+  axes, never "while we are here" fixes.
 - **Weekly limit** — before every new issue the watcher reads the weekly usage and stops at ≥ `--limit`
   (default 92, `KOLEJKA_LIMIT_TYG`; 100 = off); the running issue is always finished. The only source is the
   status line input (`rate_limits.seven_day`), so the owner's status line must dump it to
