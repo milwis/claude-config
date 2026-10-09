@@ -6,6 +6,16 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-09 — task-lifecycle: orkiestrator-podagent czeka z ciepłym cache (v1.5.47)
+
+Źródło: retrospektywa transkryptów KonkretnyTMS (skill `retro`, 3000 transkryptów od 2026-09-24) na prośbę właściciela.
+
+- `POMIAR`: po rozdzieleniu triage (v1.5.45) L2 nadal przepisuje całe okno po przerwie dłuższej niż 5 min. Na 54 uruchomieniach L2 z okresu 2026-10-06…10-09 było 59 takich zapisów, czyli 22% kosztu L2. Przerwy trwały od 5 do 21 min, większość 5–7 min. Triage nie ma ich wcale (0 na 51).
+- `POMIAR`: TTL 1 h dla podagentów (`subagentPromptCacheTtl`) daje netto stratę. Zapis kosztuje wtedy 2× zamiast 1,25×, a dla `general-purpose` wyszło +63 mln jednostek przy 100 mln oszczędności na chybieniach. Dla recenzentów i agentów piszących to czysta strata.
+- `POMIAR`: wiadomość `SendMessage` od dziecka dociera do podagenta w trakcie jego pracy, razem z wynikiem następnego narzędzia (163 transkrypty).
+- `skills/task-lifecycle/SKILL.md` hard rule 9: orkiestrator będący nazwanym podagentem czeka krokami `sleep 270` w Bash, zamiast kończyć turę. Sesja główna (cache 1 h) czeka jak dotąd.
+- Do zmierzenia po ~20 issue: udział przepisań okna w koszcie L2 (cel < 5%) oraz liczba tur czekania na issue.
+
 ## Run: 2026-10-08 — Kolejka: bramka wartości i reguła klasy dla spin-offów (v1.5.46)
 
 Źródło: analiza backlogu KonkretnyTMS na prośbę właściciela („naprawiając jedno, pojawia się kilka innych”).
