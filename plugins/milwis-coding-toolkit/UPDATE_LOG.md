@@ -6,6 +6,18 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-17 — nowy skill `deploy`, wywoływany wyłącznie przez właściciela (v1.5.48)
+
+Źródło: rekomendacja automatyzacji (`claude-automation-recommender`) dla KonkretnyTMS, wdrożona na prośbę właściciela.
+
+- `skills/deploy/SKILL.md` ma `disable-model-invocation: true`, więc wywołanie `/deploy` przez właściciela jest zgodą na ten jeden deploy (CLAUDE.md §2). Skill nie powiela komend. Każe przeczytać `docs/claude-reference/procedury.md` §DEPLOY i `deploy-workflow.md` z repo projektu; w razie rozjazdu wygrywa repo. Gdy tej procedury brak, skill się zatrzymuje.
+- Dokłada cztery punkty zatrzymania z właścicielem:
+  - nieprzejrzane scalenia `[roadmapa]`,
+  - changelog + bump wersji,
+  - każda czerwona bramka (bez furtek `KTMS_SKIP_PREFLIGHT`, `PLAYWRIGHT_ALLOW_FLAKY` i `--no-verify`),
+  - status `superseded` ≠ wdrożone.
+- Dokłada też pułapki zmierzone na nieudanych deployach v3.78.0, v3.85.0 i v3.89.0: parytet CI zamiast „tła”, kod wyjścia przy `failOnWarning`, `composer audit`, wszystkie kroki jobu `migrations`, `git commit -- index.php` biorący drzewo robocze, snapshot `VersionTest`.
+
 ## Run: 2026-10-09 — task-lifecycle: orkiestrator-podagent czeka z ciepłym cache (v1.5.47)
 
 Źródło: retrospektywa transkryptów KonkretnyTMS (skill `retro`, 3000 transkryptów od 2026-09-24) na prośbę właściciela.
