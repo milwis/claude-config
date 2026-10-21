@@ -300,5 +300,7 @@ Pass 2 (specjaliści) pominięty: 8 zadań, ale bez pieniędzy/VAT/danych regulo
 | 2026-10-21 | Task 6 | zrobione, `2b23d6f` | — |
 | 2026-10-21 | Task 7 | zrobione, `15fcfef`; POMIAR: `ROADMAPA_SKILL_DIR=<claude-config>/…/roadmapa phpunit --filter RoadmapaSkillLatchTest` → OK (5 tests, 102 assertions); `bash -n kolejka.sh` OK | — |
 
-Zostało: pełna suita (w toku) (review, pełna suita, verify CLI), Task 8.
+| 2026-10-21 | pełna suita w WT | vitest 428 plików / 6862 passed; PHPUnit 25627 testów: 59 E + 86 F | POMIAR: 141 z 143 nazw testów czerwonych także na `main` (`kolejka/fullsuite-20261021-183658.log`: 59 E + 84 F; DDD, RepairOrder*LiveDb, Paysera… — stan bazy dev, nie ta gałąź); 2 tylko na gałęzi (`JsonResponseSeamBudgetLatchTest` 233≠231, `EnvExampleSyncTest`) → naprawione `fde4e78eb`, filtr 34 tests OK, PHPStan OK |
+
+Zostało (właściciel): scalenie `agent/verify-cli` do `main` KonkretnyTMS, push claude-config (v1.5.49) + sync toolkitu, obserwacja pierwszego cyklu kolejki (`doctor --fix` vs klasyfikator auto-mode). (review, pełna suita, verify CLI), Task 8.
 Miny: **zmiana User-Agenta niszczy sesję** (`SecurityService.php:111-116`, `:216-237`) — `http` wysyła UA z logowania; do Feature Map/VERIFICATION_ENV (Task 5). Ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
