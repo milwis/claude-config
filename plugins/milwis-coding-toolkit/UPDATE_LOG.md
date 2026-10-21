@@ -6,6 +6,15 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-21 — weryfikacja przez CLI projektu, Feature Map, reprodukcja w triage (v1.5.49)
+
+Źródło: artykuł pstack cz. 1 („Verification is all you need”) i pomiar kosztu weryfikacji na prośbę właściciela. Plan: `docs/plans/2026-10-21-weryfikacja-cli-feature-map.md`.
+
+- `POMIAR` (subagenty KonkretnyTMS od 2026-09-22): weryfikatory to 2,0% kosztu ($546, 310 uruchomień); 74 z przeglądarką ($119) dały 65 PASS / 3 BLOCKED / 0 FAIL. Wszystkie 3 FAIL-e dały weryfikatory HTTP. 39% kosztu weryfikatora idzie przed pierwszym wywołaniem wykonawczym.
+- `verify-e2e`: przeglądarka tylko gdy diff dotyka frontu albo nic innego nie rozróżnia (E7). Gdy projekt ma sekcję `## CLI` w `docs/VERIFICATION_ENV.md`, CLI jest pierwszym narzędziem: `doctor` zamiast ręcznego sprawdzania środowiska, wpis Feature Map + jedno `open`/`http` jako pomiar punktu wejścia, `ab` jako domyślny dyskryminator. Limit 60 wywołań, przy limicie BLOCKED. Linia `CLI gap:` w odchyleniach.
+- `roadmapa`: lider uruchamia `doctor --fix` przed triage (porażka nie wstrzymuje issue). Triage zostawia reprodukcję na powierzchni (`$K/repro-<N>.sh`, ≤ 10 wywołań), którą weryfikator bierze jako dyskryminator. Raport L2 ma linię `Weryfikacja:`. Przy BLOCKED lider dodaje etykietę `weryfikacja:reczna` (`KOLEJKA_ETYKIETA_RECZNA`) z komentarzem, co kliknąć, a `kolejka.sh status` ją listuje.
+- Wymaga po stronie projektu: CLI (`scripts/dev/app.mjs` w KonkretnyTMS, gałąź `agent/verify-cli`) i Feature Map (`docs/features/`). Bez sekcji `## CLI` zachowanie jest jak w v1.5.48.
+
 ## Run: 2026-10-17 — nowy skill `deploy`, wywoływany wyłącznie przez właściciela (v1.5.48)
 
 Źródło: rekomendacja automatyzacji (`claude-automation-recommender`) dla KonkretnyTMS, wdrożona na prośbę właściciela.
