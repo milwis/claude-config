@@ -95,10 +95,11 @@ git -C "$WT" status --short                     # must be empty — someone else
 git -C "$WT" checkout -b "agent/issue-$N" "$MAIN"
 ```
 **Verification environment** — when the project has a control CLI (a `cli: <script path relative to the repo
-root>` line in the `## CLI` section of `docs/VERIFICATION_ENV.md`), run its `doctor` with the fix option once
-per cycle, so a missing test account is restored before anyone needs it instead of ending a verify as BLOCKED:
+root>` line in the `## CLI` section of `docs/VERIFICATION_ENV.md`), `lider.sh` already ran its `doctor` with the
+fix option before this session (plain bash, outside the auto-mode classifier), so a missing test account is
+restored before anyone needs it. Do not run it yourself; read the result:
 ```bash
-. .claude/tmp/kolejka/config.env && CLI=$(awk '/^## CLI/{f=1;next} /^## /{f=0} f&&/^cli: /{sub(/^cli: /,"");print;exit}' "$REPO/docs/VERIFICATION_ENV.md" 2>/dev/null); if [ -n "$CLI" ]; then "$WT/$CLI" doctor --root "$WT" --fix > "$K/doctor-$N.json" 2>&1; echo "doctor rc=$? cli=$CLI"; else echo "brak CLI" > "$K/doctor-$N.json"; echo "brak CLI"; fi
+. .claude/tmp/kolejka/config.env && cat "$K/doctor.json"
 ```
 A failing check is not a stop: the file goes to triage and L2 as the environment state, and the verify brief
 carries it. `brak CLI` = the CLI steps below are `skipped: project has no CLI`.
@@ -141,7 +142,7 @@ Issue text: <title + body>.
    plus its sites. Do not report stale line numbers or prose, holes in latches or scanners that no real
    code goes through, or missing tests for working code. Do not spend measurements on them.
 4. Reproduction on the surface — only when the problem exists and a user meets it (a GUI, an HTTP endpoint,
-   a CLI or cron output) and the project has a control CLI (<$K>/doctor-<N>.json is not `brak CLI`; read it for
+   a CLI or cron output) and the project has a control CLI (<$K>/doctor.json is not `brak CLI`; read it for
    the environment state). Write ONE command that shows the defect on HEAD as a user would see it — the
    CLI's `http`/`open`/`eval` call or a `curl` — to <$K>/repro-<N>.sh and run it once; quote its output. It is
    the fixed tree's discriminator later: the same command must come out differently after the fix. At most 10
@@ -202,7 +203,7 @@ Never touch <$REPO> (the main tree).
    Full test suite: run it in the background with stdout to a file under the project's exclusive slot and
    read only the summary and the red test NAMES — never its output into your window.
 4. Project-local rules: <path to the project's local-adaptations doc, if any>.
-   Verification environment: <$K>/doctor-<N>.json (the project CLI's doctor output from this cycle, or `brak CLI`)
+   Verification environment: <$K>/doctor.json (the project CLI's doctor output from this cycle, or `brak CLI`)
    and the triage's `## Repro`. The verify brief (task-lifecycle Step 4) carries both: the doctor output as its
    `Control CLI` line, the repro command as `Repro from triage` and as the discriminator.
 5. Forbidden: git merge, git push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,

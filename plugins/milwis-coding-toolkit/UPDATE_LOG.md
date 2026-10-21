@@ -6,6 +6,11 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-21 — `doctor --fix` w `lider.sh`, poza klasyfikatorem auto-mode (v1.5.50)
+
+- W v1.5.49 lider sam wołał `doctor --fix` w kroku 3. Klasyfikator auto-mode odrzucał wcześniej seed kont testowych (#1046), a reguła zgody nie pasowałaby do tej komendy, bo reguły dopasowują dosłowny tekst bez rozwijania zmiennych (`$WT/$CLI`), a bloki `if` nie są dla nich udokumentowane. Tryb auto wyłącza też szerokie reguły interpreterów (`Bash(node *)`).
+- `lider.sh` (zwykły bash, przed `exec claude`) uruchamia teraz `doctor --root $WT --fix` przed każdą sesją lidera i zapisuje `$K/doctor.json` (albo `brak CLI`). Lider tylko czyta plik; triage i L2 dostają `doctor.json` zamiast `doctor-<N>.json`. `POMIAR`: `doctor` trwa 0,28 s.
+
 ## Run: 2026-10-21 — weryfikacja przez CLI projektu, Feature Map, reprodukcja w triage (v1.5.49)
 
 Źródło: artykuł pstack cz. 1 („Verification is all you need”) i pomiar kosztu weryfikacji na prośbę właściciela. Plan: `docs/plans/2026-10-21-weryfikacja-cli-feature-map.md`.
