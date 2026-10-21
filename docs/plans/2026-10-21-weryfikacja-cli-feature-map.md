@@ -290,9 +290,11 @@ Pass 2 (specjaliści) pominięty: 8 zadań, ale bez pieniędzy/VAT/danych regulo
 | 2026-10-21 | Task 3 | zrobione, `b46290ae1` | POMIAR: vitest dev-app-session + dev-app-cli → 39 passed; live (reported): login :8080 + http permissions-get-current-user → 200 |
 | 2026-10-21 | Task 2 | zrobione, `5342eb914` | POMIAR: phpunit `SeedIdentityTest` + latche SAPI/StrictTypes/PhpunitCollection/PhpstanScope → OK (23 tests, 703 assertions); eslint `scripts/dev/app*` rc=0; mutanty 4/4 RED (reported); odchylenie: guard SAPI w kształcie kanonu (`http_response_code(403); exit(1)`), bo latch zabrania STD* |
 | 2026-10-21 | Task 4 | zrobione, `a084b1b86` | POMIAR: vitest dev-app-browser → 18 passed; `smoke.png` istnieje; live A/B 8080↔8080 differs:false (reported) |
-| 2026-10-21 | Task 5 | w toku — `build-cli-5` | — |
+| 2026-10-21 | Task 5 | zrobione, `faee2f10f` | POMIAR: awk lidera na `VERIFICATION_ENV.md` → `scripts/dev/app.mjs`; tabela README = 49 wierszy (= `eval` .length = `SELECT COUNT(*) FROM views`, reported); live open/snapshot zlecenia/warsztat/zakupy (reported); KSeF nie ma własnego klucza widoku |
+| 2026-10-21 | Task 8 | zrobione, `0f9b77e` (v1.5.49) | — |
+| 2026-10-21 | review (opus) | 0 blocker, 6 major, 5 minor; 4 potwierdzone sondami (ab maskuje `session.role`, `decideKill` z portem-stringiem 8080, `isPortFree` przy 0.0.0.0, guard tylko hosta) | poprawki: `fix-cli` w toku |
 | 2026-10-21 | Task 6 | zrobione, `2b23d6f` | — |
 | 2026-10-21 | Task 7 | zrobione, `15fcfef`; POMIAR: `ROADMAPA_SKILL_DIR=<claude-config>/…/roadmapa phpunit --filter RoadmapaSkillLatchTest` → OK (5 tests, 102 assertions); `bash -n kolejka.sh` OK | — |
 
-Zostało: Task 5, grupa końcowa (review, pełna suita, verify CLI), Task 8.
+Zostało: poprawki z review, pełna suita, verify CLI na żywo, zgodność docs z poprawkami (review, pełna suita, verify CLI), Task 8.
 Miny: **zmiana User-Agenta niszczy sesję** (`SecurityService.php:111-116`, `:216-237`) — `http` wysyła UA z logowania; do Feature Map/VERIFICATION_ENV (Task 5). Ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
