@@ -47,7 +47,11 @@ lock and one commit sweeps up the other's uncommitted edit. The machine stays aw
 **Afterwards:** `kolejka.sh status`, full suite + the project's CI-parity gate on `main`, push when satisfied.
 The push rule treats unpushed `[roadmapa]` merges (`git log origin/main..main --merges --grep '\[roadmapa\]'`)
 as "ask before pushing" — the marker is what makes the queue's work distinguishable from the owner's.
-Issues the queue could not finish carry `status:odlozone` and the question in a comment.
+Issues the queue could not finish carry `status:odlozone` and the question in a comment. Merged issues whose
+surface verification ended BLOCKED carry `weryfikacja:reczna` (`KOLEJKA_ETYKIETA_RECZNA`) and a comment saying what
+to click; `kolejka.sh status` lists them — remove the label after checking.
+When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICATION_ENV.md`), the lead runs its
+`doctor` with the fix option every cycle and triage leaves a surface repro that the verifier uses as its discriminator.
 
 ## Invariants
 

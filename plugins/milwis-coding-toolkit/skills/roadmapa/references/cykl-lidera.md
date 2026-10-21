@@ -14,7 +14,7 @@ merges, the ledger and the flag files in `$K`.
 
 **Every Bash call starts with `. .claude/tmp/kolejka/config.env &&`** (your working directory is the main
 tree) and uses the variables: `$REPO` main tree, `$K` state directory, `$SKRYPTY`, `$MAIN`, `$LEDGER`
-(relative to `$REPO`), `$WT` L2 worktree, `$ETYKIETA_ZROBIONE`, `$MODEL_L2`, `$KOLEJKA_LISTA` (empty =
+(relative to `$REPO`), `$WT` L2 worktree, `$ETYKIETA_ZROBIONE`, `$ETYKIETA_RECZNA`, `$MODEL_L2`, `$KOLEJKA_LISTA` (empty =
 backlog source). `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-character state path dropped one
 `/`, wrote its flag into a non-existent directory, reported success, and the queue stood still.
 
@@ -94,6 +94,14 @@ discriminator — the project's local-adaptations doc). Do NOT use `isolation: "
 git -C "$WT" status --short                     # must be empty — someone else's work is a stop, not a cleanup
 git -C "$WT" checkout -b "agent/issue-$N" "$MAIN"
 ```
+**Verification environment** — when the project has a control CLI (a `cli: <script path relative to the repo
+root>` line in the `## CLI` section of `docs/VERIFICATION_ENV.md`), run its `doctor` with the fix option once
+per cycle, so a missing test account is restored before anyone needs it instead of ending a verify as BLOCKED:
+```bash
+. .claude/tmp/kolejka/config.env && CLI=$(awk '/^## CLI/{f=1;next} /^## /{f=0} f&&/^cli: /{sub(/^cli: /,"");print;exit}' "$REPO/docs/VERIFICATION_ENV.md" 2>/dev/null); if [ -n "$CLI" ]; then "$WT/$CLI" doctor --root "$WT" --fix > "$K/doctor-$N.json" 2>&1; echo "doctor rc=$? cli=$CLI"; else echo "brak CLI" > "$K/doctor-$N.json"; echo "brak CLI"; fi
+```
+A failing check is not a stop: the file goes to triage and L2 as the environment state, and the verify brief
+carries it. `brak CLI` = the CLI steps below are `skipped: project has no CLI`.
 
 **4. Triage, then L2 — keep your turn open while each one works.** The Agent tool starts subagents in the
 background — there is no foreground option to rely on (`POMIAR` 2026-09-24, first KonkretnyTMS run: both L2s
@@ -132,7 +140,14 @@ Issue text: <title + body>.
    the proposed modul:* / P* / typ:* / srodowisko:*. A repeat of a known class (§2b) is one entry: the class
    plus its sites. Do not report stale line numbers or prose, holes in latches or scanners that no real
    code goes through, or missing tests for working code. Do not spend measurements on them.
-4. Forbidden: git commit/merge/push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
+4. Reproduction on the surface — only when the problem exists and a user meets it (a GUI, an HTTP endpoint,
+   a CLI or cron output) and the project has a control CLI (<$K>/doctor-<N>.json is not `brak CLI`; read it for
+   the environment state). Write ONE command that shows the defect on HEAD as a user would see it — the
+   CLI's `http`/`open`/`eval` call or a `curl` — to <$K>/repro-<N>.sh and run it once; quote its output. It is
+   the fixed tree's discriminator later: the same command must come out differently after the fix. At most 10
+   tool calls for this item; not reachable within them, or the surface is KSeF/SMSAPI/production → `n/a: <why>`.
+   Never a browser script written from zero.
+5. Forbidden: git commit/merge/push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
    production. Before your final message stop every background shell, Monitor and timer you started (TaskStop);
    `git -C <$WT> status --short` must be empty.
 
@@ -155,6 +170,8 @@ dead ends except under "Ruled out". The template, all sections present (`n/a` wh
   ## Sizing facts — files likely touched (n), expected production diff (lines, estimate), sensitive module
      (money/VAT, auth/permissions, regulated data: yes/no + which), DB/migration (yes/no),
      user-facing surface (yes/no + entry point path:line from a grep of the handler binding).
+  ## Repro — <$K>/repro-<N>.sh, its output on HEAD (decisive lines), and what a fixed tree should print instead;
+     or `n/a: <why>` (item 4).
   ## Ruled out — ≤ 5 one-liners: hypothesis → the command that excluded it. Spares the orchestrator re-checking.
   ## Open — INFERRED points the orchestrator must confirm before building on them.
   ## NOWE PROBLEMY — as in 3, or `n/a`.
@@ -185,6 +202,9 @@ Never touch <$REPO> (the main tree).
    Full test suite: run it in the background with stdout to a file under the project's exclusive slot and
    read only the summary and the red test NAMES — never its output into your window.
 4. Project-local rules: <path to the project's local-adaptations doc, if any>.
+   Verification environment: <$K>/doctor-<N>.json (the project CLI's doctor output from this cycle, or `brak CLI`)
+   and the triage's `## Repro`. The verify brief (task-lifecycle Step 4) carries both: the doctor output as its
+   `Control CLI` line, the repro command as `Repro from triage` and as the discriminator.
 5. Forbidden: git merge, git push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
    production.
 6. Leave nothing running: before your final message stop every background shell, Monitor and wait timer you
@@ -199,7 +219,8 @@ Never touch <$REPO> (the main tree).
    Docs and comments you write cite symbols (`Class::method`), never line numbers, so they do not go stale.
 Write the full report to <$K>/raport-<N>.md: first line one terminal token (done. / closed-on-head. /
 partial. / feature. / ambiguous. / needs-confirm. / too-big. / regressed. / BLOCKED), then tip SHA, commits,
-evidence paths, review iterations, POMIAR/WNIOSEK labels, NOWE PROBLEMY. Your message to the lead
+one line `Weryfikacja: PASS` / `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>` /
+`Weryfikacja: n/a — <why no surface>`, evidence paths, review iterations, POMIAR/WNIOSEK labels, NOWE PROBLEMY. Your message to the lead
 (SendMessage) is at most 3 lines: the token, the tip SHA, the report path.
 ```
 
@@ -240,7 +261,11 @@ printf '%s\n' "<comment>" > "$K/issue-$N-zamkniecie.md" \
   && gh issue edit "$N" --add-label "$ETYKIETA_ZROBIONE"
 ```
 The comment says: merged locally into `main` at `<SHA>`, **not pushed and not deployed**, branch tip,
-verification evidence, review iterations. An issue closed without that sentence reads as "in production".
+verification evidence, review iterations. A surface verification that ended BLOCKED goes to the owner as a
+manual check — the label is how `kolejka.sh status` lists it, the comment line says what to click:
+```bash
+. .claude/tmp/kolejka/config.env && L=$(grep -m1 '^Weryfikacja: BLOCKED' "$K/raport-$N.md"); if [ -n "$L" ]; then gh label create "$ETYKIETA_RECZNA" --color FBCA04 --description "Scalone przez kolejkę, weryfikacja powierzchni BLOCKED — sprawdź ręcznie" 2>/dev/null; printf '%s\n' "Do ręcznego sprawdzenia: ${L#Weryfikacja: BLOCKED — }" > "$K/issue-$N-reczna.md" && gh issue comment "$N" --body-file "$K/issue-$N-reczna.md" && gh issue edit "$N" --add-label "$ETYKIETA_RECZNA"; fi
+``` An issue closed without that sentence reads as "in production".
 The `[roadmapa]` marker is how the owner's push rule finds these merges. Closing is what keeps the next cycle
 from taking the same issue.
 

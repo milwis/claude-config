@@ -14,7 +14,8 @@
 #
 # Configuration (environment, read at start):
 #   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
-#   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
+#   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_ETYKIETA_RECZNA (weryfikacja:reczna — merged
+#   issues whose surface verification ended BLOCKED, for the owner to check by hand), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
 #   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_TRIAGE (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
 #   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
@@ -81,6 +82,7 @@ MAIN="$MAIN"
 LEDGER="${KOLEJKA_LEDGER:-docs/plans/kolejka-ledger.md}"
 WT="$REPO/.claude/worktrees/kolejka"
 ETYKIETA_ZROBIONE="${KOLEJKA_ETYKIETA_ZROBIONE:-status:zrobione-lokalnie}"
+ETYKIETA_RECZNA="${KOLEJKA_ETYKIETA_RECZNA:-weryfikacja:reczna}"
 MODEL_L2="${KOLEJKA_MODEL_L2:-opus}"
 MODEL_TRIAGE="${KOLEJKA_MODEL_TRIAGE:-opus}"
 MODEL_LIDER="${KOLEJKA_MODEL_LIDER:-}"
@@ -155,6 +157,9 @@ status)
   echo "--- ledger ($LEDGER), ostatnie wiersze:"; grep '^| [0-9]' "$REPO/$LEDGER" 2>/dev/null | tail -5 || true
   echo "--- watcher.log:"; tail -5 "$K/watcher.log" 2>/dev/null || true
   echo "--- scalone lokalnie, niewypchnięte:"; git -C "$REPO" log --oneline --merges --grep '\[roadmapa\]' "origin/$MAIN..$MAIN" | head -20
+  R=$(cfg ETYKIETA_RECZNA weryfikacja:reczna)
+  echo "--- do ręcznego sprawdzenia (etykieta $R; zdejmij ją po sprawdzeniu):"
+  (cd "$REPO" && gh issue list --state all --label "$R" --json number,title -q '.[] | "#\(.number) \(.title)"' 2>/dev/null) || echo "(gh niedostępne)"
   ;;
 lista)
   "$SKRYPTY/wybierz-issue.sh" --lista "$REPO"
