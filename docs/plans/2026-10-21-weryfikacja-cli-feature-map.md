@@ -184,7 +184,7 @@ wywołania KSeF/SMSAPI (nadal zakazane w kolejce — CLI tego nie zmienia).
 
 **Approach:**
 - Każda komenda = osobny proces z `storageState`; bez trzymania przeglądarki w tle (prostsze sprzątanie, brak osieroconych procesów).
-- Lista kluczy widoków brana z rejestru nawigacji (`views/navigation-dynamic.php`) — `open` z nieznanym kluczem zwraca listę dostępnych.
+- Lista kluczy widoków brana w runtime (POMIAR, Task 4): rejestr to tabela DB `views` filtrowana per grupa (`php/services/NavigationService.php:82`), nie `views/navigation-dynamic.php`; dla administratora 49 kluczy (`eval` na `nav [data-view]` + `window.USER_VIEWS`). `open` z nieznanym kluczem zwraca listę dostępnych.
 
 **Verification:** vitest zielony; na żywo: `open orders --port 8080` + `snapshot` (tylko odczyt), `ab` na 8080 vs 8080 → `differs:false`.
 
@@ -288,9 +288,11 @@ Pass 2 (specjaliści) pominięty: 8 zadań, ale bez pieniędzy/VAT/danych regulo
 | 2026-10-21 | worktree KonkretnyTMS | `.claude/worktrees/verify-cli`, `agent/verify-cli` od `f6cf54256` | `git worktree add` |
 | 2026-10-21 | Task 1 | zrobione, `a0ce20c99` | POMIAR: vitest dev-app-cli → 22 passed; `doctor --root WT` → ok:true (6/6) |
 | 2026-10-21 | Task 3 | zrobione, `b46290ae1` | POMIAR: vitest dev-app-session + dev-app-cli → 39 passed; live (reported): login :8080 + http permissions-get-current-user → 200 |
-| 2026-10-21 | Task 2, Task 4 | w toku — `build-cli-2`, `build-cli-4` | — |
+| 2026-10-21 | Task 2 | zrobione, `5342eb914` | POMIAR: phpunit `SeedIdentityTest` + latche SAPI/StrictTypes/PhpunitCollection/PhpstanScope → OK (23 tests, 703 assertions); eslint `scripts/dev/app*` rc=0; mutanty 4/4 RED (reported); odchylenie: guard SAPI w kształcie kanonu (`http_response_code(403); exit(1)`), bo latch zabrania STD* |
+| 2026-10-21 | Task 4 | zrobione, `a084b1b86` | POMIAR: vitest dev-app-browser → 18 passed; `smoke.png` istnieje; live A/B 8080↔8080 differs:false (reported) |
+| 2026-10-21 | Task 5 | w toku — `build-cli-5` | — |
 | 2026-10-21 | Task 6 | zrobione, `2b23d6f` | — |
 | 2026-10-21 | Task 7 | zrobione, `15fcfef`; POMIAR: `ROADMAPA_SKILL_DIR=<claude-config>/…/roadmapa phpunit --filter RoadmapaSkillLatchTest` → OK (5 tests, 102 assertions); `bash -n kolejka.sh` OK | — |
 
-Zostało: Task 1 (raport), Task 2 ‖ Task 3, Task 4, Task 5, grupa końcowa (review, pełna suita, verify CLI), Task 8.
+Zostało: Task 5, grupa końcowa (review, pełna suita, verify CLI), Task 8.
 Miny: **zmiana User-Agenta niszczy sesję** (`SecurityService.php:111-116`, `:216-237`) — `http` wysyła UA z logowania; do Feature Map/VERIFICATION_ENV (Task 5). Ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
