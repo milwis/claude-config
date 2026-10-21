@@ -39,7 +39,7 @@ Never verify in the same context that built the change. Never accept the builder
 | Agent / skill / prompt | Behavior | Invoke the agent/skill on a representative task | Transcript excerpt + produced artifact |
 | Library / internal module | Consumer | Run the real consumer through one integration path (not just unit tests) | Consumer output |
 
-A change can have multiple surfaces (endpoint + GUI that calls it) — verify the **outermost** one the user touches; inner surfaces are covered transitively unless the change is inner-only.
+A change can have multiple surfaces (endpoint + GUI that calls it) — verify the **outermost** one the user touches; inner surfaces are covered transitively unless the change is inner-only. **Exception — the browser is the surface only when the diff touches front-end files** (scripts, views, templates, styles — decided by `git diff --stat <base>..<tip>`, quoted in the brief) **or when no HTTP/CLI observation discriminates the trees.** A backend-only diff behind a GUI is verified on its HTTP surface. (E7)
 
 **Which tree is being verified?** If the change lives on a branch in a worktree, the default app URL usually serves the MAIN tree, not the branch. The verifier must (a) hit a server whose docroot is the worktree, and (b) show a **discriminator** — one observation that comes out differently on the fixed tree than on the unfixed one (the same action on both ports, or a marker only the branch has in executed code, not in a static file). "The server on port N answered" is not evidence of which code ran.
 
@@ -47,7 +47,7 @@ A change can have multiple surfaces (endpoint + GUI that calls it) — verify th
 
 ## Step 2: Environment check (before dispatching the verifier)
 
-1. Read `docs/VERIFICATION_ENV.md` in the project root (if present) — it lists local URLs, test accounts, tokens, tools, and known gaps.
+1. Read `docs/VERIFICATION_ENV.md` in the project root (if present) — it lists local URLs, test accounts, tokens, tools, and known gaps. **When it has a `## CLI` section, the project's control CLI is the first tool for items 2–5:** its `doctor` (with its fix option when accounts are missing) replaces the environment check; serving the branch, logging in, HTTP requests and opening a view are its commands, not a script the verifier writes; the Feature Map entry the section points to plus ONE `open`/`http` command from this turn is the entry-point measurement of item 5; its A/B command is the default discriminator. A triage reproduction handed down with the task (roadmapa `## Repro`) is the discriminator when present: the same command, unfixed tree vs fixed tree. Items 3–4 below apply only to what the CLI does not cover. (E7)
 2. If the environment needed for this surface is **missing** (no test account, no API key, no browser tool, no fake data):
    - **Do NOT improvise.** Do NOT downgrade to "tests pass, so it works."
    - Return status **BLOCKED** with the exact list of what is missing.
@@ -73,7 +73,12 @@ Entry point: [command + output from THIS turn showing how a user reaches the sur
 Environment: [from VERIFICATION_ENV.md: URL, test login, tokens, tools]
 Tree state: [build/bundle flag as served (e.g. USE_BUNDLE=<value>, dist/ stale or fresh) — verified by the orchestrator this turn;
              which uncommitted changes in the tree are the orchestrator's (`git diff <file>` = the only local change; everything else is HEAD)]
-Discriminator: [ONE command whose output differs between fixed and unfixed tree, e.g. `curl -s <url> | grep -c 'js/modules'`]
+Discriminator: [ONE command whose output differs between fixed and unfixed tree — the triage repro or the CLI's A/B command when available, else e.g. `curl -s <url> | grep -c 'js/modules'`]
+Surface choice: [`git diff --stat <base>..<tip>` from THIS turn + "browser" only if it lists front-end files or no HTTP/CLI observation discriminates — else "HTTP/CLI"]
+Control CLI: [the project CLI's `doctor` output from THIS turn + "use `<cli> <command>` to serve, log in, send requests, open views and run A/B; do not write your own login/serve script" — or `skipped: project has no CLI`]
+Feature map entry: [the area file of the project's feature map + the `open`/`http` command for this surface — or `skipped: <reason>`]
+Repro from triage: [the command that shows the defect on the unfixed tree — or `skipped: none handed down`]
+Call budget: ≤ 60 tool calls. At the limit return BLOCKED with the state reached and the one missing step — no further attempts.
 Reusable script: [FIRST the path of one finished script to copy — the previous issue's `.claude/tmp/verify-<n>.mjs` or a committed harness — "copy this file, change the assertions"; THEN the helper paths from the project's e2e helper directory (VERIFICATION_ENV.md) it imports — extend them, do not rewrite from zero; a helper you had to write goes into that directory and its path into Evidence]
 State reset between steps: reload the page (`page.reload()`), never close modals programmatically (`Modal.getInstance(...).hide()` from `page.evaluate` did not close the modal in headless — POMIAR, cause unmeasured)
 Classifier-safe commands: copies via `cat A > .claude/tmp/B`, restore via `cat .claude/tmp/B > A` + `diff`; no `cp`, no `rm` outside .claude/tmp/, no `mv` of tracked or generated files.
@@ -83,7 +88,8 @@ Your job is to try to PROVE THE CLAIM FALSE:
 2. Exercise at least one edge/negative case relevant to the change.
 3. Capture evidence at every step (screenshots / responses / output).
 4. Check for collateral damage: does the surrounding page/endpoint still work?
-5. A step that fails OUTSIDE the change summary — pre-existing: the same step fails on the main tree, or `git blame -L` of the failing line predates the branch (ONE such check, ≤ 5 calls) — gets ONE line in Deviations: step, error text verbatim, blame SHA. Then continue with the in-scope steps. You do NOT diagnose it further; the orchestrator files it as a spin-off issue.
+5. A CLI command you needed and did not have (or one that failed) gets ONE line in Deviations as `CLI gap: <command wanted> — <what you did instead>`; the orchestrator turns it into a CLI improvement, not a spin-off bug.
+6. A step that fails OUTSIDE the change summary — pre-existing: the same step fails on the main tree, or `git blame -L` of the failing line predates the branch (ONE such check, ≤ 5 calls) — gets ONE line in Deviations: step, error text verbatim, blame SHA. Then continue with the in-scope steps. You do NOT diagnose it further; the orchestrator files it as a spin-off issue.
 
 Save evidence to [scratchpad or .verify/ dir — never commit binaries].
 Return EXACTLY this structure:
