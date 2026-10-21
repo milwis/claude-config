@@ -295,8 +295,10 @@ Pass 2 (specjaliści) pominięty: 8 zadań, ale bez pieniędzy/VAT/danych regulo
 | 2026-10-21 | review (opus) | 0 blocker, 6 major, 5 minor; 4 potwierdzone sondami (ab maskuje `session.role`, `decideKill` z portem-stringiem 8080, `isPortFree` przy 0.0.0.0, guard tylko hosta) | poprawki: `fix-cli` → `688987ddf` |
 | 2026-10-21 | poprawki z review | zrobione, `688987ddf` (11/11) + docs CLI `5f2458543` | POMIAR: vitest dev-app-* → 88 passed; phpunit SeedIdentity+latche → OK (27 tests, 736 assertions); 4 sondy po poprawce: ab → `["body.session.role"]`, decideKill str 8080 → kill:false, isPortFree 0.0.0.0 → false; awk lidera → `scripts/dev/app.mjs` |
 | 2026-10-21 | kolejka | zatrzymana 20:14:15 po #1718 (`watcher.log`) | — |
+| 2026-10-21 | verify CLI na żywo (`verify-cli-live`) | PASS, 22 wywołania | reported: doctor 6/6, sesja przeżywa 10 s, ab kontrola differs:false, ab admin vs ksiegowosc differs:true (163 ścieżki), 5/5 barier odmawia; POMIAR po: 0 wierszy `e2e_tmp_`, brak serwerów 8095–8099 |
+| 2026-10-21 | luki z weryfikacji | zrobione, `60b77a43e` + `18f4950eb` + `d74c0cae2` | `ab --base-user/--branch-user`, `http --body-only`, `snapshot --max-nodes` (domyślnie 100), jawna odmowa `stop 8080`; POMIAR: vitest dev-app-* → 98 passed; snapshot orders: bez limitu ≈754 kB (reported), 400 → 78135 B, 100 → 11958 B z 11 przyciskami |
 | 2026-10-21 | Task 6 | zrobione, `2b23d6f` | — |
 | 2026-10-21 | Task 7 | zrobione, `15fcfef`; POMIAR: `ROADMAPA_SKILL_DIR=<claude-config>/…/roadmapa phpunit --filter RoadmapaSkillLatchTest` → OK (5 tests, 102 assertions); `bash -n kolejka.sh` OK | — |
 
-Zostało: pełna suita (w toku), verify CLI na żywo (`verify-cli-live`, w toku) (review, pełna suita, verify CLI), Task 8.
+Zostało: pełna suita (w toku) (review, pełna suita, verify CLI), Task 8.
 Miny: **zmiana User-Agenta niszczy sesję** (`SecurityService.php:111-116`, `:216-237`) — `http` wysyła UA z logowania; do Feature Map/VERIFICATION_ENV (Task 5). Ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
