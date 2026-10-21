@@ -286,9 +286,11 @@ Pass 2 (specjaliści) pominięty: 8 zadań, ale bez pieniędzy/VAT/danych regulo
 | data | zadanie | stan | dowód |
 |---|---|---|---|
 | 2026-10-21 | worktree KonkretnyTMS | `.claude/worktrees/verify-cli`, `agent/verify-cli` od `f6cf54256` | `git worktree add` |
-| 2026-10-21 | Task 1 | w toku — podagent `build-cli-1` (sonnet); dopisane: shebang + bit wykonywalny | — |
+| 2026-10-21 | Task 1 | zrobione, `a0ce20c99` | POMIAR: vitest dev-app-cli → 22 passed; `doctor --root WT` → ok:true (6/6) |
+| 2026-10-21 | Task 3 | zrobione, `b46290ae1` | POMIAR: vitest dev-app-session + dev-app-cli → 39 passed; live (reported): login :8080 + http permissions-get-current-user → 200 |
+| 2026-10-21 | Task 2, Task 4 | w toku — `build-cli-2`, `build-cli-4` | — |
 | 2026-10-21 | Task 6 | zrobione, `2b23d6f` | — |
 | 2026-10-21 | Task 7 | zrobione, `15fcfef`; POMIAR: `ROADMAPA_SKILL_DIR=<claude-config>/…/roadmapa phpunit --filter RoadmapaSkillLatchTest` → OK (5 tests, 102 assertions); `bash -n kolejka.sh` OK | — |
 
 Zostało: Task 1 (raport), Task 2 ‖ Task 3, Task 4, Task 5, grupa końcowa (review, pełna suita, verify CLI), Task 8.
-Miny: ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
+Miny: **zmiana User-Agenta niszczy sesję** (`SecurityService.php:111-116`, `:216-237`) — `http` wysyła UA z logowania; do Feature Map/VERIFICATION_ENV (Task 5). Ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
