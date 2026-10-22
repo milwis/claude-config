@@ -220,7 +220,7 @@ Never touch <$REPO> (the main tree).
    Docs and comments you write cite symbols (`Class::method`), never line numbers, so they do not go stale.
 Write the full report to <$K>/raport-<N>.md: first line one terminal token (done. / closed-on-head. /
 partial. / feature. / ambiguous. / needs-confirm. / too-big. / regressed. / BLOCKED), then tip SHA, commits,
-one line `Weryfikacja: PASS` / `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>` /
+one plain line (no heading, no bold) `Weryfikacja: PASS` / `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>` /
 `Weryfikacja: n/a — <why no surface>`, evidence paths, review iterations, POMIAR/WNIOSEK labels, NOWE PROBLEMY. Your message to the lead
 (SendMessage) is at most 3 lines: the token, the tip SHA, the report path.
 ```
@@ -265,7 +265,7 @@ The comment says: merged locally into `main` at `<SHA>`, **not pushed and not de
 verification evidence, review iterations. A surface verification that ended BLOCKED goes to the owner as a
 manual check — the label is how `kolejka.sh status` lists it, the comment line says what to click:
 ```bash
-. .claude/tmp/kolejka/config.env && L=$(grep -m1 '^Weryfikacja: BLOCKED' "$K/raport-$N.md"); if [ -n "$L" ]; then gh label create "$ETYKIETA_RECZNA" --color FBCA04 --description "Scalone przez kolejkę, weryfikacja powierzchni BLOCKED — sprawdź ręcznie" 2>/dev/null; printf '%s\n' "Do ręcznego sprawdzenia: ${L#Weryfikacja: BLOCKED — }" > "$K/issue-$N-reczna.md" && gh issue comment "$N" --body-file "$K/issue-$N-reczna.md" && gh issue edit "$N" --add-label "$ETYKIETA_RECZNA"; fi
+. .claude/tmp/kolejka/config.env && L=$(grep -m1 -E '^(#+ +)?[*]*Weryfikacja:[*]* *BLOCKED' "$K/raport-$N.md"); if [ -n "$L" ]; then gh label create "$ETYKIETA_RECZNA" --color FBCA04 --description "Scalone przez kolejkę, weryfikacja powierzchni BLOCKED — sprawdź ręcznie" 2>/dev/null; printf '%s\n' "Do ręcznego sprawdzenia: ${L#Weryfikacja: BLOCKED — }" > "$K/issue-$N-reczna.md" && gh issue comment "$N" --body-file "$K/issue-$N-reczna.md" && gh issue edit "$N" --add-label "$ETYKIETA_RECZNA"; fi
 ``` An issue closed without that sentence reads as "in production".
 The `[roadmapa]` marker is how the owner's push rule finds these merges. Closing is what keeps the next cycle
 from taking the same issue.

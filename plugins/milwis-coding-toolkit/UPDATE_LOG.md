@@ -6,6 +6,10 @@
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-22 — lider rozpoznaje `Weryfikacja: BLOCKED` także jako nagłówek (v1.5.51)
+
+- `POMIAR` (pierwsze 14 cykli po v1.5.50): 2 z 58 raportów L2 zapisały linię jako nagłówek (`## Weryfikacja: PASS`, #1639); wzorzec `^Weryfikacja: BLOCKED` nie złapałby takiego BLOCKED i issue nie dostałoby `weryfikacja:reczna`. Wzorzec toleruje teraz `#`/`**`, a kontrakt L2 mówi „one plain line”.
+
 ## Run: 2026-10-21 — `doctor --fix` w `lider.sh`, poza klasyfikatorem auto-mode (v1.5.50)
 
 - W v1.5.49 lider sam wołał `doctor --fix` w kroku 3. Klasyfikator auto-mode odrzucał wcześniej seed kont testowych (#1046), a reguła zgody nie pasowałaby do tej komendy, bo reguły dopasowują dosłowny tekst bez rozwijania zmiennych (`$WT/$CLI`), a bloki `if` nie są dla nich udokumentowane. Tryb auto wyłącza też szerokie reguły interpreterów (`Bash(node *)`).
