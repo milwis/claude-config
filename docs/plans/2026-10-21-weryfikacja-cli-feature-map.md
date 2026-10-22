@@ -304,3 +304,14 @@ Pass 2 (specjaliści) pominięty: 8 zadań, ale bez pieniędzy/VAT/danych regulo
 
 Zostało (właściciel): scalenie `agent/verify-cli` do `main` KonkretnyTMS, push claude-config (v1.5.49) + sync toolkitu, obserwacja pierwszego cyklu kolejki (`doctor --fix` vs klasyfikator auto-mode). (review, pełna suita, verify CLI), Task 8.
 Miny: **zmiana User-Agenta niszczy sesję** (`SecurityService.php:111-116`, `:216-237`) — `http` wysyła UA z logowania; do Feature Map/VERIFICATION_ENV (Task 5). Ścieżka `dev-server/router.php` może być tylko w drzewie głównym; klasyfikator auto-mode może odrzucić `doctor --fix` w sesji lidera (w #1046 odrzucił seed) — pierwszy cykl kolejki obserwowany; agentów pluginu (`javascript-pro`, `php-pro`) nie ma w rejestrze tej sesji → `general-purpose` + rola w briefie.
+
+### 2026-10-22 — po pierwszych rundach
+
+| data | zadanie | stan | dowód |
+|---|---|---|---|
+| 2026-10-21 | v1.5.50 | `doctor --fix` w `lider.sh` (poza klasyfikatorem), `4e1279e`, sync KonkretnyTMS `074df75cd` | POMIAR: blok z `lider.sh` na `config.env` → `ok:true`; bez CLI → `brak CLI`; RoadmapaSkillLatchTest OK |
+| 2026-10-22 | pierwsze wnioski (14 cykli #1638–#1652 vs 43 issue 10-17…10-21) | koszt/issue mediana $52,46 → $52,73 (neutralnie); triage +$1,16 (repro = 11% triage); weryfikator przed 1. wykonaniem 58% → 10%, max wywołań 78 → 31, CLI 12/13, 0 BLOCKED; repro 12/14 | POMIAR: scratchpad `cmp.py` (sesje kolejki = jsonl z `kolejka #N`) |
+| 2026-10-22 | v1.5.51 | wzorzec `Weryfikacja: BLOCKED` toleruje nagłówek/pogrubienie, `cd385bc` — **nie wypchnięte** | POMIAR: 2/58 raportów L2 z `## Weryfikacja:`; grep na 4 wariantach |
+| 2026-10-22 | #1643 | scalone `3caa9a960` jako obrona w głąb (decyzja właściciela), issue zamknięte completed | POMIAR: phpunit PzDocument*/PartsFifo → OK (185 tests); nieosiągalność: `PartsFifoService.php:807-810`, `RwDocumentRepository.php:159,174` |
+
+Zostało: push v1.5.51 + sync KonkretnyTMS (czeka na zgodę), push KonkretnyTMS `main` (właściciel), pomiar po ~40 cyklach.
