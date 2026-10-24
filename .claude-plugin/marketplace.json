@@ -25,7 +25,7 @@
       "name": "session-bar",
       "source": "./plugins/session-bar",
       "description": "Pasek nad promptem: repo, gałąź, model, wypełnienie kontekstu i limit tygodniowy",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "category": "productivity",
       "tags": [
         "status",

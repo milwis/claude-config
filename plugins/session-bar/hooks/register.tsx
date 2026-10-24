@@ -80,7 +80,8 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const s = await read($, info)
-    if (e.props.hasSurvey || s === null) {
+    // terminal ma własną linię statusu z tymi danymi, pasek tylko dubluje ją nad promptem
+    if (e.surface === 'terminal' || e.props.hasSurvey || s === null) {
       return next(e)
     }
 
