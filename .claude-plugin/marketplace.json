@@ -14,7 +14,24 @@
       "description": "Language-specific coding expert agents that prevent AI code generation errors, plus /lang-guidelines skill to create and update them",
       "version": "1.5.6",
       "category": "development",
-      "tags": ["agents", "coding", "best-practices", "code-quality"]
+      "tags": [
+        "agents",
+        "coding",
+        "best-practices",
+        "code-quality"
+      ]
+    },
+    {
+      "name": "session-bar",
+      "source": "./plugins/session-bar",
+      "description": "Pasek nad promptem: repo, gałąź, model, wypełnienie kontekstu i limit tygodniowy",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": [
+        "status",
+        "context",
+        "ui"
+      ]
     }
   ]
 }
