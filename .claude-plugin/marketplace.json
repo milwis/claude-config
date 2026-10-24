@@ -32,6 +32,18 @@
         "context",
         "ui"
       ]
+    },
+    {
+      "name": "issues-pane",
+      "source": "./plugins/issues-pane",
+      "description": "Panel z otwartymi issues repo, posortowanymi po priorytecie (P0-P3), a w priorytecie od najstarszych",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": [
+        "github",
+        "issues",
+        "ui"
+      ]
     }
   ]
 }
