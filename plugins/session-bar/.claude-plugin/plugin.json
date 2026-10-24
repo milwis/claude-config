@@ -1,6 +1,6 @@
 {
   "name": "session-bar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pasek nad promptem: repo, gałąź, model, wypełnienie kontekstu i limit tygodniowy",
   "license": "MIT",
   "types": "./types/index.d.ts"

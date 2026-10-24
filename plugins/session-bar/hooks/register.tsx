@@ -91,21 +91,27 @@ export const register: Register = on => {
       : Math.min(100, (s.contextTokens / s.contextWindow) * 100)
     const filled = Math.round((percent / 100) * BAR_CELLS)
 
+    // elementy i kropki jako osobne dzieci: space-between rozkłada równe odstępy na całą szerokość
     return (
-      <Box flexDirection="row">
+      <Box flexDirection="row" width="100%" justifyContent="space-between">
         <Text bold>{s.repo ?? '—'}</Text>
-        <Text dimColor> · </Text>
+        <Text dimColor>·</Text>
         <Text color="suggestion">{s.branch ?? '—'}</Text>
-        <Text dimColor> · </Text>
+        <Text dimColor>·</Text>
         <Text color="claude">{s.model}</Text>
-        <Text dimColor> · </Text>
-        <Text color={fillColor(percent)}>{'█'.repeat(filled)}</Text>
-        <Text dimColor>{'░'.repeat(BAR_CELLS - filled)}</Text>
-        <Text> {s.contextTokens === null ? '—' : kilo(s.contextTokens)}/{kilo(s.contextWindow)}</Text>
-        <Text dimColor> · tydz. </Text>
-        <Text color={s.weeklyPercent === null ? 'inactive' : fillColor(s.weeklyPercent)}>
-          {s.weeklyPercent === null ? '—' : `${s.weeklyPercent}%`}
-        </Text>
+        <Text dimColor>·</Text>
+        <Box flexDirection="row">
+          <Text color={fillColor(percent)}>{'█'.repeat(filled)}</Text>
+          <Text dimColor>{'░'.repeat(BAR_CELLS - filled)}</Text>
+          <Text> {s.contextTokens === null ? '—' : kilo(s.contextTokens)}/{kilo(s.contextWindow)}</Text>
+        </Box>
+        <Text dimColor>·</Text>
+        <Box flexDirection="row">
+          <Text dimColor>tydz. </Text>
+          <Text color={s.weeklyPercent === null ? 'inactive' : fillColor(s.weeklyPercent)}>
+            {s.weeklyPercent === null ? '—' : `${s.weeklyPercent}%`}
+          </Text>
+        </Box>
       </Box>
     )
   })

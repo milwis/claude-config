@@ -5,6 +5,8 @@ import type { Issue, IssuesSnapshot } from '../types'
 
 const PANE = 'issues'
 const STALE_MS = 5 * 60 * 1000
+// kolejka /roadmapa zamyka issues w innych sesjach — odświeżaj w tle, także gdy ta stoi
+const REFRESH_MS = 2 * 60 * 1000
 
 const snapshot = atom({ plugin: 'issues-pane', key: 'snapshot' } as const, null)
 const isLoading = atom({ plugin: 'issues-pane', key: 'isLoading' } as const, false)
@@ -33,11 +35,47 @@ const byPriorityThenAge = (a: Issue, b: Issue): number => {
   return pa !== pb ? pa - pb : a.createdAt.localeCompare(b.createdAt)
 }
 
-const priorityColor = (p: number | null): Color =>
-  p === 0 ? 'error' : p === 1 ? 'warning' : p === 2 ? 'suggestion' : 'inactive'
+type PriorityStyle = { color: Color; badge: string; name: string }
+
+// Kolory jak etykiety P0-P3 na GitHubie (P3 przyciemnione, żeby było czytelne na jasnym tle)
+const PRIORITY: Record<number, PriorityStyle> = {
+  0: { color: '#B60205', badge: ' P0 ', name: 'krytyczne' },
+  1: { color: '#D93F0B', badge: ' P1 ', name: 'wysokie' },
+  2: { color: '#C99A00', badge: ' P2 ', name: 'średnie' },
+  3: { color: '#3B7DD8', badge: ' P3 ', name: 'niskie' },
+}
+const NO_PRIORITY: PriorityStyle = { color: '#6E7781', badge: ' —  ', name: 'bez priorytetu' }
+
+const priorityStyle = (p: number | null): PriorityStyle => (p === null ? undefined : PRIORITY[p]) ?? NO_PRIORITY
+
+// Ikony bez selektora wariantu (U+FE0F) — w terminalu mają stałą szerokość 2 kolumn
+const MODULE_ICON: Record<string, string> = {
+  faktury: '🧾', korekty: '📝', noty: '📄', ksef: '🏦', fakir: '📤', 'money-vat': '💰',
+  platnosci: '💳', zakupy: '🛒', warsztat: '🔧', magazyn: '📦', gps: '📍', kierowcy: '👤',
+  pojazdy: '🚚', klienci: '🤝', zlecenia: '📋', terminarz: '📅', ui: '🎨', tabele: '📊',
+  analityka: '📈', api: '🔌', security: '🔒', database: '💾', cron: '⏰', sms: '💬',
+  testy: '🧪', ddd: '🧩', wspolbieznosc: '🔀',
+}
+
+const TYPE_STYLE: Record<string, { icon: string; name: string; color: Color }> = {
+  bug: { icon: '🐞', name: 'bug', color: 'error' },
+  'point-fix': { icon: '🩹', name: 'poprawka', color: 'success' },
+  structural: { icon: '🧱', name: 'strukturalne', color: 'merged' },
+  analysis: { icon: '🔍', name: 'analiza', color: 'suggestion' },
+  pomysl: { icon: '💡', name: 'pomysł', color: 'warning' },
+  test: { icon: '✅', name: 'test', color: 'suggestion' },
+}
+
+const withPrefix = (labels: string[], prefix: string): string[] =>
+  labels.filter(l => l.startsWith(prefix)).map(l => l.slice(prefix.length))
 
 const ageDays = (iso: string, now: number): number =>
   Math.max(0, Math.floor((now - Date.parse(iso)) / 86_400_000))
+
+const hhmm = (ms: number): string => {
+  const d = new Date(ms)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 const refresh = async ($: EngineInterface): Promise<void> => {
   if (await read($, isLoading)) return
@@ -60,6 +98,7 @@ const refresh = async ($: EngineInterface): Promise<void> => {
           url: i.url,
           createdAt: i.createdAt,
           priority: priorityOf(i.labels),
+          labels: i.labels.map(l => l.name),
         }))
         .sort(byPriorityThenAge)
       next = { issues, fetchedAt: await $.clock.now(), error: null }
@@ -78,11 +117,15 @@ const refreshIfStale = async ($: EngineInterface): Promise<void> => {
 }
 
 export const register: Register = on => {
+  let poll: { cancel: () => void } | null = null
+
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await $.command.register({ name: 'issues', description: 'Otwiera panel issues i odświeża listę' })
     void $.ui.open({ id: PANE, title: 'Issues' })
     void refresh($)
+    poll?.cancel()
+    poll = $.clock.every(REFRESH_MS, () => void refresh($))
     return result
   })
 
@@ -106,9 +149,9 @@ export const register: Register = on => {
     const now = await $.clock.now()
 
     const header = (
-      <Box flexDirection="row">
-        <Text bold>{s ? `${s.issues.length} otwartych` : 'Issues'}</Text>
-        <Text dimColor>{loading ? '  odświeżam…  ' : '  '}</Text>
+      <Box flexDirection="row" marginBottom={1}>
+        <Text bold>📋 {s ? `${s.issues.length} otwartych` : 'Issues'}</Text>
+        <Text dimColor>{loading ? '  ⟳ odświeżam…  ' : s ? `  ${hhmm(s.fetchedAt)}  ` : '  '}</Text>
         <Button key="refresh" label="Odśwież" onPress={() => refresh($)} />
       </Box>
     )
@@ -126,7 +169,41 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column">
           {header}
-          <Text color="error" wrap="wrap">{s.error}</Text>
+          <Text color="error" wrap="wrap">⚠ {s.error}</Text>
+        </Box>
+      )
+    }
+
+    const card = (issue: Issue): RenderChildren => {
+      // snapshot sprzed przeładowania moda nie ma jeszcze pola labels
+      const labels: string[] = issue.labels ?? []
+      const modules = withPrefix(labels, 'modul:')
+      const types = withPrefix(labels, 'typ:')
+      const type = types.map(t => TYPE_STYLE[t]).find(t => t !== undefined)
+      const icon = modules.map(m => MODULE_ICON[m]).find(m => m !== undefined) ?? type?.icon ?? '•'
+      const env = labels.includes('srodowisko:web') ? '🌐 web' : labels.includes('srodowisko:lokalne') ? '💻 lokalne' : null
+      const isParked = labels.includes('status:odlozone')
+      const isSecurity = labels.some(l => l.startsWith('security-audit')) && !modules.includes('security')
+
+      return (
+        <Box key={`i${issue.number}`} flexDirection="column" marginBottom={1} paddingLeft={1}>
+          <Box flexDirection="row">
+            <Text>{icon} </Text>
+            <Link href={issue.url}>
+              <Text bold dimColor={isParked} wrap="truncate-end">
+                #{issue.number} {issue.title}
+              </Text>
+            </Link>
+          </Box>
+          <Box flexDirection="row">
+            <Text dimColor>   </Text>
+            {type && <Text color={type.color}>{type.icon} {type.name}</Text>}
+            {modules.length > 0 && <Text dimColor>{type ? ' · ' : ''}{modules.join(', ')}</Text>}
+            {isSecurity && <Text color="error"> · 🔒 audyt</Text>}
+            <Text dimColor> · {ageDays(issue.createdAt, now)} dni</Text>
+            {env && <Text dimColor> · {env}</Text>}
+            {isParked && <Text color="warning"> · ⏸ odłożone</Text>}
+          </Box>
         </Box>
       )
     }
@@ -136,27 +213,23 @@ export const register: Register = on => {
     for (const issue of s.issues) {
       if (issue.priority !== group) {
         group = issue.priority
+        const style = priorityStyle(group)
         const count = s.issues.filter(i => i.priority === group).length
         rows.push(
-          <Text key={`g${group ?? 'x'}`} bold color={priorityColor(group)}>
-            {group === null ? 'Bez priorytetu' : `P${group}`} ({count})
-          </Text>,
+          <Box key={`g${group ?? 'x'}`} flexDirection="row" marginBottom={1}>
+            <Text bold color="inverseText" backgroundColor={style.color}>{style.badge}</Text>
+            <Text bold color={style.color}> {style.name}</Text>
+            <Text dimColor> · {count}</Text>
+          </Box>,
         )
       }
-      rows.push(
-        <Box key={`i${issue.number}`} flexDirection="row">
-          <Text dimColor>{ageDays(issue.createdAt, now)}d </Text>
-          <Link href={issue.url}>
-            <Text wrap="truncate-end">#{issue.number} {issue.title}</Text>
-          </Link>
-        </Box>,
-      )
+      rows.push(card(issue))
     }
 
     return (
       <Box flexDirection="column">
         {header}
-        {s.issues.length === 0 && <Text dimColor>Brak otwartych issues.</Text>}
+        {s.issues.length === 0 && <Text dimColor>🎉 Brak otwartych issues.</Text>}
         {rows}
       </Box>
     )

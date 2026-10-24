@@ -4,6 +4,7 @@ export type Issue = {
   url: string
   createdAt: string
   priority: number | null
+  labels: string[]
 }
 
 export type IssuesSnapshot = {
