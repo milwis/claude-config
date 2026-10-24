@@ -93,7 +93,7 @@ export const register: Register = on => {
 
     // elementy i kropki jako osobne dzieci: space-between rozkłada równe odstępy na całą szerokość
     return (
-      <Box flexDirection="row" width="100%" justifyContent="space-between">
+      <Box flexDirection="row" width="100%" justifyContent="space-between" borderStyle="round" borderColor="#D4AF37" paddingX={1}>
         <Text bold>{s.repo ?? '—'}</Text>
         <Text dimColor>·</Text>
         <Text color="suggestion">{s.branch ?? '—'}</Text>

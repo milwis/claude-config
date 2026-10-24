@@ -12,7 +12,7 @@ KonkretnyTMS · main · Opus 5.5 · ██████░░░░░░░░�
 - **kontekst** — pasek 20 kratek (zielony < 60%, żółty < 85%, czerwony powyżej) i zużycie w tysiącach tokenów względem okna,
 - **tydz.** — procent wykorzystania tygodniowego limitu (`seven_day`); `—` poza subskrypcją lub przed pierwszą odpowiedzią API.
 
-Elementy rozkładają się na całą szerokość okna z równymi odstępami.
+Elementy rozkładają się na całą szerokość okna z równymi odstępami, w złotej zaokrąglonej ramce, żeby pasek nie zlewał się z tekstem w terminalu.
 
 Dane odświeżają się na starcie sesji, po każdej turze i przy każdej zmianie pomiaru zużycia.
 

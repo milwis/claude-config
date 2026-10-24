@@ -66,6 +66,45 @@ const TYPE_STYLE: Record<string, { icon: string; name: string; color: Color }> =
   test: { icon: '✅', name: 'test', color: 'suggestion' },
 }
 
+type Tag = { text: string; color?: Color }
+
+// Pozostałe etykiety repo; nieznane pokazuje fallback 🏷
+const LABEL_STYLE: Record<string, Tag> = {
+  'srodowisko:web': { text: '🌐 web' },
+  'srodowisko:lokalne': { text: '💻 lokalne' },
+  'status:odlozone': { text: '⏸ odłożone', color: 'warning' },
+  'status:do-scalenia': { text: '🔀 do scalenia', color: 'merged' },
+  'status:zrobione-lokalnie': { text: '🏁 zrobione lokalnie', color: 'success' },
+  'weryfikacja:reczna': { text: '👀 weryfikacja ręczna', color: 'warning' },
+  'tor:remediacja-danych': { text: '🩺 remediacja danych', color: 'warning' },
+  'security-audit': { text: '🔒 skan zależności', color: 'error' },
+  'security-audit-tracker': { text: '📡 tracker skanu' },
+  request: { text: '💡 pomysł', color: 'warning' },
+}
+
+// Etykieta → wpis drugiej linii; priorytet pomijany, bo niesie go nagłówek grupy
+const tagOf = (label: string): Tag | null => {
+  if (/^P[0-9]$/i.test(label)) return null
+  if (label.startsWith('modul:')) {
+    const m = label.slice('modul:'.length)
+    return { text: `${MODULE_ICON[m] ?? '🏷'} ${m}` }
+  }
+  if (label.startsWith('typ:')) {
+    const t = TYPE_STYLE[label.slice('typ:'.length)]
+    return t ? { text: `${t.icon} ${t.name}`, color: t.color } : { text: `🏷 ${label}` }
+  }
+  if (label.startsWith('audyt-360-')) return { text: `🧭 audyt 360 (${label.slice('audyt-360-'.length)})`, color: 'suggestion' }
+  return LABEL_STYLE[label] ?? { text: `🏷 ${label}` }
+}
+
+// Kolejność w linii: typ, moduły, statusy, środowisko, reszta
+const tagRank = (label: string): number =>
+  label.startsWith('typ:') || label === 'request' ? 0
+    : label.startsWith('modul:') ? 1
+      : label.startsWith('status:') || label.startsWith('weryfikacja:') || label.startsWith('tor:') ? 2
+        : label.startsWith('srodowisko:') ? 3
+          : 4
+
 const withPrefix = (labels: string[], prefix: string): string[] =>
   labels.filter(l => l.startsWith(prefix)).map(l => l.slice(prefix.length))
 
@@ -181,9 +220,12 @@ export const register: Register = on => {
       const types = withPrefix(labels, 'typ:')
       const type = types.map(t => TYPE_STYLE[t]).find(t => t !== undefined)
       const icon = modules.map(m => MODULE_ICON[m]).find(m => m !== undefined) ?? type?.icon ?? '•'
-      const env = labels.includes('srodowisko:web') ? '🌐 web' : labels.includes('srodowisko:lokalne') ? '💻 lokalne' : null
       const isParked = labels.includes('status:odlozone')
-      const isSecurity = labels.some(l => l.startsWith('security-audit')) && !modules.includes('security')
+      const tags = [...labels]
+        .sort((a, b) => tagRank(a) - tagRank(b))
+        .map(tagOf)
+        .filter((t): t is Tag => t !== null)
+      tags.push({ text: `${ageDays(issue.createdAt, now)} dni` })
 
       return (
         <Box key={`i${issue.number}`} flexDirection="column" marginBottom={1} paddingLeft={1}>
@@ -195,14 +237,12 @@ export const register: Register = on => {
               </Text>
             </Link>
           </Box>
-          <Box flexDirection="row">
-            <Text dimColor>   </Text>
-            {type && <Text color={type.color}>{type.icon} {type.name}</Text>}
-            {modules.length > 0 && <Text dimColor>{type ? ' · ' : ''}{modules.join(', ')}</Text>}
-            {isSecurity && <Text color="error"> · 🔒 audyt</Text>}
-            <Text dimColor> · {ageDays(issue.createdAt, now)} dni</Text>
-            {env && <Text dimColor> · {env}</Text>}
-            {isParked && <Text color="warning"> · ⏸ odłożone</Text>}
+          <Box flexDirection="row" flexWrap="wrap" paddingLeft={3}>
+            {tags.map((t, i) => (
+              <Text key={`t${i}`} color={t.color} dimColor={t.color === undefined}>
+                {i > 0 ? ' · ' : ''}{t.text}
+              </Text>
+            ))}
           </Box>
         </Box>
       )
