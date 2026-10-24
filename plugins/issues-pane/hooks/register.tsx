@@ -10,6 +10,14 @@ const REFRESH_MS = 2 * 60 * 1000
 
 const snapshot = atom({ plugin: 'issues-pane', key: 'snapshot' } as const, null)
 const isLoading = atom({ plugin: 'issues-pane', key: 'isLoading' } as const, false)
+const working = atom({ plugin: 'issues-pane', key: 'working' } as const, [] as number[])
+const frame = atom({ plugin: 'issues-pane', key: 'frame' } as const, 0)
+
+const WORKING_POLL_MS = 20 * 1000
+const FRAME_MS = 300
+// worktree agenta liczy się jako aktywny, gdy git ruszał jego indeks w tym oknie
+const ACTIVE_MS = 10 * 60 * 1000
+const WIP_LABEL = 'status:w-trakcie'
 
 type GhIssue = {
   number: number
@@ -84,7 +92,8 @@ const LABEL_STYLE: Record<string, Tag> = {
 
 // Etykieta → wpis drugiej linii; priorytet pomijany, bo niesie go nagłówek grupy
 const tagOf = (label: string): Tag | null => {
-  if (/^P[0-9]$/i.test(label)) return null
+  // priorytet niesie nagłówek grupy, pracę agenta — gwiazdka przy tytule
+  if (/^P[0-9]$/i.test(label) || label === WIP_LABEL) return null
   if (label.startsWith('modul:')) {
     const m = label.slice('modul:'.length)
     return { text: `${MODULE_ICON[m] ?? '🏷'} ${m}` }
@@ -115,6 +124,100 @@ const hhmm = (ms: number): string => {
   const d = new Date(ms)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+// Gwiazdka Claude'a jak w spinnerze Claude Code; bez ✳, które w części fontów rysuje się jako emoji na 2 kolumny
+const SPIN = ['·', '✢', '✶', '✻', '✽', '✻', '✶', '✢']
+
+// Nad issue pracuje agent, gdy kolejka /roadmapa ma je w pliku w-toku albo worktree gałęzi
+// agent/…<numer> był niedawno ruszany przez gita (każde status/add/commit odświeża jego indeks)
+// null = nie da się ustalić (poza repo, błąd gita): wtedy nie ruszamy etykiet
+const detectWorking = async ($: EngineInterface): Promise<{ root: string; nums: number[] } | null> => {
+  const found = new Set<number>()
+  let root: string
+  try {
+    const common = await $.process.run(
+      ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { timeoutMs: 3000 },
+    )
+    if (common.exitCode !== 0) return null
+    // sesja może stać w worktree, a kolejka trzyma stan w drzewie głównym
+    root = common.stdout.trim().replace(/\/\.git\/?$/, '')
+
+    try {
+      const n = Number((await $.fs.read(`${root}/.claude/tmp/kolejka/w-toku`)).trim())
+      if (Number.isInteger(n) && n > 0) found.add(n)
+    } catch {
+      // brak pliku = kolejka nic nie robi
+    }
+
+    const list = await $.process.run(['git', 'worktree', 'list', '--porcelain'], { timeoutMs: 5000 })
+    if (list.exitCode === 0) {
+      const now = await $.clock.now()
+      for (const block of list.stdout.split('\n\n')) {
+        const path = /^worktree (.+)$/m.exec(block)?.[1]
+        const nr = /^branch refs\/heads\/agent\/\D*(\d+)/m.exec(block)?.[1]
+        if (!path || !nr) continue
+        try {
+          const gitdir = /^gitdir: (.+)$/m.exec(await $.fs.read(`${path}/.git`))?.[1]?.trim()
+          if (!gitdir) continue
+          const st = await $.fs.stat(`${gitdir}/index`)
+          if (now - st.mtimeMs < ACTIVE_MS) found.add(Number(nr))
+        } catch {
+          // worktree bez indeksu albo usunięty w międzyczasie
+        }
+      }
+    }
+  } catch {
+    return null
+  }
+  return { root, nums: [...found].sort((a, b) => a - b) }
+}
+
+// Etykieta niesie informację na inne komputery: ten komputer zakłada ją na issues, nad którymi pracuje
+// lokalnie, i zdejmuje tylko te, które sam założył (rejestr w $.store, per repo) — cudzych nie rusza
+let labelReady = false
+const syncLabels = async ($: EngineInterface, root: string, nums: number[]): Promise<void> => {
+  const key = `owned:${root}`
+  const stored = await $.store.get(key)
+  const owned = new Set<number>(Array.isArray(stored) ? stored.filter((n): n is number => typeof n === 'number') : [])
+  const gh = (args: string[]) => $.process.run(['gh', ...args], { timeoutMs: 20_000 })
+
+  for (const n of nums.filter(n => !owned.has(n))) {
+    if (!labelReady) {
+      const r = await gh(['label', 'create', WIP_LABEL, '--color', 'D97757', '--force',
+        '--description', 'Agent pracuje nad tym issue (ustawia mod issues-pane)'])
+      if (r.exitCode !== 0) return
+      labelReady = true
+    }
+    if ((await gh(['issue', 'edit', String(n), '--add-label', WIP_LABEL])).exitCode === 0) owned.add(n)
+  }
+  for (const n of [...owned].filter(n => !nums.includes(n))) {
+    if ((await gh(['issue', 'edit', String(n), '--remove-label', WIP_LABEL])).exitCode === 0) owned.delete(n)
+  }
+  await $.store.set(key, [...owned])
+}
+
+let syncing = false
+const refreshWorking = async ($: EngineInterface): Promise<void> => {
+  const detected = await detectWorking($)
+  if (detected === null) return
+  const prev = await read($, working)
+  if (detected.nums.join() !== prev.join()) await update($, working, () => detected.nums)
+  if (syncing) return
+  syncing = true
+  try {
+    await syncLabels($, detected.root, detected.nums)
+  } catch {
+    // brak gh/sieci: spróbujemy przy następnym cyklu
+  } finally {
+    syncing = false
+  }
+}
+
+// lokalnie wykryte ∪ oznaczone etykietą przez inne komputery
+const busyOf = (local: number[], s: IssuesSnapshot | null): number[] => [
+  ...new Set([...local, ...(s?.issues ?? []).filter(i => (i.labels ?? []).includes(WIP_LABEL)).map(i => i.number)]),
+]
 
 const refresh = async ($: EngineInterface): Promise<void> => {
   if (await read($, isLoading)) return
@@ -157,14 +260,26 @@ const refreshIfStale = async ($: EngineInterface): Promise<void> => {
 
 export const register: Register = on => {
   let poll: { cancel: () => void } | null = null
+  let workingPoll: { cancel: () => void } | null = null
+  let animation: { cancel: () => void } | null = null
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await $.command.register({ name: 'issues', description: 'Otwiera panel issues i odświeża listę' })
     void $.ui.open({ id: PANE, title: 'Issues' })
+    // stan przeżywa przeładowanie moda: flaga z pobierania przerwanego reloadem blokowałaby refresh na zawsze
+    await update($, isLoading, () => false)
     void refresh($)
     poll?.cancel()
     poll = $.clock.every(REFRESH_MS, () => void refresh($))
+    void refreshWorking($)
+    workingPoll?.cancel()
+    workingPoll = $.clock.every(WORKING_POLL_MS, () => void refreshWorking($))
+    // klatki tylko, gdy ktoś pracuje — inaczej panel się nie przerysowuje
+    animation?.cancel()
+    animation = $.clock.every(FRAME_MS, async () => {
+      if (busyOf(await read($, working), await read($, snapshot)).length > 0) await update($, frame, f => f + 1)
+    })
     return result
   })
 
@@ -186,11 +301,17 @@ export const register: Register = on => {
     const s = await read($, snapshot)
     const loading = await read($, isLoading)
     const now = await $.clock.now()
+    const busy = busyOf(await read($, working), s)
+    const f = await read($, frame)
 
     const header = (
-      <Box flexDirection="row" marginBottom={1}>
-        <Text bold>📋 {s ? `${s.issues.length} otwartych` : 'Issues'}</Text>
-        <Text dimColor>{loading ? '  ⟳ odświeżam…  ' : s ? `  ${hhmm(s.fetchedAt)}  ` : '  '}</Text>
+      // przycisk przy prawej krawędzi: zmiana długości tekstu po lewej go nie przesuwa
+      <Box flexDirection="row" width="100%" justifyContent="space-between" marginBottom={1}>
+        <Box flexDirection="row">
+          <Text bold>📋 {s ? `${s.issues.length} otwartych` : 'Issues'}</Text>
+          {busy.length > 0 && <Text color="claude">  · w pracy: {busy.length}</Text>}
+          <Text dimColor>{'  '}{loading ? '⟳ odświeżam…' : s ? hhmm(s.fetchedAt) : ''}</Text>
+        </Box>
         <Button key="refresh" label="Odśwież" onPress={() => refresh($)} />
       </Box>
     )
@@ -230,6 +351,12 @@ export const register: Register = on => {
       return (
         <Box key={`i${issue.number}`} flexDirection="column" marginBottom={1} paddingLeft={1}>
           <Box flexDirection="row">
+            {busy.includes(issue.number) && (
+              // stała szerokość: zmiana klatki nie może przesunąć tytułu ani zawinąć wiersza
+              <Box width={2} flexShrink={0}>
+                <Text color="claude" bold wrap="truncate">{SPIN[f % SPIN.length]}</Text>
+              </Box>
+            )}
             <Text>{icon} </Text>
             <Link href={issue.url}>
               <Text bold dimColor={isParked} wrap="truncate-end">

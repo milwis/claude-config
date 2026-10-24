@@ -15,6 +15,6 @@ export type IssuesSnapshot = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'issues-pane': { snapshot: IssuesSnapshot | null; isLoading: boolean }
+    'issues-pane': { snapshot: IssuesSnapshot | null; isLoading: boolean; working: number[]; frame: number }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "issues-pane",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Panel z otwartymi issues repo, posortowanymi po priorytecie (P0-P3), a w priorytecie od najstarszych",
   "license": "MIT",
   "types": "./types/index.d.ts"
