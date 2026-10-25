@@ -2,7 +2,7 @@
 # Checks that issues carry the mandatory label axes of the nowe-issue skill.
 #   sprawdz-etykiety.sh <nr> [<nr> ...]   the given issues
 #   sprawdz-etykiety.sh --otwarte         every open issue (backlog audit)
-# Axes: exactly one P0-P3, at least one modul:*, exactly one srodowisko:*, exactly one typ:*;
+# Axes: exactly one P0-P3, at least one modul:*, exactly one srodowisko:*, exactly one typ:*, and exactly one pomysl:* on typ:pomysl issues;
 # the deprecated `request` is reported too. Issues labelled security-audit-tracker are automation, skipped.
 # Prints "#<nr>	<missing axes>	<title>" per failing issue; exit 1 when any fails, 0 when all pass.
 # Run from inside the repo (gh resolves it from the working directory).
@@ -15,6 +15,7 @@ BRAKI='
     (ile(startswith("modul:"))         | if . < 1  then "modul: brak"                   else empty end),
     (ile(startswith("srodowisko:"))    | if . != 1 then "srodowisko: \(.) (ma być 1)"  else empty end),
     (ile(startswith("typ:"))           | if . != 1 then "typ: \(.) (ma być 1)"         else empty end),
+    (if ($l | index("typ:pomysl")) != null then (ile(startswith("pomysl:")) | if . != 1 then "pomysl:* \(.) (ma być 1)" else empty end) else empty end),
     ($l[] | select(. == "request") | "request: przestarzała, użyj typ:pomysl") ]'
 
 FILTR="select([.labels[].name] | index(\"security-audit-tracker\") | not)

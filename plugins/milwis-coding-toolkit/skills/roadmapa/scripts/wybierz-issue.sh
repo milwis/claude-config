@@ -6,8 +6,9 @@
 # Two sources, set in the queue's config.env (written by kolejka.sh start):
 #   KOLEJKA_LISTA set    — the owner's explicit list, in the owner's order. No type filter (the owner chose);
 #                          skipped only when closed or carrying a done/deferred status label.
-#   KOLEJKA_LISTA empty  — the bug + missing-test backlog: open, one of KOLEJKA_TYPY, none of KOLEJKA_POMIJAJ, a priority
-#                          label, P0 -> P3, oldest first; skips issues with a local agent/issue-<nr> branch
+#   KOLEJKA_LISTA empty  — the backlog: open, one of KOLEJKA_TYPY (bugs, missing tests) OR an owner-approved idea
+#                          (typ:pomysl + KOLEJKA_ZATWIERDZONY), none of KOLEJKA_POMIJAJ, a priority
+#                          label, P0 -> P3 (ideas ranked like bugs), oldest first; skips issues with a local agent/issue-<nr> branch
 #                          and issues whose deferral is written in the repo (KOLEJKA_ODROCZENIA dirs).
 # Skip reasons go to stderr as "pominięto #<nr>: <reason>" — the lead labels those (see cykl-lidera.md).
 set -euo pipefail
@@ -18,11 +19,12 @@ cd "${1:-.}"
 
 KOLEJKA_LISTA=""
 KOLEJKA_TYPY="typ:bug,typ:point-fix,typ:structural,typ:test,bug"
-KOLEJKA_POMIJAJ="typ:pomysl,enhancement,new_idea,request,typ:analysis,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker"
+KOLEJKA_ZATWIERDZONY="pomysl:zatwierdzony"
+KOLEJKA_POMIJAJ="enhancement,new_idea,request,typ:analysis,pomysl:do-analizy,pomysl:odlozony,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker"
 KOLEJKA_ODROCZENIA="docs/plans docs/runbook"
 # shellcheck disable=SC1091
 [ -f .claude/tmp/kolejka/config.env ] && . .claude/tmp/kolejka/config.env
-STATUSY_KONCA="status:odlozone,status:do-scalenia,status:zrobione-lokalnie"
+STATUSY_KONCA="pomysl:odlozony,status:odlozone,status:do-scalenia,status:zrobione-lokalnie"
 
 wypisz() { if [ "$LISTA_TRYB" = 1 ]; then echo "$1"; else echo "$1" | cut -f2 | tr -d '#'; exit 0; fi; }
 
@@ -59,15 +61,17 @@ odroczenie() {
 }
 
 gh issue list --state open --limit 1000 --json number,title,labels,createdAt \
-| jq -r --arg typy "$KOLEJKA_TYPY" --arg pomijaj "$KOLEJKA_POMIJAJ" --argjson zaczete "$ZACZETE" '
+| jq -r --arg typy "$KOLEJKA_TYPY" --arg pomijaj "$KOLEJKA_POMIJAJ" --arg zatwierdzony "$KOLEJKA_ZATWIERDZONY" --argjson zaczete "$ZACZETE" '
   ($typy | split(",")) as $T | ($pomijaj | split(",")) as $X |
   {"P0":0,"P1":1,"P2":2,"P3":3,
    "priorytet:krytyczny":0,"priorytet:wysoki":1,"priorytet:sredni":2,"priorytet:niski":3} as $PRIO |
   map({number, title, createdAt, l: [.labels[].name]})
   | map(. + {p: ([.l[] | $PRIO[.] // empty] | min)})
   | map(select(.p != null))
-  | map(select(any(.l[]; . as $x | $T | index($x))))
+  | map(select(any(.l[]; . as $x | $T | index($x))
+      or (.l | index("typ:pomysl") != null and index($zatwierdzony) != null)))
   | map(select(all(.l[]; . as $x | $X | index($x) | not)))
+  | map(select((.l | index("typ:pomysl") != null and index($zatwierdzony) == null) | not))
   | map(select(.number as $n | $zaczete | index($n) | not))
   | sort_by(.p, .createdAt)
   | .[] | "P\(.p)\t#\(.number)\t\(.title)"

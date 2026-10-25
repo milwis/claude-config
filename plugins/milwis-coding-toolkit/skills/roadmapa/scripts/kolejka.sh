@@ -17,7 +17,7 @@
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_ETYKIETA_RECZNA (weryfikacja:reczna — merged
 #   issues whose surface verification ended BLOCKED, for the owner to check by hand), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
 #   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_TRIAGE (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
-#   KOLEJKA_TYPY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
+#   KOLEJKA_TYPY / KOLEJKA_ZATWIERDZONY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
 #   by its title, set empty = off), KOLEJKA_DEPLOY_WORKFLOW (workflow whose last successful run = the last deploy, for
 #   the dashboard's "fixed since deploy"; unset = deploy.yml when the repo has it, set empty = off)
@@ -93,7 +93,8 @@ LIMIT_TYG="$LIMIT_TYG"
 OKNO_H="$OKNO_H"
 KOLEJKA_LISTA="$LISTA"
 KOLEJKA_TYPY="${KOLEJKA_TYPY:-typ:bug,typ:point-fix,typ:structural,typ:test,bug}"
-KOLEJKA_POMIJAJ="${KOLEJKA_POMIJAJ:-typ:pomysl,enhancement,new_idea,request,typ:analysis,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker}"
+KOLEJKA_ZATWIERDZONY="${KOLEJKA_ZATWIERDZONY:-pomysl:zatwierdzony}"
+KOLEJKA_POMIJAJ="${KOLEJKA_POMIJAJ:-enhancement,new_idea,request,typ:analysis,pomysl:do-analizy,pomysl:odlozony,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker}"
 KOLEJKA_ODROCZENIA="${KOLEJKA_ODROCZENIA:-docs/plans docs/runbook}"
 STATUS_ISSUE="$(status_issue)"
 DEPLOY_WORKFLOW="$(deploy_workflow)"
@@ -107,7 +108,7 @@ EOF
   # The owner's authorisation. lider.sh passes it verbatim as the first message of every lead session;
   # the lead quotes it in ledger row 0. One line.
   if [ -n "$LISTA" ]; then ZRODLO="weź następne issue z listy $LISTA (w tej kolejności)"
-  else ZRODLO="weź jedno issue z kolejki bugów wg priorytetu P0→P3 (nowe funkcje pomijasz)"; fi
+  else ZRODLO="weź jedno issue z backlogu wg priorytetu P0→P3: bugi, braki testów i pomysły zatwierdzone przez właściciela (typ:pomysl + pomysl:zatwierdzony); pomysły bez tej etykiety pomijasz"; fi
   echo "Kolejka roadmapa: $ZRODLO, rozwiąż je podagentem, scal lokalnie do $MAIN (--no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
 
   # One claude process per issue: the watcher replaces it (respawn-pane) after every issue.
