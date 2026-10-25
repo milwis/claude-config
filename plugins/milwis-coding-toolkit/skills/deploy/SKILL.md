@@ -25,6 +25,16 @@ Właściciel nie musi niczego dopisywać do `/deploy`. Samo wywołanie oznacza: 
 
 Gdy procedura w repo różni się od tego skilla — **wygrywa repo**. Rozjazd zgłoś w raporcie końcowym.
 
+## 0a. Koszt CI — policz, zanim zaplanujesz push
+
+Push `main` kosztuje minuty Actions, a druga próba może nie mieć z czego się zmieścić. Przed planem ustal:
+
+1. **Czy `Tests` na `main` reużyje preflightu.** `git diff --name-only origin/main..HEAD -- scripts/ci .github/workflows/tests.yml .github/actions` niepusty → bramka `preflight-reuse` daje pełne testy, więc ścieżka standardowa (preflight + `Tests`) kosztuje **dwa** pełne przebiegi.
+2. **Ile kosztuje pełny przebieg.** Z ostatniego zielonego runu, każdy job zaokrąglony w górę do minuty (tak liczy billing):
+   `gh run view <id> --json jobs --jq '[.jobs[] | ((.completedAt|fromdate)-(.startedAt|fromdate))/60 | ceil] | add'`, plus ok. 1 min na każdy workflow towarzyszący (`Deploy` i inne odpalane pushem).
+3. **Gdy właściciel podaje budżet albo ścieżka standardowa go przekracza:** pokaż opcje z kosztem w minutach — standard albo pełna bramka lokalna z §1b + `KTMS_SKIP_PREFLIGHT=1` (jeden pełny przebieg na `main`) — i niech wybierze. Furtka wyłącznie po jego jawnym wyborze; wtedy §1b musi objąć **każdy** job CI, nie tylko PHPUnit.
+4. Push wyłącznie `.claude/**` i `docs/**` nie odpala `Tests` (`paths-ignore`), więc commit z wykonaniem kroków ręcznych po deployu kosztuje tylko workflow dokumentacji.
+
 ## 1. Punkty zatrzymania — tu czekasz na właściciela
 
 | Moment | Co pokazujesz | Czego NIE robisz bez odpowiedzi |
@@ -45,7 +55,10 @@ Kroki na serwerze (RDP, PowerShell jako administrator, phpMyAdmin, panele zewnę
 - **Jedna komenda na raz.** Dla każdej podajesz: gdzie ją wykonać (okno, konto, baza), samą komendę w bloku kodu i oczekiwany wynik. Potem czekasz, aż właściciel wklei wynik, porównujesz go z oczekiwanym i dopiero wtedy podajesz następną. Nigdy nie wysyłasz listy kilku komend naraz.
 - **Wynik inny niż oczekiwany = stop.** Nie improwizujesz obejścia. Wracasz do wpisu (warunki przerwania, „Skutek pominięcia”) i rozstrzygasz z właścicielem.
 - **Sekrety:** nigdy nie prosisz o hasło, token ani wartość z `.env`. Komendy piszesz tak, żeby ich wynik tego nie wypisywał.
+- **Binarka projektu spoza PATH** (np. `servy-cli`): podaj **pełną ścieżkę**, ustaloną z miejsca, z którego woła ją kod projektu (`cron/install-services.ps1` → `C:\KonkretnyTMS\bin\servy\servy-cli.exe`), nie z pamięci. `CommandNotFoundException` przy gołej nazwie znaczy „nie ma na PATH”, nie „nie ma narzędzia”; popraw przy okazji wpis lub runbook, z którego pochodziła goła nazwa.
+- **Pliki z sekretami (`.env`):** obecność kluczy sprawdzaj komendą wypisującą wyłącznie nazwy (`Select-String … | ForEach-Object { ($_.Line -split '=')[0] }`). Linię usuwa właściciel ręcznie w Notatniku — `Set-Content` w PowerShell 5.1 potrafi zmienić kodowanie pliku albo dodać BOM.
 - **Faza C:** zapisujesz właścicielowi krótką listę z datą i dokładnymi komendami.
+- **Faza C i D → przypomnienia w kalendarzu właściciela**, jeśli sesja ma narzędzie kalendarza: jedno wydarzenie na krok, w opisie dokładna komenda, oczekiwany wynik i ścieżka wycofania. Termin „po tygodniu” wypadający w święto lub weekend przesuń na najbliższy dzień roboczy.
 - **Po wykonaniu:** wpis przenosisz do „Wykonane” (albo do `kroki-prod/wykonane/`) z datą, wersją i wynikiem liczbowym z komend, a nie samym „OK”. Potem robisz commit `chore(api): …`, który pójdzie z najbliższym pushem.
 
 ## 1b. Bramka przed pushem — wszystkie testy lokalnie + lekcja z ostatnich 10 porażek CI
@@ -57,7 +70,9 @@ Cel: push `main` ma przejść `Tests` **za pierwszym razem**. Przy wielu commita
    - Vitest (`npm run test:js:run` pod node@22) i ESLint (`npm run lint`);
    - PHPStan jak w CI (`php -d register_argc_argv=On vendor/bin/phpstan analyse --memory-limit=1G`);
    - `composer audit --no-dev --abandoned=fail`;
-   - jeśli zakres pushu dotyka `sql/` albo `database/`: `scripts/ci-local/run.sh`, czyli MariaDB 10.4 i kroki jobu `migrations`;
+   - **najpierw szybka grupa zapadek** na FINALNYM SHA: `vendor/bin/phpunit tests/Config tests/Static tests/Support tests/Hooks` (minuty). Zapadki licznikowe i budżetowe czerwienieją od commita, który nie dotknął ich pliku — POMIAR 2026-10-25: `FixtureLotterySkipLatchTest` (195 > 193) przez dwa nowe komunikaty `markTestSkipped` w innym teście (#1775), wyszło dopiero po 10 min `ci-local`;
+   - `scripts/ci-local/run.sh` (PHPUnit na MariaDB 10.4 z `pwsh`) replikuje **wyłącznie job `php`**. Nie pokrywa jobu `migrations` (idempotencja + zapadki #433/#434/#453/#578/#628/#733/#1718, m.in. kubełki kolacji liczone na schemacie PO migracjach) ani `phpstan-scope-e2e`;
+   - jeśli zakres pushu dotyka `sql/` albo `database/` (zwłaszcza dodaje lub usuwa tabele/kolumny): **replika jobu `migrations`** — bloki `run:` wykonane wprost z `.github/workflows/tests.yml` parserem YAML (nie przepisane ręcznie), w kontenerze obrazu `ktms-ci-local:*` na `mariadb:<wersja z serwisu jobu>`, z `github.event.before` = `origin/main` i `github.sha` = finalny SHA. Zleć to świeżemu podagentowi zleceniem dwustronnym („ustal, czy job przejdzie, czy nie, i podaj krok + linię”). POMIAR 2026-10-25: tylko ta replika złapała czerwień #433 (`utf8mb4_bin` 62 → 60 po DROP tabel Telegrama), `ci-local` jej nie widzi;
    - jeśli dotyka `js/`: `node scripts/verify-dist-freshness.js`.
    Liczy się **kod wyjścia** każdej komendy, nie „OK” w wyjściu.
 2. **Ostatnie 10 porażek CI:**
@@ -74,10 +89,16 @@ Punkt zatrzymania: tabela z punktu 2 i wyniki z punktu 3 idą do właściciela p
 ## 2. Pułapki zmierzone na nieudanych deployach
 
 - **Bramką jest CI, nie „tło”.** Zbiór nazw czerwonych testów porównany z porannym przebiegiem odpowiada na pytanie „czy moja praca coś zepsuła”, a nie „czy CI przejdzie”. Lokalnie decyduje `scripts/ci-parity-check.sh` na FINALNYM SHA, a ostatecznie `scripts/ci-preflight.sh`. Ostrzeżenia PHP przy `failOnWarning` dają exit 1 mimo „OK, but there were issues” — liczy się **kod wyjścia**.
-- **Poza PHPUnit CI ma jeszcze inne joby.** Chodzi o `composer audit --no-dev --abandoned=fail` oraz WSZYSTKIE kroki jobu `migrations` z `.github/workflows/tests.yml` (idempotencja, `schema-collation`, `purchase-dup-key`), a nie tylko jeden. Zmiana SQL → lokalna replika `scripts/ci-local/run.sh` przed preflightem.
+- **Poza PHPUnit CI ma jeszcze inne joby.** Chodzi o `composer audit --no-dev --abandoned=fail` oraz WSZYSTKIE kroki jobu `migrations` z `.github/workflows/tests.yml` (idempotencja, `schema-collation`, `purchase-dup-key`), a nie tylko jeden. Zmiana SQL → `scripts/ci-local/run.sh` (job `php`) **oraz** replika jobu `migrations` z §1b — `ci-local` jobu `migrations` nie wykonuje.
 - **Każda zmiana po preflighcie to nowy SHA.** Dotyczy to merge'a `origin/main`, amenda i poprawki po czerwieni. Po merge'u z konfliktem w pliku czytanym przez zapadkę (`.claude/skills/**`, `docs/**`, `CLAUDE.md`) uruchom minimum `vendor/bin/phpunit tests/Config tests/Static tests/Hooks`, a potem nowy preflight.
 - **`git commit -- index.php` bierze plik z drzewa roboczego, nie z indeksu.** Commit `USE_BUNDLE = true` rób bez pathspecu. Zaraz po nim sprawdź `git show HEAD:index.php | grep USE_BUNDLE`. Przywrócenie `false` po pushu zostaje NIEZACOMMITOWANE.
 - **Bump `Version::APP` wymaga aktualizacji snapshotu w `tests/Config/VersionTest.php`** w tym samym commicie buildu.
+- **`index.php` z flagą skip-worktree.** `git ls-files -v index.php` → `S` (albo `h`) znaczy, że ktoś lokalnie ukrył `USE_BUNDLE=false`; `git add index.php` odbija się wtedy komunikatem o sparse-checkout i łańcuch `&&` z amendem przerywa się. Przed commitem buildu `git update-index --no-skip-worktree index.php`; po pushu przywróć `false` i flagę (`--skip-worktree`).
+- **`node_modules` rozjechane z lockiem → `dist/` inne niż w CI.** Przed `npm run build` wykonaj `npm ci` (node@22) — POMIAR 2026-10-25: lokalny vite 8.3.0 przy locku 8.3.5.
+- **Czerwień pełnej suity dev boxa spoza listy znanych ≠ automatycznie czerwień CI.** Rozstrzygnij dwustronnie: ta sama klasa zielona na świeżym schemacie (`ci-local`) i przyczyna w stanie bazy dev (zasób lub tabela z niescalonej gałęzi — `git grep` w `sql/migrations` na HEAD jej nie znajduje) → środowisko; czerwona także w `ci-local` → realna. Listy `known-local-reds.txt` w trakcie deployu nie ruszasz.
+- **Czerwień wyłącznie w replice** (np. test zależny od wersji gita w kontenerze): porównaj wersję narzędzia z runnerem oraz datę ostatniej zmiany testu i skryptu (`git log -1 -- <test> <skrypt>`) z ostatnim zielonym `Tests`. Zmiana starsza niż zielony run → artefakt repliki; inaczej realna.
+- **Równoległa sesja w drzewie głównym:** commituj wyłącznie swoje pliki jawnym pathspecem (`git commit -- <ścieżki>`, przy `git mv` obie ścieżki); cudze niezastagowane zmiany wymień w raporcie.
+- **Obserwacja `Tests` po pushu:** jeden `gh run watch <id> --interval 180 --exit-status` w tle, bez pollingu w kółko.
 - **`dist/` buduje wyłącznie sesja główna**, a nie podagent (#679; guard `bash-guard.sh` odrzuca build z podagenta). Pierwszy push po zmianach w `js/` bez świeżego `dist/` czerwieni job `build`.
 - **Data deployu to wpis w `webhook/deploy.log`**, a nie commit „Build v”. Webhook odpala się po każdym zielonym pushu.
 
@@ -90,6 +111,8 @@ Porażki CI (10 ostatnich): <top klasy z liczbą> → sprawdzone na tym SHA: <ta
 Preflight: <run URL> → success            Tests/Deploy na main: <wynik>, status webhooka: ok|superseded|failed
 Changelog: <liczba wpisów>                USE_BUNDLE w drzewie: false (niezacommitowane)
 Kroki ręczne: A <n>/<n> ✓, B <n>/<n> ✓, C do zrobienia <data>: <lista>, D: <lista>, zaległe bez odpowiedzi: <lista>
+Przypomnienia w kalendarzu: <data — tytuł, …> | brak narzędzia kalendarza
+Koszt CI: <ścieżka> ≈ <min> (pozostało wg właściciela: <min>)
 
 Sprzątanie worktree: USUNIĘTE …/ZOSTAJE … (z powodem)
 Rozjazdy procedura↔skill: <brak | lista>
