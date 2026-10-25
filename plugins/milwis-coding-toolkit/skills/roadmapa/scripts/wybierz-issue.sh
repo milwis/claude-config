@@ -7,7 +7,7 @@
 #   KOLEJKA_LISTA set    — the owner's explicit list, in the owner's order. No type filter (the owner chose);
 #                          skipped only when closed or carrying a done/deferred status label.
 #   KOLEJKA_LISTA empty  — the backlog: open, one of KOLEJKA_TYPY (bugs, missing tests) OR an owner-approved idea
-#                          (typ:pomysl + KOLEJKA_ZATWIERDZONY), none of KOLEJKA_POMIJAJ, a priority
+#                          (KOLEJKA_ZATWIERDZONY), none of KOLEJKA_POMIJAJ, a priority
 #                          label, P0 -> P3 (ideas ranked like bugs), oldest first; skips issues with a local agent/issue-<nr> branch
 #                          and issues whose deferral is written in the repo (KOLEJKA_ODROCZENIA dirs).
 # Skip reasons go to stderr as "pominięto #<nr>: <reason>" — the lead labels those (see cykl-lidera.md).
@@ -69,9 +69,8 @@ gh issue list --state open --limit 1000 --json number,title,labels,createdAt \
   | map(. + {p: ([.l[] | $PRIO[.] // empty] | min)})
   | map(select(.p != null))
   | map(select(any(.l[]; . as $x | $T | index($x))
-      or (.l | index("typ:pomysl") != null and index($zatwierdzony) != null)))
+      or (.l | index($zatwierdzony) != null)))
   | map(select(all(.l[]; . as $x | $X | index($x) | not)))
-  | map(select((.l | index("typ:pomysl") != null and index($zatwierdzony) == null) | not))
   | map(select(.number as $n | $zaczete | index($n) | not))
   | sort_by(.p, .createdAt)
   | .[] | "P\(.p)\t#\(.number)\t\(.title)"

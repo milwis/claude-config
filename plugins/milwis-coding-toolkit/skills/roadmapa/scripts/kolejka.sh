@@ -108,7 +108,7 @@ EOF
   # The owner's authorisation. lider.sh passes it verbatim as the first message of every lead session;
   # the lead quotes it in ledger row 0. One line.
   if [ -n "$LISTA" ]; then ZRODLO="weź następne issue z listy $LISTA (w tej kolejności)"
-  else ZRODLO="weź jedno issue z backlogu wg priorytetu P0→P3: bugi, braki testów i pomysły zatwierdzone przez właściciela (typ:pomysl + pomysl:zatwierdzony); pomysły bez tej etykiety pomijasz"; fi
+  else ZRODLO="weź jedno issue z backlogu wg priorytetu P0→P3: bugi, braki testów i pomysły zatwierdzone przez właściciela (pomysl:zatwierdzony); pomysły bez tej etykiety pomijasz"; fi
   echo "Kolejka roadmapa: $ZRODLO, rozwiąż je podagentem, scal lokalnie do $MAIN (--no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
 
   # One claude process per issue: the watcher replaces it (respawn-pane) after every issue.

@@ -74,8 +74,8 @@ N=$("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>"$K/pominiete.txt"); echo "N=$N RC=$?"
   source = backlog → `touch "$K/pusto"`, end the turn. No ledger row for an empty cycle.
 
 The picker (backlog source) takes only open issues with a bug-type label (`typ:bug`, `typ:point-fix`,
-`typ:structural`, legacy `bug`), a missing-test label (`typ:test`) or an owner-approved idea (`typ:pomysl` + `pomysl:zatwierdzony`)
-and a priority, P0 → P3 then oldest — approved ideas rank like bugs; it skips unapproved ideas (`typ:pomysl` alone),
+`typ:structural`, legacy `bug`), a missing-test label (`typ:test`) or an owner-approved idea (`pomysl:zatwierdzony`)
+and a priority, P0 → P3 then oldest — approved ideas rank like bugs; it skips unapproved ideas (`pomysl:do-analizy`, `pomysl:odlozony`),
 legacy features (`enhancement`, `new_idea`, `request`), `typ:analysis`, `status:odlozone`/`do-scalenia`/`zrobione-lokalnie`,
 `tor:remediacja-danych`, issues with an existing local `agent/issue-<nr>` branch (someone started it — the
 owner's call) and deferrals written in `docs/plans`/`docs/runbook`. On the list source only closed and
@@ -135,7 +135,7 @@ Issue text: <title + body>.
    behaviour has no test on HEAD.
 2. Bugs, missing tests and approved ideas only. If the issue in fact asks for new functionality (a new feature, screen, report, option,
    integration — not restoring behaviour that is broken; a missing test for existing behaviour is not a
-   feature) and does NOT carry `typ:pomysl` + `pomysl:zatwierdzony`, the verdict is `feature.`. With both labels the
+   feature) and does NOT carry `pomysl:zatwierdzony`, the verdict is `feature.`. With that label the
    functionality IS the assignment: VALID when it is not yet on HEAD, `closed-on-head. ALREADY-FIXED` when it is.
 3. Defects found OUTSIDE this issue go to NOWE PROBLEMY, never into the scope, and only when they pass the
    value gate of the nowe-issue skill (§2a). Each entry needs a `skutek:` line naming the consequence for
@@ -197,7 +197,7 @@ Never touch <$REPO> (the main tree).
    re-run its command once (task-lifecycle E18). If an anchor does not reproduce, or a measurement contradicts the
    report's Cause or Fix surface, stop and report `ambiguous. ask: <the contradiction, both commands>`.
 2. Bugs, missing tests and approved ideas only. If the fix turns out to need new functionality (a new feature, screen, report, option,
-   integration — not restoring behaviour that is broken) and the issue does not carry `typ:pomysl` + `pomysl:zatwierdzony`,
+   integration — not restoring behaviour that is broken) and the issue does not carry `pomysl:zatwierdzony`,
    report `feature. <one sentence why>` and stop.
 3. Run the task-lifecycle skill IN FULL, including every delegation step. Size class per its Step 0, from the
    report's Sizing facts;
@@ -294,7 +294,7 @@ printf '%s\n' "<body: evidence, source issue #N, found by the roadmapa queue>" >
 ```
 A duplicate gets a comment with the new evidence instead. Size, body sections and the four label axes follow the
 `nowe-issue` skill (§3 size, §4 web vs local, §6a body); a spin-off too big for one L2 becomes an umbrella + portions. A spin-off joins the queue by its own priority in a
-later cycle; one labelled as an unapproved feature (`typ:pomysl` without `pomysl:zatwierdzony`) never enters it. A problem that BLOCKS this issue makes this issue
+later cycle; one labelled as an unapproved feature (`pomysl:do-analizy` / `pomysl:odlozony`) never enters it. A problem that BLOCKS this issue makes this issue
 `BLOCKED`, not a new queue item.
 
 **7. Ledger row and rotation.** Numbers you write come from commands you ran in this session, quoted; a number

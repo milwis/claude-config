@@ -24,12 +24,12 @@ Mandatory axes (the KonkretnyTMS taxonomy):
 | **module** | ≥ 1 | `modul:*` (api, database, faktury, ksef, money-vat, security, ui, warsztat, zlecenia, …) | from the paths the change touches; one per module actually changed, not per module mentioned |
 | **priority** | exactly 1 | `P0` krytyczny — blocks deploy / production broken / data loss / exploitable now · `P1` wysoki — this cycle: wrong money/VAT, visible bug without a workaround · `P2` średni — planned · `P3` niski — can wait | from the consequence for the user, not the size of the fix |
 | **environment** | exactly 1 | `srodowisko:web` · `srodowisko:lokalne` | §4 |
-| **type** | exactly 1 | `typ:bug` defect · `typ:point-fix` point repair · `typ:structural` fixes a whole class · `typ:test` tests/regression only · `typ:analysis` analysis/decision, no code (also the umbrella, §3) · `typ:pomysl` new functionality — owner decides; an idea carries exactly 1 of `pomysl:do-analizy` (default at creation) · `pomysl:zatwierdzony` (the queue takes it) · `pomysl:odlozony` | §5 for what the queue takes |
+| **type** | exactly 1 | `typ:bug` defect · `typ:point-fix` point repair · `typ:structural` fixes a whole class · `typ:test` tests/regression only · `typ:analysis` analysis/decision, no code (also the umbrella, §3) · **an idea (new functionality — owner decides) has NO `typ:*`; its type is exactly 1 of `pomysl:do-analizy` (default at creation) · `pomysl:zatwierdzony` (the queue takes it) · `pomysl:odlozony`** | §5 for what the queue takes |
 
 Labels set **only in special cases**: `tor:remediacja-danych` — repairing existing production data (human
 decision; always its own issue, `srodowisko:lokalne`). **Never set at creation:** `status:*` (the lifecycle and
-the queue own them; a new `typ:pomysl` is the one exception: it gets `pomysl:do-analizy`; `pomysl:zatwierdzony` / `pomysl:odlozony` are the owner's call), `security-audit`, `security-audit-tracker` (automation only), `audyt-*` (the audit
-tooling), `request` (deprecated → `typ:pomysl`).
+the queue own them; a new idea is the one exception: it gets `pomysl:do-analizy`; `pomysl:zatwierdzony` / `pomysl:odlozony` are the owner's call), `security-audit`, `security-audit-tracker` (automation only), `audyt-*` (the audit
+tooling), `request` (deprecated → `pomysl:do-analizy`).
 
 No fitting `modul:*` → ask the owner (propose a name + description); never invent a label, and never create
 one without the owner's OK. A repo without these axes at all (only GitHub defaults) → show the owner the
@@ -158,8 +158,8 @@ before merge (the label's own description).
 ## 5. What the queue takes
 
 The roadmapa backlog source takes open issues with `typ:bug` / `typ:point-fix` / `typ:structural` / `typ:test` and a
-priority, P0→P3 then oldest, plus `typ:pomysl` ideas the owner marked `pomysl:zatwierdzony` (ranked like bugs); it skips unapproved `typ:pomysl`, `typ:analysis`, `status:odlozone`/`do-scalenia`/
-`zrobione-lokalnie`, `tor:remediacja-danych` (`roadmapa/scripts/wybierz-issue.sh`). So unapproved `typ:pomysl` and
+priority, P0→P3 then oldest, plus ideas the owner marked `pomysl:zatwierdzony` (ranked like bugs); it skips unapproved ideas (`pomysl:do-analizy`/`pomysl:odlozony`), `typ:analysis`, `status:odlozone`/`do-scalenia`/
+`zrobione-lokalnie`, `tor:remediacja-danych` (`roadmapa/scripts/wybierz-issue.sh`). So unapproved ideas and
 `typ:analysis` issues reach an agent only through `kolejka.sh start --issues …` or a manual web session — say so
 in the report when you create them.
 

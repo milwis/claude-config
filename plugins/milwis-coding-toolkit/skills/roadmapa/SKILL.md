@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the backlog (bugs, missing tests, owner-approved ideas) by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh triage subagent decides whether the bug exists, then a fresh general-purpose subagent runs task-lifecycle on its report), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then ends the lead's process and starts a new lead session for the next. Builds new features from the backlog only when the owner validated them (`typ:pomysl` + `pomysl:zatwierdzony`); never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
+description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the backlog (bugs, missing tests, owner-approved ideas) by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh triage subagent decides whether the bug exists, then a fresh general-purpose subagent runs task-lifecycle on its report), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then ends the lead's process and starts a new lead session for the next. Builds new features from the backlog only when the owner validated them (`pomysl:zatwierdzony`); never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
 ---
 
 # Roadmapa — the issue queue
@@ -65,7 +65,7 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   specialists work on `agent/issue-<nr>` in the queue worktree and never merge, push, close or create issues.
 - **One issue at a time**, each branch from the `main` that already contains the previous merge — so no
   two branches ever race for the same base.
-- **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41; ideas = `typ:pomysl` + `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).
+- **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41; ideas = `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).
   The error is asymmetric: an unapproved idea taken = functionality nobody ordered, built overnight; a fix skipped =
   it waits one cycle. With unclear content, defer.
 - **Deferral lives in the issue** — `status:odlozone` plus a comment saying what unblocks it. A deferral

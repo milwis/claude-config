@@ -2,7 +2,7 @@
 # Checks that issues carry the mandatory label axes of the nowe-issue skill.
 #   sprawdz-etykiety.sh <nr> [<nr> ...]   the given issues
 #   sprawdz-etykiety.sh --otwarte         every open issue (backlog audit)
-# Axes: exactly one P0-P3, at least one modul:*, exactly one srodowisko:*, exactly one typ:*, and exactly one pomysl:* on typ:pomysl issues;
+# Axes: exactly one P0-P3, at least one modul:*, exactly one srodowisko:*, exactly one typ:* — or, for an idea, exactly one pomysl:* instead (an idea has no typ:*);
 # the deprecated `request` is reported too. Issues labelled security-audit-tracker are automation, skipped.
 # Prints "#<nr>	<missing axes>	<title>" per failing issue; exit 1 when any fails, 0 when all pass.
 # Run from inside the repo (gh resolves it from the working directory).
@@ -14,9 +14,8 @@ BRAKI='
   [ (ile(test("^P[0-3]$"))             | if . != 1 then "priorytet: \(.) (ma być 1)"   else empty end),
     (ile(startswith("modul:"))         | if . < 1  then "modul: brak"                   else empty end),
     (ile(startswith("srodowisko:"))    | if . != 1 then "srodowisko: \(.) (ma być 1)"  else empty end),
-    (ile(startswith("typ:"))           | if . != 1 then "typ: \(.) (ma być 1)"         else empty end),
-    (if ($l | index("typ:pomysl")) != null then (ile(startswith("pomysl:")) | if . != 1 then "pomysl:* \(.) (ma być 1)" else empty end) else empty end),
-    ($l[] | select(. == "request") | "request: przestarzała, użyj typ:pomysl") ]'
+    (if ile(startswith("pomysl:")) > 0 then (ile(startswith("pomysl:")) | if . != 1 then "pomysl:* \(.) (ma być 1)" else empty end) else (ile(startswith("typ:")) | if . != 1 then "typ: \(.) (ma być 1)" else empty end) end),
+    ($l[] | select(. == "request") | "request: przestarzała, użyj pomysl:do-analizy") ]'
 
 FILTR="select([.labels[].name] | index(\"security-audit-tracker\") | not)
   | {number, title, b: ($BRAKI)} | select(.b | length > 0)
