@@ -11,7 +11,7 @@
     {
       "name": "milwis-coding-toolkit",
       "source": "./plugins/milwis-coding-toolkit",
-      "description": "Language-specific coding expert agents that prevent AI code generation errors, plus /lang-guidelines skill to create and update them",
+      "description": "Goal-only builder and reviewer agents that follow each project's own rules, plus workflow skills (task lifecycle, issue queue, plans, verification, audits)",
       "version": "1.5.6",
       "category": "development",
       "tags": [

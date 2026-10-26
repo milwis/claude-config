@@ -84,7 +84,7 @@ Before any statement implying success:
 - `executingplans` — runs this gate at each group boundary
 - `test-driven-development` — Verify RED and Verify GREEN are this gate
 - `systematic-debugging` — Phase 4 "Verify Fix" is this gate
-- `code-reviewer` — before reporting "addressed"
+- `code-reviewer` — before reporting "addressed" (it measures its own findings; this skill reaches it only through its brief)
 - `verify-e2e` — the OUTER gate: this skill proves commands/tests pass, verify-e2e proves the user surface works. User-facing change = both gates.
 
 ---

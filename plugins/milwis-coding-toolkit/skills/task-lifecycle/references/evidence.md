@@ -18,7 +18,7 @@ MEASURED (KonkretnyTMS batch 2.3): a 2-line latch addition done inline with the 
 
 `POMIAR` batch 3.1: three such false alarms, see `roadmapa` § Measurement discipline
 
-## E5 — Step 1 — narrow builders per layer
+## E5 — Step 1 — narrow builders per layer (superseded 2026-10-26 by E29)
 
 `POMIAR` (batch 3.1, #687): one builder across three layers and three kinds of tests — 124 calls, 40.4M input, 2.7× the cost of a comparable single-layer builder at the same context size (#685: 83 calls, 22.9M).
 
@@ -110,6 +110,17 @@ A confirmation-shaped brief was measured (2026-08-29/30) to make a subagent conf
 
 MEASURED (2026-09-13, batch of 5 issues, 32 subagents, 503M cache-read tokens): the builder resumed for three review iterations cost 94M input tokens over 497 turns and finally overflowed its context mid-iteration; the fresh builder spawned to finish that same iteration did more work for 24M. Resuming a 240k-context reviewer for a 15-tool-call sign-off cost ~25M; a fresh diff-only reviewer would cost ~3M. A resumed agent pays its whole accumulated context on every turn.
 
+2026-10-26: still binding for every agent that has ended its turn. The builder that waits warm through the review loop (E29) is bounded by the 6-step wait, `STOP` after the loop and the relay hook's 260k line, so the 94M case above (three iterations on an overflowing window) cannot recur.
+
 ## E28 — Hard rule 7 — SendMessage by name
 
 MEASURED (same batch): task-notifications of subagents spawned by a nested orchestrator landed with the top-level session, not the spawner — every builder report had to be relayed by hand, doubling the reading and stalling one issue for 3 h.
+
+## E29 — Step 1 / Step 2.2 / hard rule 6 — one builder per issue, docs by the builder, fixes by the warm builder
+
+MEASURED (2026-10-26, KonkretnyTMS queue sessions since 2026-10-10: 238 sessions, 1401 subagents; units are input-equivalent within one model, cache read 0.1, 5-minute write 1.25, 1-hour write 2, output 5):
+- Builders per issue: 1 → median 3.46M units per session, 1.10 reviews, 0.13 fixers; 2 → 5.77M, 1.42, 0.45; 3+ → 7.44M, 1.80, 0.80. Confounded by issue size. In sessions with ≥ 2 writers, 27% of Reads are files another writer had already read. Builders spend 30.5% of their cost before the first Edit, fixers 28%.
+- Skill loading: builders 0/278 (0/26 when the brief named `test-driven-development`), reviewers 0/235, security 0/64. Path-scoped rules arrive as attachments in all 78 builders that Read a matching file; reviewers had them in 22 of 235 runs.
+- Role shares: documentation agent 2.9%, security pass 2.6%, fixer 2.4% of queue cost.
+
+Owner decision (2026-10-26): one builder per issue, the builder writes the docs, fixes go to the warm builder, security inside the review. The warm wait costs one cache read of the builder's window per 270-second step; it is measured against the fresh fixer it replaces after the first ~20 issues (see `UPDATE_LOG.md`, v1.6.0).

@@ -79,6 +79,6 @@ prompt: |
 
   Output: audit/findings/03-js-deep.md, format from SKILL.md §7. Prefix: JS-.
 
-  Rule (from your system prompt): never recommend an npm package you have
+  Rule: never recommend an npm package you have
   not verified exists.
 ```

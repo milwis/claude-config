@@ -82,6 +82,7 @@ Call budget: ≤ 60 tool calls. At the limit return BLOCKED with the state reach
 Reusable script: [FIRST the path of one finished script to copy — the previous issue's `.claude/tmp/verify-<n>.mjs` or a committed harness — "copy this file, change the assertions"; THEN the helper paths from the project's e2e helper directory (VERIFICATION_ENV.md) it imports — extend them, do not rewrite from zero; a helper you had to write goes into that directory and its path into Evidence]
 State reset between steps: reload the page (`page.reload()`), never close modals programmatically (`Modal.getInstance(...).hide()` from `page.evaluate` did not close the modal in headless — POMIAR, cause unmeasured)
 Classifier-safe commands: copies via `cat A > .claude/tmp/B`, restore via `cat .claude/tmp/B > A` + `diff`; no `cp`, no `rm` outside .claude/tmp/, no `mv` of tracked or generated files.
+Report contract: every count carries the command that produced it, and a 0 counts only after a positive control (the same pattern against a line known to match) — the discriminator is often a count; claims are labelled MEASURED or INFERRED; a value that is redacted, removed or replaced (host, mailbox, path, credential, key) appears in the report and the evidence only as a placeholder such as `<host>`; a suite you run is reported as passed AND skipped counts; long output goes to `.claude/tmp/<name>.log`, not into your window; you change no tracked file and commit nothing; you stop for context only after the relay hook's own-window message, quoted.
 
 Your job is to try to PROVE THE CLAIM FALSE:
 1. Exercise the happy path exactly as a user would.
@@ -113,7 +114,7 @@ Noisy tool-calling (browser automation) stays in the subagent — the orchestrat
 
 - **PASS with out-of-scope Deviations** (a pre-existing failure the verifier reported in one line) → the verdict on the claim stands; the orchestrator files the Deviation as a spin-off issue with the verifier's line and does not widen the task.
 - **PASS** → attach evidence paths to the completion report. Only now may "done" be claimed (`verification-before-completion` still applies to the wording).
-- **FAIL** → this is Stop-the-Line. Hand the verifier's repro steps to a builder subagent (or `systematic-debugging` for non-obvious causes). Re-verify after the fix with a **new** fresh verifier. Cap: 3 verify-fix cycles, then stop and report to the user.
+- **FAIL** → this is Stop-the-Line. Hand the verifier's repro steps to a fresh fixer subagent (or `systematic-debugging` for non-obvious causes). Re-verify after the fix with a **new** fresh verifier. Cap: 3 verify-fix cycles, then stop and report to the user.
 - **BLOCKED** → report the missing prerequisites to the user verbatim and record them in `VERIFICATION_ENV.md`. A BLOCKED verification is never silently skipped — the final report must say "verified: NO (blocked on X)".
 
 ---

@@ -4,27 +4,31 @@ Complete development toolkit: language-specific coding agents, security review, 
 
 ## Agents
 
-### Language Experts (with AI error prevention)
+Since v1.6.0 every agent states a goal and where the rules live, not the rules themselves: a writer implements what the brief describes under the project's own rules (`CLAUDE.md`, `.claude/rules/*.md` loaded when it opens a matching file, the standards they link) and proves it with the project's checks. Rules a subagent must apply reach it only that way or as lines of its brief — a skill does not load inside a subagent from its description (0 of 278 queue builders). See `UPDATE_LOG.md` v1.6.0 and `/lang-guidelines`.
 
-| Agent | Language | Focus |
-|-------|----------|-------|
-| python-pro | Python 3.13+/3.14 | AI error prevention, PEP 8, type hints, async, security |
-| javascript-pro | JavaScript/TypeScript | Security-first, ES2025, XSS/injection prevention, npm defense |
-| sql-pro | SQL | AI error prevention, query optimization, injection defense |
-| php-pro | PHP | Goal-only builder (since v1.5.52): rules come from the project's `CLAUDE.md` / `.claude/rules` / standards, and the project's checks prove the change |
-| nextjs-pro | Next.js 15+/React 19/TypeScript | App Router, Server Components, Server Actions as public endpoints, Next 15 caching semantics, CVE-2025-29927 |
+### Builders (writers, goal-only)
 
-### Universal Tools
+| Agent | Mostly | Done means |
+|-------|--------|------------|
+| php-pro | PHP | targeted tests + named latches green, static analysis and lint with covered paths, stale docs updated, committed |
+| javascript-pro | JavaScript/TypeScript front end | same, with the project's lint and type checks |
+| nextjs-pro | Next.js / React | same, with lint, type checks and the build |
+| python-pro | Python | same, with the project's linters and type checker |
+| sql-pro | SQL and migrations without application code | same; a destructive step only as its own requested stage with a rollback path |
+| mobile-pwa-developer | PWA / mobile | same; a service-worker change has an update path |
+| database-optimizer | query and index performance | before/after measurement on the same data, equal results |
+| test-automator | tests; also the surface verifier for a `verify-e2e` brief | each named behaviour has a test seen red / `VERDICT:` first, no tracked change |
+| debugger | root cause | cause at `file:line` + repro command + an excluded alternative; a fix red→green when asked |
+
+One builder carries a whole issue across layers, in dependency order, and also updates the docs its change makes stale (`task-lifecycle` Step 1).
+
+### Judgment agents
 
 | Agent | Focus |
 |-------|-------|
-| backend-security-coder | Three-tier security boundary system (Always/Ask/Never) |
-| code-reviewer | Structured 7-axis reviews with severity labels |
-| debugger | Systematic 6-step root cause analysis, log-first approach |
-| database-optimizer | Database performance tuning and optimization |
+| code-reviewer | Decides whether a diff merges: spec, project rules for the touched paths (it Reads them), security when the diff touches a trigger, tests that can fail. Tiers S/M/L from `git diff --stat`, severities 🔴/🟡/🔵/⚪/ℹ️, measured findings, coverage ledger |
+| backend-security-coder | Security audits (`audit-360`, explicit passes): exploit paths input → sink / missing check, each link measured; proposes fixes, never edits. A diff's security is reviewed by `code-reviewer` |
 | refactoring-orchestrator | End-to-end refactoring orchestration: backup → baseline → audit → delegated execution → equivalence proof. Never codes itself |
-| test-automator | Comprehensive test automation strategies |
-| mobile-pwa-developer | PWA development with offline-first architecture |
 
 ### Model class — two-tier policy (2026-08-19)
 
@@ -34,7 +38,7 @@ The toolkit runs a deliberate two-tier split:
 - **`opus` (judgment gates):** code-reviewer, backend-security-coder, refactoring-orchestrator.
 - **Audits are the exception:** the `audit-360` skill spawns EVERY specialist with an explicit `model: opus` override — audits are rare and quality-critical (see `skills/audit-360/SKILL.md` §1).
 
-History: on 2026-08-17 a uniform-Opus policy was adopted based on API list pricing (Opus 5 vs Sonnet 5 ≈ 1.7×, so ~15-20% total saving — arguably not worth a quality risk). That analysis did not apply to the owner's actual billing: a **Max subscription quota**, where usage is weighted by model class and Opus burns the quota several times faster than Sonnet — the owner was exhausting a Max20 limit in 2-3 days. On 2026-08-19 the owner decided the two-tier split. The audit that triggered the change (KonkretnyTMS 360°, 19.08.2026) also showed the recorded P0s were caused by missing *rules* in agent instructions, not by model capability — Opus wrote those bugs too — so the quality question is addressed by rules + Opus review gates rather than by an Opus-everywhere roster.
+History: on 2026-08-17 a uniform-Opus policy was adopted based on API list pricing (Opus 5 vs Sonnet 5 ≈ 1.7×, so ~15-20% total saving — arguably not worth a quality risk). That analysis did not apply to the owner's actual billing: a **Max subscription quota**, where usage is weighted by model class and Opus burns the quota several times faster than Sonnet — the owner was exhausting a Max20 limit in 2-3 days. On 2026-08-19 the owner decided the two-tier split. The audit that triggered the change (KonkretnyTMS 360°, 19.08.2026) also showed the recorded P0s were caused by missing *rules* in agent instructions, not by model capability — Opus wrote those bugs too — so the quality question is addressed by rules + Opus review gates rather than by an Opus-everywhere roster. Since v1.6.0 those rules live in the project, not in the agents.
 
 Revisit with data, not intuition: `task-lifecycle` reports review iterations per task — if work that used to pass review in one round starts needing 2-3, that is the signal the smaller writer model is not carrying the task. Do not silently flip models back in a maintenance run (see UPDATE_LOG maintenance policy).
 
@@ -52,7 +56,7 @@ Ground truth for the reviewer itself: [AACR-Bench](https://huggingface.co/datase
 | `/executingplans` | Execute plans task-by-task with stop-the-line discipline |
 | `/new-project` | Universal foundation scaffold for any new project |
 | `/audit-360` | Comprehensive 360° code audit. Orchestrates parallel domain specialists, consolidates via code-reviewer (opus), reproduces P0 PoCs via debugger, self-reviews fix proposals against hallucinated APIs, and proposes agent updates from recurring patterns. Universal — adapts to any stack via `audit/INVENTORY.md` |
-| `/task-lifecycle` | Full autonomous cycle for one task: build (subagent) → code-review loop with auto-fix (cap 3) → security pass → `verify-e2e` in a fresh subagent → report package. Main session orchestrates, never codes |
+| `/task-lifecycle` | Full autonomous cycle for one task: one builder subagent (all layers, docs included) → code-review loop with security inside it, fixes by the same builder kept warm (cap 3) → `verify-e2e` in a fresh subagent → report package. Main session orchestrates, never codes |
 | `/retro` | Retrospective on a finished roadmapa queue run / session: ledger + subagent transcripts → ranked toolkit change proposals, each with a POMIAR (command / file:line) and final rule text. Runs after the run, applies nothing on its own |
 | `/roadmapa` | The issue queue: an explicit list or the bug backlog P0→P3 without end; a lead in tmux handles one issue per session (fresh subagent: triage on HEAD + `task-lifecycle`), merges locally with `[roadmapa]` and closes the issue, then `/clear`. Started by the owner with `scripts/kolejka.sh start`; never pushes, never builds features from the backlog |
 | `/deploy` | Owner-only (`disable-model-invocation: true`) production deploy for KonkretnyTMS: drives the repo's own `procedury.md` §DEPLOY (source of truth, never duplicated), adds owner stop-points (unreviewed `[roadmapa]` merges, changelog + version bump approval, any red gate) and pitfalls measured on failed deploys. Stops if the repo has no such procedure |
@@ -60,7 +64,7 @@ Ground truth for the reviewer itself: [AACR-Bench](https://huggingface.co/datase
 
 ### Discipline skills (auto-triggered by matching context)
 
-These skills are not slash commands — they auto-match based on their `description` field and get pulled in whenever the situation fits. They provide *guardrails* that every other skill and agent in this toolkit leans on.
+These skills are not slash commands — they auto-match based on their `description` field and get pulled in whenever the situation fits, in the session that runs them. Inside a subagent they do not load (measured 0/278 builders): an orchestrator passes the rules it needs as lines of the brief (`task-lifecycle` Step 1).
 
 | Skill | Triggers when | Core rule |
 |---|---|---|
@@ -95,7 +99,7 @@ The skills form a layered workflow:
 2. **Before claiming anything is done / fixed / passing** (including marking a TodoWrite item `completed` or committing) → invoke `verification-before-completion`.
 3. **When hitting any bug, test failure, or broken build** → invoke `systematic-debugging` *before* proposing a fix.
 3a. **When the change alters a schema, stored data, API contract, config key or dependency major** → invoke `migration` before editing; stop after the requested stage.
-4. **For full feature development** → `/brainstorming` (if design unclear) → `/writingplans` → `/executingplans`, with the three discipline skills applied inside each step.
+4. **For full feature development** → `/brainstorming` (if design unclear) → `/writingplans` → `/executingplans`, with the three discipline skills applied by the orchestrator and written into every builder brief.
 
 The discipline skills are stackable and deliberately short — they are designed to be pulled in without derailing whatever else you're doing. Each states its **Entry** and **Stop** condition in its header, so an orchestrator can check per stage whether the skill has actually finished.
 
@@ -107,9 +111,9 @@ On top of the workflow above sits the orchestration layer (added after Boris's "
               ONE TASK                          A QUEUE OF ISSUES
           /task-lifecycle                       /roadmapa (kolejka.sh)
                 │                                      │
-   build → review-fix loop (≤3)          pick (list | bugs P0→P3) → fresh
-   → security pass → verify-e2e           subagent: triage + task-lifecycle
-   → report package                       → local merge [roadmapa] + close
+   one builder (+docs) → review with     pick (list | bugs P0→P3) → fresh
+   security, fixes by the warm builder   subagent: triage + task-lifecycle
+   (≤3) → verify-e2e → report package    → local merge [roadmapa] + close
                 │                          → /clear → next issue
                 └──────────────┬───────────────────────┘
                                ▼

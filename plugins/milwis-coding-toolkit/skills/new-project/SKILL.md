@@ -69,7 +69,7 @@ If NOT from marketplace:
 - [ ] `.claude/settings.local.json` with permissions (Bash, WebSearch, WebFetch, Skills)
 - [ ] `.claude/README.md` — index of agents, skills, rules
 - [ ] Project-specific agents if needed
-- [ ] Stack rules (e.g., `python-rules.md`, `js-rules.md`)
+- [ ] Stack rules (e.g., `python-rules.md`, `js-rules.md`) with `paths:` frontmatter — the only place language rules live: the toolkit's agents are goal-only and load a rules file when they open a file it matches
 - [ ] Domain-specific safety rules if applicable
 
 ### Agent selection
@@ -80,7 +80,7 @@ If NOT from marketplace:
 | `debugger` | ALWAYS — root cause analysis |
 | `test-automator` | ALWAYS — test strategy |
 | `refactoring-orchestrator` | ALWAYS — refactoring end-to-end |
-| `backend-security-coder` | When project has API/auth/user data |
+| `backend-security-coder` | When project has API/auth/user data — for security audits; diffs are reviewed for security by `code-reviewer` |
 | `database-optimizer` | When project has database |
 | `sql-pro` | When project has SQL database |
 | `{language}-pro` | Create via `/lang-guidelines` for primary language |
@@ -88,7 +88,7 @@ If NOT from marketplace:
 
 ### MANDATORY: Agent Routing Table in CLAUDE.md
 
-The routing table tells Claude which specialist agent owns which files. Without it, code gets written in the main session and the agents' error-prevention and security rules never load.
+The routing table tells Claude which builder agent owns which files. Without it, code gets written in the main session instead of by a builder that proves its change with the project's checks. The rules every builder follows are the project's own (`CLAUDE.md`, the stack rules files), not the agents'.
 
 Generate based on stack from Step 0:
 
@@ -100,7 +100,7 @@ Generate based on stack from Step 0:
 | {backend_paths} | `{language}-pro` | {language} code |
 | {frontend_paths} | `javascript-pro` | JS/TS code |
 | {sql_paths}, DB queries | `sql-pro` | SQL |
-| Security, API keys, auth | `backend-security-coder` | Security-related changes |
+| Security, API keys, auth | the layer's builder, then `code-reviewer` | Review covers security; `backend-security-coder` for audits |
 | Before every commit | `code-reviewer` | Required before every commit |
 | Bugs, errors, failures | `debugger` | Start from logs, then code |
 | DB performance | `database-optimizer` | For slow queries, indexing |
@@ -124,7 +124,7 @@ Rules for generating the table:
 ```markdown
 ## Non-negotiable rules
 
-- Code in a path the routing table covers is written by that agent, so its language and security rules apply
+- Code in a path the routing table covers is written by that agent; the rules it follows are this project's (`CLAUDE.md`, `.claude/rules/*.md`)
 - Run `code-reviewer` before every commit
 - Debugging starts with `debugger`: logs first, then code
 - Use `Decimal` for money — NEVER float
