@@ -1,7 +1,7 @@
 {
   "name": "milwis-coding-toolkit",
-  "description": "Goal-only builder and reviewer agents that follow each project's own rules (Python, JavaScript, TypeScript/Next.js, SQL, PHP, PWA), plus workflow skills: task lifecycle, issue queue, plans, verification and audits.",
-  "version": "1.6.0",
+  "description": "Workflow skills for the session that writes the code (task lifecycle, issue queue with a merge gate, plans, verification, audits) plus goal-only agents for jobs that need their own context: review, verification, debugging, an independent build.",
+  "version": "1.7.0",
   "author": {
     "name": "milwis"
   }

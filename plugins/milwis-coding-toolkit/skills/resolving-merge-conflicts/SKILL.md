@@ -1,6 +1,6 @@
 ---
 name: resolving-merge-conflicts
-description: "Use when a git merge, rebase, or cherry-pick is in progress with conflicts — typically when merging a wave's agent/issue-* branches into main. Resolves hunk by hunk by the INTENT of each side traced to primary sources (commit message, issue, ledger row, plan), never invents behaviour, never --abort, then runs the project's checks and finishes the operation."
+description: "Use when a git merge, rebase or cherry-pick is in progress with conflicts, e.g. while merging a wave's agent/issue-* branches into main."
 ---
 
 # Resolving Merge Conflicts
@@ -30,7 +30,7 @@ Record the base: `git merge-base HEAD MERGE_HEAD`. Enable `git config merge.conf
 For each conflicting file, before touching a hunk:
 
 - **Our side:** the commit(s) that last changed the region (`git log -L<start>,<end>:<file> HEAD`), their messages, the issue / plan / ledger row they cite.
-- **Their side:** the same on `MERGE_HEAD`. For a roadmapa branch the issue's L2 report (`.claude/tmp/kolejka/raport-<nr>.md`) and the defer comment on the issue say what the change was for.
+- **Their side:** the same on `MERGE_HEAD`. For a roadmapa branch the issue's report (`.claude/tmp/kolejka/raport-<nr>.md`) and the defer comment on the issue say what the change was for.
 - **The intent of the merge itself:** what the user asked for ("merge the three wave branches", "rebase onto main"). Where the two sides are incompatible, this is the tie-breaker.
 
 Comments in the code are not a source of intent when they contradict the commit or the issue — the commit is what was decided.

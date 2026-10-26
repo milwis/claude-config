@@ -1,6 +1,6 @@
 # task-lifecycle — evidence behind the rules
 
-Measurements (`POMIAR` / MEASURED) that justify the rules in `../SKILL.md`. Each entry is referenced from the rule as `E<n>`. Numbers are from KonkretnyTMS queue batches unless stated otherwise; they explain why a rule exists and are not re-checked at run time.
+Measurements (`POMIAR` / MEASURED) that justify the rules in `../SKILL.md`, `implementacja.md` and `briefy.md`. The step names in the headings are those of the skill when the entry was written; since v1.7.0 the implementation rules live in `implementacja.md` and the brief rules in `briefy.md`. Each entry is referenced from the rule as `E<n>`. Numbers are from KonkretnyTMS queue batches unless stated otherwise; they explain why a rule exists and are not re-checked at run time.
 
 ## E1 — Step 0 — Trivial (test-only DIRECT)
 
@@ -94,6 +94,8 @@ A confirmation-shaped brief was measured (2026-08-29/30) to make a subagent conf
 
 `POMIAR` (batch 2.4): three such fix-ups done inline cost ≈ 25k tokens; the same three through fresh fixer subagents would have cost ≥ 300k. `POMIAR` (batch 2.5): six such fix-ups across three issues, each ≤ ~15 lines with the reviewer's `file:line` and proposed diff in hand, all inline — estimated ≥ 240k saved against six fixer spawns; `podagent-piszacy-tanszy-niz-inline` is about writing from scratch, not about a 10-line correction with the location already known.
 
+2026-10-26 (v1.7.0): the session that implements also fixes, so every review fix is "inline" in the sense of these entries; the proof each kind of fix needs (`implementacja.md` §Proof for a review fix) is what remains of the inline bounds.
+
 ## E24 — Step 2 — test-run economy
 
 `POMIAR` (KonkretnyTMS batches 4.7 and 4.8): the same corpus latch went red at the full suite in two consecutive batches — once for a removed skip (≈10k inline), once for an added data-dependent skip (194k fixer + second suite run); neither builder, reviewer nor fixer ran it, because nothing in the diff pointed at it. `POMIAR` (KonkretnyTMS batch 2.2, #802): 26 route edits shipped without `scripts/generate-api-route-inventory.php`; `ApiRouteInventoryFreshnessLatchTest` was the single delta of the end-of-batch suite against the baseline (58 vs 57 names), a parity-check block and a closing commit. `POMIAR` (KonkretnyTMS batch 7.6, #408): the builder removed three CRUD routes and ratcheted the one counter latch the project's `CLAUDE.md` names (`WriteRoute*` 252→249); the two it does not name (`PermissionMatrixSnapshotTest` admin 29→26, `ControllerRawPdoBudgetLatchTest` 31→24 / BUDGET 447→440) went red only at the end-of-batch full suite — `git grep -c createGroup` on both files gave 0, an opus review had passed the diff — and cost a second full-suite run (≈15 min wall) plus a closing commit (≈20k). `POMIAR` (KonkretnyTMS batch 3.4, #688): the builder ran `tests/Repositories` for a change in `Repositories/`, eight mocks in `tests/Services` and `tests/Controllers` went red at the end-of-batch full suite, and the regression cycle (fixer + opus review over the >50-line threshold) cost ≈ 316k — the whole +14% of that batch.
@@ -112,9 +114,13 @@ MEASURED (2026-09-13, batch of 5 issues, 32 subagents, 503M cache-read tokens): 
 
 2026-10-26: still binding for every agent that has ended its turn. The builder that waits warm through the review loop (E29) is bounded by the 6-step wait, `STOP` after the loop and the relay hook's 260k line, so the 94M case above (three iterations on an overflowing window) cannot recur.
 
+v1.7.0: the warm builder is removed, so the rule binds every subagent without exception. The session that implements is not a resumed agent: it is the context the fixes need.
+
 ## E28 — Hard rule 7 — SendMessage by name
 
 MEASURED (same batch): task-notifications of subagents spawned by a nested orchestrator landed with the top-level session, not the spawner — every builder report had to be relayed by hand, doubling the reading and stalling one issue for 3 h.
+
+2026-10-26 (v1.7.0): obsolete. No nested orchestrator remains: the queue's lead is the main session of its tmux process, and its subagents' reports arrive as task-notifications in that session.
 
 ## E29 — Step 1 / Step 2.2 / hard rule 6 — one builder per issue, docs by the builder, fixes by the warm builder
 
@@ -124,3 +130,5 @@ MEASURED (2026-10-26, KonkretnyTMS queue sessions since 2026-10-10: 238 sessions
 - Role shares: documentation agent 2.9%, security pass 2.6%, fixer 2.4% of queue cost.
 
 Owner decision (2026-10-26): one builder per issue, the builder writes the docs, fixes go to the warm builder, security inside the review. The warm wait costs one cache read of the builder's window per 270-second step; it is measured against the fresh fixer it replaces after the first ~20 issues (see `UPDATE_LOG.md`, v1.6.0).
+
+2026-10-26 (v1.7.0): superseded in part. The same numbers (27% of writers' Reads repeated another writer's, 30.5% of builder cost before the first Edit, 0/278 skill loads in builders) argue one step further than one builder: the session that read the issue writes the code, and a builder remains only for an independent sizeable task. The warm builder and the named-orchestrator wait are removed with the nested orchestrator (L2, `roadmapa` v1.7.0). Owner decision 2026-10-26: "builder jest uruchomiony wewnątrz jednego issue; w momencie zamknięcia issue kończymy wszystkich agentów". Not yet measured: the lead's window on Large issues, and the cost per issue against the v1.6.0 baseline in `UPDATE_LOG.md`; both are re-measured after the first ~20 queue issues.

@@ -1,6 +1,6 @@
 ---
 name: verify-e2e
-description: "Use after implementing any user-facing change (GUI, API endpoint, CLI, cron, agent) — verifies the change on the SURFACE the user interacts with, in a fresh isolated subagent, producing visual/response evidence. GUI → browser + screenshots, API → real HTTP request, CLI/cron → real execution. Complements verification-before-completion (which gates commands/tests); this skill gates the user surface."
+description: "Use after implementing a user-facing change (GUI, API endpoint, CLI, cron, agent), to verify it on the surface the user touches, in a fresh subagent, with evidence."
 ---
 
 # Verify E2E (surface-level verification in an isolated subagent)
@@ -22,7 +22,7 @@ The model that built a change is motivated to defend it; a verifier with an isol
 
 - has not seen the implementation process, so it cannot rationalize gaps,
 - is prompted adversarially ("try to prove this does NOT work"),
-- reports back to the orchestrator, which can confront the builder with failures.
+- reports back to the session that built the change, which fixes what it found.
 
 Never verify in the same context that built the change. Never accept the builder's own "it works" as evidence.
 
@@ -53,8 +53,8 @@ A change can have multiple surfaces (endpoint + GUI that calls it) — verify th
    - Return status **BLOCKED** with the exact list of what is missing.
    - Append the gap to the `## Gaps / backlog` section of `docs/VERIFICATION_ENV.md` (create the file if absent).
 3. **Browser surface → ONE connectivity probe before the spawn** (`tabs_context_mcp`, a single call). "Not connected" or no answer → brief the verifier with the Playwright recipe from `VERIFICATION_ENV.md` directly and tell it NOT to try the browser MCP; no recipe → BLOCKED now, before any spawn. The verifier's own cap is in its prompt: three failed browser-tool calls → switch to the named fallback or return BLOCKED. (E1)
-4. **Browser surface → look up the project's e2e helper directory BEFORE the spawn** (the path is recorded in `VERIFICATION_ENV.md`, e.g. `tests/e2e/helpers/`): `ls` it, and pass the login / open-modal / A-B-route helper paths in the brief — **and, above the helper paths, the path of ONE finished script to copy**: the last verify script for the same surface class (`.claude/tmp/verify-<previous issue>.mjs`, or the committed harness under the helper directory), named explicitly as "copy this file and change the assertions". A directory name does not transfer; a file name does. (E2) A verifier that had to write such a helper returns its path in `Evidence`, and **the orchestrator commits it into that directory in the same verify phase** — the commit is part of closing the verify, not a courtesy. A script left in git-ignored `.claude/tmp/` is invisible to the next batch (E3).
-5. **Browser surface → the ENTRY POINT is measured before the spawn, and the brief names the surface a user can actually reach.** The cheapest measurement wins: `git grep -n '<handler>' -- views/ js/` showing the button / menu / route binding (or its absence); only when grep is ambiguous, ≤ 5 browser calls ("is element X in the DOM and clickable"). No entry point → the surface in the brief is the innermost reachable one (`page.evaluate` against the `window.*` contract, the endpoint), the GUI path is declared OUT OF SCOPE in the brief, and the missing entry point becomes a spin-off issue BEFORE the spawn. A measurement in the orchestrator's context that the brief does not carry as scope is lost (E4).
+4. **Browser surface → look up the project's e2e helper directory BEFORE the spawn** (the path is recorded in `VERIFICATION_ENV.md`, e.g. `tests/e2e/helpers/`): `ls` it, and pass the login / open-modal / A-B-route helper paths in the brief — **and, above the helper paths, the path of ONE finished script to copy**: the last verify script for the same surface class (`.claude/tmp/verify-<previous issue>.mjs`, or the committed harness under the helper directory), named explicitly as "copy this file and change the assertions". A directory name does not transfer; a file name does. (E2) A verifier that had to write such a helper returns its path in `Evidence`, and **the spawning session commits it into that directory in the same verify phase** — the commit is part of closing the verify, not a courtesy. A script left in git-ignored `.claude/tmp/` is invisible to the next batch (E3).
+5. **Browser surface → the ENTRY POINT is measured before the spawn, and the brief names the surface a user can actually reach.** The cheapest measurement wins: `git grep -n '<handler>' -- views/ js/` showing the button / menu / route binding (or its absence); only when grep is ambiguous, ≤ 5 browser calls ("is element X in the DOM and clickable"). No entry point → the surface in the brief is the innermost reachable one (`page.evaluate` against the `window.*` contract, the endpoint), the GUI path is declared OUT OF SCOPE in the brief, and the missing entry point becomes a spin-off issue BEFORE the spawn. A measurement in the spawning session's context that the brief does not carry as scope is lost (E4).
 6. First time verifying a new area? Ask explicitly: *"What would I need to verify changes in this area end-to-end?"* — and record the answer in `VERIFICATION_ENV.md`. In an unattended run (the `roadmapa` queue, any subagent) there is no one to ask: write the question into the report / issue as an open item, record the gap in `VERIFICATION_ENV.md`, and continue — return BLOCKED only when the surface truly cannot be exercised. The environment compounds: every gap closed makes all future verifications stronger.
 
 ---
@@ -71,8 +71,8 @@ Surface: [GUI at <url> / API <method+path> / CLI <command> / ...]
 Connectivity probe: [`tabs_context_mcp` result from THIS turn — or `skipped: Playwright recipe <path> chosen`]
 Entry point: [command + output from THIS turn showing how a user reaches the surface (button / menu / route binding) — or `no GUI entry point: surface is <window.* call / endpoint>; the GUI path is OUT OF SCOPE, do not exercise it`]
 Environment: [from VERIFICATION_ENV.md: URL, test login, tokens, tools]
-Tree state: [build/bundle flag as served (e.g. USE_BUNDLE=<value>, dist/ stale or fresh) — verified by the orchestrator this turn;
-             which uncommitted changes in the tree are the orchestrator's (`git diff <file>` = the only local change; everything else is HEAD)]
+Tree state: [build/bundle flag as served (e.g. USE_BUNDLE=<value>, dist/ stale or fresh) — verified by the spawning session this turn;
+             which uncommitted changes in the tree are the spawning session's (`git diff <file>` = the only local change; everything else is HEAD)]
 Discriminator: [ONE command whose output differs between fixed and unfixed tree — the triage repro or the CLI's A/B command when available, else e.g. `curl -s <url> | grep -c 'js/modules'`]
 Surface choice: [`git diff --stat <base>..<tip>` from THIS turn + "browser" only if it lists front-end files or no HTTP/CLI observation discriminates — else "HTTP/CLI"]
 Control CLI: [the project CLI's `doctor` output from THIS turn + "use `<cli> <command>` to serve, log in, send requests, open views and run A/B; do not write your own login/serve script" — or `skipped: project has no CLI`]
@@ -89,8 +89,8 @@ Your job is to try to PROVE THE CLAIM FALSE:
 2. Exercise at least one edge/negative case relevant to the change.
 3. Capture evidence at every step (screenshots / responses / output).
 4. Check for collateral damage: does the surrounding page/endpoint still work?
-5. A CLI command you needed and did not have (or one that failed) gets ONE line in Deviations as `CLI gap: <command wanted> — <what you did instead>`; the orchestrator turns it into a CLI improvement, not a spin-off bug.
-6. A step that fails OUTSIDE the change summary — pre-existing: the same step fails on the main tree, or `git blame -L` of the failing line predates the branch (ONE such check, ≤ 5 calls) — gets ONE line in Deviations: step, error text verbatim, blame SHA. Then continue with the in-scope steps. You do NOT diagnose it further; the orchestrator files it as a spin-off issue.
+5. A CLI command you needed and did not have (or one that failed) gets ONE line in Deviations as `CLI gap: <command wanted> — <what you did instead>`; the spawning session turns it into a CLI improvement, not a spin-off bug.
+6. A step that fails OUTSIDE the change summary — pre-existing: the same step fails on the main tree, or `git blame -L` of the failing line predates the branch (ONE such check, ≤ 5 calls) — gets ONE line in Deviations: step, error text verbatim, blame SHA. Then continue with the in-scope steps. You do NOT diagnose it further; the spawning session files it as a spin-off issue.
 
 Save evidence to [scratchpad or .verify/ dir — never commit binaries].
 Return EXACTLY this structure:
@@ -104,17 +104,17 @@ Return EXACTLY this structure:
 
 **Every bracketed line of the template is filled before the spawn — with a measurement from THIS turn or the explicit sentence `skipped: <reason>`; a brief with a blank or missing line is not sent.** The lines are a checklist, not a suggestion: `Connectivity probe`, `Entry point`, `Reusable script`, `State reset` each carry a rule that batches 3.1–3.3 added to this skill, and batch 4.6 measured them "not applied" for one shared reason — none reached the verifier. (E5) A rule that lives in the skill and not in the brief does not reach the subagent — the brief is the only channel.
 
-Noisy tool-calling (browser automation) stays in the subagent — the orchestrator's context receives only the verdict and evidence paths.
+Noisy tool-calling (browser automation) stays in the subagent — the spawning session's context receives only the verdict and evidence paths.
 
-**A verifier script that will be needed again is committed under the project's e2e helper directory (named in `VERIFICATION_ENV.md`), not left in the scratchpad.** The orchestrator also writes the script's path into the verify row of the ledger, because the next brief must name a FILE, not a directory (Step 2, item 4). A Playwright or HTTP harness that counts requests/intervals per view, logs in and walks a flow, is ~5k tokens to write once and ~0 to reuse; written from zero each time it is the single most expensive line of the verify. (E6)
+**A verifier script that will be needed again is committed under the project's e2e helper directory (named in `VERIFICATION_ENV.md`), not left in the scratchpad.** The spawning session also writes the script's path into the verify row of the ledger, because the next brief must name a FILE, not a directory (Step 2, item 4). A Playwright or HTTP harness that counts requests/intervals per view, logs in and walks a flow, is ~5k tokens to write once and ~0 to reuse; written from zero each time it is the single most expensive line of the verify. (E6)
 
 ---
 
 ## Step 4: Act on the verdict
 
-- **PASS with out-of-scope Deviations** (a pre-existing failure the verifier reported in one line) → the verdict on the claim stands; the orchestrator files the Deviation as a spin-off issue with the verifier's line and does not widen the task.
+- **PASS with out-of-scope Deviations** (a pre-existing failure the verifier reported in one line) → the verdict on the claim stands; the spawning session files the Deviation as a spin-off issue with the verifier's line and does not widen the task.
 - **PASS** → attach evidence paths to the completion report. Only now may "done" be claimed (`verification-before-completion` still applies to the wording).
-- **FAIL** → this is Stop-the-Line. Hand the verifier's repro steps to a fresh fixer subagent (or `systematic-debugging` for non-obvious causes). Re-verify after the fix with a **new** fresh verifier. Cap: 3 verify-fix cycles, then stop and report to the user.
+- **FAIL** → this is Stop-the-Line. The session that built the change fixes it at the root from the verifier's repro steps (`systematic-debugging` for non-obvious causes). Re-verify after the fix with a **new** fresh verifier. Cap: 3 verify-fix cycles, then stop and report to the user.
 - **BLOCKED** → report the missing prerequisites to the user verbatim and record them in `VERIFICATION_ENV.md`. A BLOCKED verification is never silently skipped — the final report must say "verified: NO (blocked on X)".
 
 ---

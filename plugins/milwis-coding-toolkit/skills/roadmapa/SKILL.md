@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved autonomously one after another, without the owner watching — the issue queue: either an explicit list (`--issues 812,815`) or the backlog (bugs, missing tests, owner-approved ideas) by priority P0→P3 without end. One lead in tmux handles exactly one issue per session (a fresh triage subagent decides whether the bug exists, then a fresh general-purpose subagent runs task-lifecycle on its report), merges it into local main with the [roadmapa] marker and closes the issue; a watcher then ends the lead's process and starts a new lead session for the next. Builds new features from the backlog only when the owner validated them (`pomysl:zatwierdzony`); never pushes. Started by the owner: `scripts/kolejka.sh start`. For one issue with the owner present use task-lifecycle directly."
+description: "Use when GitHub issues must be resolved one after another without the owner watching: an explicit list (`--issues 812,815`) or the backlog by priority P0→P3. The owner starts it with `scripts/kolejka.sh start`."
 ---
 
 # Roadmapa — the issue queue
@@ -9,8 +9,10 @@ description: "Use when GitHub issues must be resolved autonomously one after ano
 > A project that vendors a copy into `.claude/skills/` gets it overwritten by its sync — change it upstream.
 
 **Core idea.** Quality degrades before a context window fills, so the work is split by context, not by
-time: every issue is triaged by a fresh subagent and solved by another fresh one (L2), and the lead that dispatches it lives for exactly
-one issue — after it, a watcher ends that claude process (`/exit`) and starts a new one in the same tmux pane
+time: the lead lives for exactly one issue. A fresh triage subagent decides whether the problem exists, the lead
+implements the fix itself in the queue worktree (planning, implementation and testing share one context), a fresh
+reviewer and a fresh verifier judge the tip, and `scal.sh` merges only what `bramka.sh` lets through. After the
+issue a watcher ends that claude process (`/exit`) and starts a new one in the same tmux pane
 (`lider.sh`, the start prompt as the first message). One issue = one session: its own entry in `/resume` and in
 Remote Control (named `kolejka #<issue>`), and the current plugin version. Everything that must survive
 lives outside any context: GitHub labels, `git` merges, a committed ledger, flag files.
@@ -61,8 +63,13 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
 - **Only an interactive session merges.** The lead runs as a normal `claude` in tmux, never `claude --bg`:
   `POMIAR` (waves E and G, 2026-09-08) — `git merge` from a background session bounces off the auto-mode
   classifier; the same merge in an interactive session passed (batch 2.3, 2026-09-15; scratch run 2026-09-24).
-- **One writer.** Only the lead merges into `main`, writes to the tracker and commits the ledger. Triage, L2 and its
-  specialists work on `agent/issue-<nr>` in the queue worktree and never merge, push, close or create issues.
+- **One writer.** Only the lead merges into `main`, writes to the tracker and commits the ledger. Its subagents
+  (triage, reviewer, verifier, an occasional builder) never merge, push, close or create issues.
+- **The merge is a script.** `scal.sh` runs `bramka.sh` first: commits on the branch, a clean worktree, the lead's
+  `done.`, the newest review on exactly the branch tip with 0 CRITICAL and 0 REQUIRED, the verification on the same
+  tip, a review of tier M or L for a diff on the project's sensitive paths, and the project's gate tests
+  (`## Bramka` in `docs/VERIFICATION_ENV.md`). The queue's PreToolUse hook (`hook-pre-tool.sh`) blocks a raw
+  `git merge` and `git push` in every queue process, and blocks the lead's own Write/Edit on the verdict files.
 - **One issue at a time**, each branch from the `main` that already contains the previous merge — so no
   two branches ever race for the same base.
 - **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41; ideas = `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).
@@ -98,26 +105,29 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
   committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
 
-The lead's procedure, the triage and L2 briefs, the report tokens and the stop conditions → `references/cykl-lidera.md`.
-It is the only file the lead reads; the `SessionStart` hook points to it.
+The lead's procedure, the triage brief, the review and verification contracts, the outcomes and the stop conditions →
+`references/cykl-lidera.md`. The lead reads it together with `task-lifecycle`; the `SessionStart` hook and the
+lead's appended system prompt (`lider.sh`) point to it, so it is read again after a compaction.
 
 ## Files
 
 | file | role |
 |---|---|
-| `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, triage + L2 briefs, dispatch, control, merge, close, ledger |
+| `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, triage brief, implementation, review and verification contracts, outcome, merge, close, ledger |
 | `references/evidence.md` | measurements behind the session-per-issue cycle (read when changing it, not at run time) |
 | `scripts/kolejka.sh` | owner's control: start / stop / status / lista / watcher |
 | `scripts/watcher.sh` | a new lead process (`/exit` + `respawn-pane`) after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
-| `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--settings`, session named after the issue, start prompt as the first message |
+| `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--effort` (`KOLEJKA_EFFORT`, high), claude.ai connectors off, `--settings`, the lead's appended system prompt, session named after the issue, start prompt as the first message |
+| `scripts/bramka.sh`, `scripts/scal.sh` | the merge gate and the only merge path (`SCALONO` / `BRAMKA` / `KONFLIKT`) |
+| `scripts/reguly.sh` | the project's rules files whose `paths:` match the branch diff, for the review brief |
 | `scripts/wybierz-issue.sh` | the picker: list source or backlog source |
 | `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
-| `scripts/hook-session-start.sh`, `scripts/hook-stop.sh`, `scripts/hook-stop-failure.sh` | hooks of the lead session only (passed with `--settings`); StopFailure marks a turn ended by an API error (`blad-api`) |
+| `scripts/hook-session-start.sh`, `scripts/hook-stop.sh`, `scripts/hook-stop-failure.sh`, `scripts/hook-pre-tool.sh` | hooks of the queue session only (passed with `--settings`); StopFailure marks a turn ended by an API error (`blad-api`); PreToolUse blocks raw merge/push and the lead's writes to verdict files |
 
-State: `<repo>/.claude/tmp/kolejka/` (config, flags, triage and L2 reports, `watcher.log`, `status-github.md` = last status body). Ledger:
-`docs/plans/kolejka-ledger.md` (committed, append-only). L2 worktree: `<repo>/.claude/worktrees/kolejka`.
+State: `<repo>/.claude/tmp/kolejka/` (config, flags, `stan-<N>.md`, triage, review, verification and lead reports, `watcher.log`, `status-github.md` = last status body). Ledger:
+`docs/plans/kolejka-ledger.md` (committed, append-only). Worktree: `<repo>/.claude/worktrees/kolejka`.
 
-## Measurement discipline (lead, L2, ledger)
+## Measurement discipline (lead, ledger)
 
 - Mark load-bearing sentences `POMIAR` (command or `file:line`) or `WNIOSEK` (conclusion). Before naming a
   measurement as the cause, run the measurement that would disprove it.
@@ -136,10 +146,19 @@ Tag `roadmapa-przed-konsolidacja` holds the previous version.
 
 - **Relay chain** (`claude --bg` generations, window thresholds, `hold`, handoff protocol, curator, wave
   numbering, two parallel waves) — a background session cannot merge (above), so every issue ended on a
-  branch waiting for the owner; not used since 2026-09-13, rejected by the owner on 2026-09-18. The
-  subagent window hooks in `~/.claude/hooks` stay: L2 relies on their own-window message for `partial.`.
+  branch waiting for the owner; not used since 2026-09-13, rejected by the owner on 2026-09-18.
 - **Orchestrator track, cloud track, `issue-pipeline`** (parallel issues in worktrees) — `POMIAR` (wave G,
   2026-09-08): six branches, each conflict-free against `main` alone, conflicted at the second merge; the
   shared dev database makes parallel DB-touching issues unsafe anyway. Used only in dry runs.
 - **Night queue** (one lead for a whole night with a `/loop` heartbeat) — the same engine as this queue but
   with one long-lived, compacting lead; `--issues` replaces it.
+
+## Removed on 2026-10-26 (v1.7.0) — do not rebuild
+
+Tag `przed-v1.7` holds the previous version.
+
+- **L2, the issue subagent that orchestrated builders.** The work moved to the lead: planning, implementation and
+  testing share one context, and the docs say to keep such work in the main conversation (sub-agents: "Multiple
+  phases share significant context"). The chain lead → L2 → builder re-read the same code at each level; the cost
+  breakdown is in the v1.7 plan of `milwis/claude-config`. Review and verification stay fresh subagents, and the
+  merge decision moved from judgement to `bramka.sh`.

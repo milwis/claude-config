@@ -1,6 +1,6 @@
 ---
 name: audit-360
-description: Comprehensive 360° code audit. Orchestrates parallel domain specialists from milwis-coding-toolkit (security, language experts, SQL, DB, architecture, AI-scrutiny, tests, dependencies), consolidates findings via code-reviewer (opus), reproduces P0 PoCs via debugger, self-reviews fix proposals against hallucinated APIs, and proposes agent updates from recurring patterns. Universal — adapts to any stack via audit/INVENTORY.md. Use when the user asks for "360 audit", "full code audit", "security review of project", "post-vibe-coding audit", "AI-generated code review", "pre-deploy audit", or runs after major sprints / quarterly cadence.
+description: "Use when the user asks for a 360° or full code audit, a security review of a whole project, a pre-deploy or post-vibe-coding audit, or a review of AI-generated code across the codebase."
 ---
 
 # Audit 360° (universal multi-stack code audit)
@@ -16,7 +16,7 @@ For any repository — regardless of language, framework, or domain:
 - `audit/REPORT.md` — consolidated report with P0/P1/P2 classification, cross-confirmation matrix, top risks, deploy recommendation, strengths
 - `audit/FIX_PROPOSALS.md` — diff-style fixes for every P0/P1, each with a TDD-style failing test
 - `audit/repro/P0-NNN.md` — PoC reproduction artefacts for every P0
-- `audit/AGENT_UPDATES.md` — proposed additions to specialist agents derived from recurring patterns (closes the feedback loop)
+- `audit/RULE_UPDATES.md` — proposed additions to the project's path-scoped rules derived from recurring patterns (closes the feedback loop)
 
 ## 1. Prerequisites — the specialist agents
 
@@ -24,20 +24,20 @@ This skill DELEGATES to the toolkit's specialist agents. Preferred source: the p
 
 Specialists are invoked via the `Agent` tool by bare name (`subagent_type: <name>`, no plugin prefix — plugin-scoped subagents do not register in the cloud).
 
-The **Model** column is the model the audit RUNS each specialist on. In frontmatter, writer agents default to `sonnet` and reviewer agents (`code-reviewer`, `backend-security-coder`, `refactoring-orchestrator`) to `opus`, so the orchestrator passes an explicit **`model: opus`** override on every `Agent` call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
+The **Model** column is the model the audit RUNS each specialist on. In frontmatter, `test-automator`, `debugger` and `database-optimizer` default to `sonnet` and the reviewers (`code-reviewer`, `backend-security-coder`, `refactoring-orchestrator`) to `opus`, so the orchestrator passes an explicit **`model: opus`** override on every `Agent` call in this skill. Audits are rare and quality-critical; uniform Opus here is deliberate (see the plugin README, "Model class").
 
 | # | Agent | Model | Domain | Prompt file |
 |---|-------|-------|--------|-------------|
 | 1 | `backend-security-coder` | opus | Three-tier security boundary (Always/Ask/Never) | `prompts/01-backend-security.md` |
-| 2 | `php-pro` | opus | PHP — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
-| 3 | `python-pro` | opus | Python — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with python-pro categories) |
-| 4 | `javascript-pro` | opus | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
-| 5 | `sql-pro` | opus | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
+| 2 | `code-reviewer` (PHP pass) | opus | PHP — strict types, OWASP, AI anti-patterns | `prompts/02-php-pro.md` |
+| 3 | `code-reviewer` (Python pass) | opus | Python — type safety, async, security | (use the same skeleton as `02-php-pro.md`, with Python categories) |
+| 4 | `code-reviewer` (JS/TS pass) | opus | JS/TS — XSS, async, npm supply chain | `prompts/03-javascript-pro.md` |
+| 5 | `code-reviewer` (SQL pass) | opus | SQL injection, NULL handling, dialect, immutability | `prompts/04-sql-pro.md` |
 | 6 | `database-optimizer` | opus | Indexes, N+1, query plans, schema, partitioning | `prompts/05-database-optimizer.md` |
 | 7 | `refactoring-orchestrator` (read-only audit mode) | opus | Architecture, complexity, dead code | `prompts/06-refactoring-orchestrator.md` |
 | 8 | `code-reviewer` | opus | AI-specific deep scrutiny | `prompts/07-code-reviewer-ai.md` |
 | 9 | `test-automator` | opus | Coverage, test quality, anti-patterns | `prompts/08-test-automator.md` |
-| 10 | `<lang>-pro` (2nd pass) | opus | Dependencies + docs | `prompts/09-deps-docs.md` |
+| 10 | `code-reviewer` (deps + docs pass) | opus | Dependencies + docs | `prompts/09-deps-docs.md` |
 | 11 | `code-reviewer` | opus | Consolidation | `prompts/10-consolidator.md` |
 | 12 | `debugger` | opus | PoC reproduction (one call per P0) | `prompts/11-debugger-repro.md` |
 | 13 | `code-reviewer` | opus | Self-review (forked instance) | `prompts/12-self-review.md` |
@@ -123,11 +123,11 @@ Specialist selection adapts to the stack detected in INVENTORY:
 
 | Always spawn (every audit) | Conditional |
 |---|---|
-| `backend-security-coder` (`prompts/01-backend-security.md`) | `php-pro` (`prompts/02-php-pro.md`) — if `*.php` files present |
-| `code-reviewer` AI-scrutiny pass (`prompts/07-code-reviewer-ai.md`) | `python-pro` — if `*.py` files present |
-| `test-automator` (`prompts/08-test-automator.md`) | `javascript-pro` (`prompts/03-javascript-pro.md`) — if `*.js`/`*.ts` |
-| `sql-pro` (`prompts/04-sql-pro.md`) — if any DB queries detected | `refactoring-orchestrator` (`prompts/06-refactoring-orchestrator.md`) — if codebase >5k LOC OR any file >1500 LOC |
-| `database-optimizer` (`prompts/05-database-optimizer.md`) — if any DB present | second pass of the project's primary language specialist for `dependencies + docs` (`prompts/09-deps-docs.md`) |
+| `backend-security-coder` (`prompts/01-backend-security.md`) | PHP pass (`prompts/02-php-pro.md`) — if `*.php` files present |
+| `code-reviewer` AI-scrutiny pass (`prompts/07-code-reviewer-ai.md`) | Python pass — if `*.py` files present |
+| `test-automator` (`prompts/08-test-automator.md`) | JS/TS pass (`prompts/03-javascript-pro.md`) — if `*.js`/`*.ts` |
+| SQL pass (`prompts/04-sql-pro.md`) — if any DB queries detected | `refactoring-orchestrator` (`prompts/06-refactoring-orchestrator.md`) — if codebase >5k LOC OR any file >1500 LOC |
+| `database-optimizer` (`prompts/05-database-optimizer.md`) — if any DB present | `dependencies + docs` pass (`prompts/09-deps-docs.md`) |
 
 Each specialist writes to `audit/findings/NN-<area>.md` with a unique ID prefix (`SEC-BE-`, `PHP-`, `JS-`, `SQL-`, `DB-`, `ARCH-`, `AI-`, `TEST-`, `DEP-`, …) and follows the finding format from §7.
 
@@ -179,26 +179,26 @@ Show output to the user. Without this, the audit is not "done".
 
 Also write `audit/RUN_META.md`: start/end timestamps, number of `Agent` invocations per step, models used, and a **per-specialist state table** — `specialist | state | calls | tokens (if known) | note` with state ∈ `completed` / `truncated(budget)` (checkpoint present in its findings file) / `failed(<class>: timeout, context, tool, other)` / `reused` (resumed from a previous run). The audit's terminal state derives from that table: all `completed` → complete; any `truncated` → complete-with-gaps (list the Pending sections); any `failed` → the step is re-run or the gap is named in REPORT §1 — never "done" over a failed specialist. Any lost/failed/restarted pass is recorded **with its approximate cost**; a consolidation pass that fails or is redone MUST be here — "run 1 lost without record" must never happen again. Compare the actuals against the STEP 1 estimate (item 13) — that delta is the next audit's estimate. This file is how the user learns what the audit cost and where the budget went.
 
-### STEP 8 — Feedback loop: propose agent updates
+### STEP 8 — Feedback loop: propose rule updates
 
-This step closes the loop between findings and the agents that should have prevented them.
+This step closes the loop between findings and the rules that should have prevented them. The writing agents are goal-only and follow the project's own rules, so a recurring pattern is fixed in those rules: a `.claude/rules/*.md` file whose `paths:` cover the files where it occurred (it then reaches every session and subagent that opens such a file), not in an agent definition.
 
-For each pattern observed ≥ 2× in the consolidated report (e.g., "21 occurrences of `lastInsertId()` without `(int)` cast", "7 occurrences of direct UPDATE bypassing the canonical service"), produce `audit/AGENT_UPDATES.md` with:
+For each pattern observed ≥ 2× in the consolidated report (e.g., "21 occurrences of `lastInsertId()` without `(int)` cast", "7 occurrences of direct UPDATE bypassing the canonical service"), produce `audit/RULE_UPDATES.md` with:
 
 ```
 ## Pattern: <one-line description>
 
 **Observed**: NN occurrences in <files>
 **Severity in audit**: P0 / P1 / P2
-**Target agent(s)**: php-pro, sql-pro, javascript-pro, …
-**Proposed addition** (drop-in markdown for the agent):
+**Target rules file**: `.claude/rules/<file>.md` (existing or new) and its `paths:` globs
+**Proposed addition** (drop-in markdown for the rules file; a gotcha, not a style guide):
 
    <ready-to-paste section>
 
-**Rationale**: why the agent should have caught this before the code shipped
+**Rationale**: why the rule would have caught this before the code shipped
 ```
 
-Present the file to the user and ASK whether to apply the updates. Do not modify any agent without explicit approval. The file itself is a useful audit artefact even when the user declines.
+Present the file to the user and ASK whether to apply the updates. Do not modify any rules file without explicit approval. The file itself is a useful audit artefact even when the user declines.
 
 ## 4. Common rules for every specialist
 
@@ -345,7 +345,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 - audit/FIX_PROPOSALS.md
 - audit/repro/P0-*.md
 - audit/INVENTORY.md
-- audit/AGENT_UPDATES.md (STEP 8 output)
+- audit/RULE_UPDATES.md (STEP 8 output)
 - audit/DROPPED.md (STEP 4 drop log — may be empty, must exist)
 - audit/RUN_META.md
 
@@ -375,7 +375,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 10. **Self-review is mandatory**: STEP 6 — fresh forked `code-reviewer` checks the consolidator's work.
 11. **Both self-checks are mandatory**: STEP 4 CHECK A (numeric) + STEP 6 (d) (hallucinated APIs). Both have caught 30%+ defects in the report itself in real audits.
 11a. **Nothing disappears silently**: a specialist finding ends in REPORT or in DROPPED.md — the self-review reconciles the id sets. Budget overrun ends in a `## Checkpoint`, not in a shrug.
-12. **Feedback loop is the deliverable**: STEP 8 — without `audit/AGENT_UPDATES.md` the audit doesn't help future code.
+12. **Feedback loop is the deliverable**: STEP 8 — without `audit/RULE_UPDATES.md` the audit doesn't help future code.
 13. **Skill announcement**: the main agent says "Running the audit-360 skill..." at start (marketplace skill convention).
 
 ## 10. Limitations and known false-positive patterns
@@ -404,7 +404,7 @@ The main agent:
 8. **STEP 5** — `prompts/11-debugger-repro.md` per each P0.
 9. **STEP 6** — self-review via `prompts/12-self-review.md`.
 10. **STEP 7** — `verification-before-completion` before presenting.
-11. **STEP 8** — produce `audit/AGENT_UPDATES.md`; ASK whether to apply updates.
+11. **STEP 8** — produce `audit/RULE_UPDATES.md`; ASK whether to apply updates.
 12. Output to user: report path + executive summary + GO/NO-GO + % of P0 reproduced + list of agent updates pending approval.
 13. **Remediation handoff (optional, on user approval):** offer to convert P0/P1 findings into GitHub issues (`gh issue create` — one per finding, body = finding + fix proposal + repro path) with `typ:*` and `P*` labels, so the `roadmapa` queue picks them up by priority. Its issue subagent re-triages every finding against HEAD before work starts, so the handoff is safe even days after the audit.
 

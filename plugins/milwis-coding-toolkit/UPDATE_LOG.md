@@ -1,11 +1,57 @@
 # Update Log
 
-> **MAINTENANCE POLICY (obowiązuje rutynę miesięczną — od 2026-08-19, przepisana 2026-10-26 w v1.6.0):**
-> 1. **Nie zmieniaj frontmatter `model:`** — podział jest celowy: `sonnet` dla agentów piszących, `opus` dla code-reviewer / backend-security-coder / refactoring-orchestrator. Audyty (audit-360) i tak spawnują specjalistów z override `model: opus` — patrz SKILL.md §1.
-> 2. **Agenci zawierają cel, nie reguły (od v1.6.0).** Piszący: cel, „reguły projektu wiążą”, precedens zamiast pytania, decyzje odporne na kompakcję, definicja „gotowe” — do 3 KB. `code-reviewer` (do 6 KB) i `backend-security-coder` (do 3 KB): cel, obowiązek wczytania reguł projektu dla dotkniętych ścieżek, progi S/M/L i kontrakt raportu. **Nie dopisuj do agentów reguł, list błędów AI, sekcji frameworkowych ani „newsowych”.** Reguła sprawdzalna maszynowo trafia do testu, zapadki albo linta projektu. Reguła domenowa trafia do `.claude/rules/*.md` z `paths:` albo do `CLAUDE.md` projektu, z precedensem w repo. Reguła procesu trafia do szablonu briefu w skillu (task-lifecycle, verify-e2e). Wiedzy ogólnej o języku nie zapisuj nigdzie.
+> **MAINTENANCE POLICY (obowiązuje rutynę miesięczną — od 2026-08-19, przepisana 2026-10-26 w v1.6.0, uzupełniona w v1.7.0):**
+> 1. **Nie zmieniaj frontmatter `model:`** — podział jest celowy: `sonnet` dla `builder`, `test-automator`, `debugger`, `database-optimizer`; `opus` dla code-reviewer / backend-security-coder / refactoring-orchestrator. Lider kolejki: `opus`, `--effort high` (`kolejka.sh`). Audyty (audit-360) i tak spawnują specjalistów z override `model: opus` — patrz SKILL.md §1.
+> 2. **Agenci zawierają cel, nie reguły (od v1.6.0).** Od v1.7.0 kod pisze sesja, która trzyma zadanie; podagent tylko dla osobnego kontekstu (recenzja, weryfikacja, śledztwo, przeszukanie, niezależne duże zadanie). Jeden `builder` dla wszystkich języków — nie twórz agentów językowych. Piszący: cel, „reguły projektu wiążą”, precedens zamiast pytania, decyzje odporne na kompakcję, definicja „gotowe” — do 3 KB. `code-reviewer` (do 6 KB) i `backend-security-coder` (do 3 KB): cel, obowiązek wczytania reguł projektu dla dotkniętych ścieżek, progi S/M/L i kontrakt raportu. **Nie dopisuj do agentów reguł, list błędów AI, sekcji frameworkowych ani „newsowych”.** Reguła sprawdzalna maszynowo trafia do testu, zapadki albo linta projektu. Reguła domenowa trafia do `.claude/rules/*.md` z `paths:` albo do `CLAUDE.md` projektu, z precedensem w repo. Reguła procesu trafia do szablonu briefu w skillu (task-lifecycle, verify-e2e). Wiedzy ogólnej o języku nie zapisuj nigdzie.
 > 3. **Skill nie działa wewnątrz podagenta.** Nie pisz „skill X obowiązuje w agencie”. Reguła ze skilla dociera do podagenta wyłącznie jako linia briefu (`POMIAR`: builderzy wczytali skill 0/278 razy).
-> 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
+> 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
+
+## Run: 2026-10-26 — lider implementuje, jeden builder, bramka scalania (v1.7.0)
+
+Decyzje właściciela (2026-10-26):
+- L2 znika: lider kolejki sam implementuje issue;
+- sześciu agentów językowych zastępuje jeden `builder`, używany tylko do niezależnego dużego zadania;
+- builder żyje w obrębie jednego issue, zamknięcie issue kończy wszystkich agentów;
+- „dostosuj workflow do nowych wytycznych, ale nie kosztem jakości kodu”.
+
+Źródła: dokumentacja Claude Code (podagenci, skille, hooki), wywiady inżynierów Anthropic dla Opus/Sonnet 5.5, przegląd skilli z GitHuba (raporty w scratchpadzie sesji), pomiar E29.
+
+- **Kolejka (`roadmapa`):**
+  - lider (`opus`, `--effort high`) implementuje z `task-lifecycle`; świeże podagenty: triage, recenzja (`code-reviewer`, `opus`, nowy co rundę), weryfikacja (`test-automator`, `sonnet`);
+  - werdykty w plikach `recenzja-<N>-<k>.md` (`SHA:`, `Tier:`, `Otwarte:`) i `weryfikacja-<N>-<k>.md` (`VERDICT:`, `SHA:`);
+  - scalanie tylko przez `scal.sh`, który najpierw uruchamia `bramka.sh` (gałąź, czysty worktree, raport `done.`, recenzja na tipie bez CRITICAL/REQUIRED, weryfikacja zgodna z raportem, ścieżki wrażliwe wymagają tieru M/L, testy z sekcji `## Bramka` w `docs/VERIFICATION_ENV.md`);
+  - `hook-pre-tool.sh` blokuje surowe `git merge`/`git push` w procesach kolejki i zapis lidera do plików werdyktów;
+  - `reguly.sh` podaje recenzentowi pliki `.claude/rules` pasujące do diffu (dotąd docierały w 22/235 recenzji);
+  - `--append-system-prompt` lidera: po kompakcji przeczytaj zasady i `stan-<N>.md`; akapit dokumentacji Opus 5.5 o pracy bez nadzoru;
+  - watcher wysyła do 2 kontynuacji, gdy tura skończyła się bez flagi;
+  - `ENABLE_CLAUDEAI_MCP_SERVERS=false`; `MODEL_L2` usunięte, `KOLEJKA_MODEL_LIDER` (opus) i `KOLEJKA_EFFORT` (high). `--effort` nadpisuje `effortLevel: xhigh` z ustawień użytkownika.
+- **`task-lifecycle`:** sesja implementuje, podagenci tylko do przeszukania, recenzji, weryfikacji i niezależnego zadania.
+  - `SKILL.md` 39 KB → 11 KB; limity, klasy rozmiaru i twarde reguły na początku;
+  - nowe `references/implementacja.md` (reguły dla piszącego, ekonomia testów, dowody poprawek, kontrakt raportu) i `references/briefy.md` (briefy Explore, builder, recenzja, weryfikacja);
+  - usunięte: „orchestrator writes no code”, SendMessage do nazwanego orkiestratora (E28), ciepłe czekanie buildera i orkiestratora, „Announce at start”;
+  - opis skilla tylko jako wyzwalacz (był „cap 3” sprzeczny z limitem 2/3).
+- **Agenci:**
+  - nowy `builder` (sonnet, sam cel);
+  - usunięci: `php-pro`, `javascript-pro`, `nextjs-pro`, `python-pro`, `sql-pro`, `mobile-pwa-developer`;
+  - `refactoring-orchestrator` 19 KB → 3,2 KB: wykonuje refaktor sam, w jednym kontekście, z trybem audytu read-only;
+  - opisy ≤ 200 znaków; `Skill` usunięty z narzędzi agentów, w których się nie ładował;
+  - `code-reviewer`: linia `Otwarte: <n> CRITICAL, <m> REQUIRED` czytana przez bramkę.
+- **Skille:**
+  - `executingplans`: DIRECT (ta sesja) domyślnie, `builder` tylko dla niezależnego zbioru zadań;
+  - `writingplans`, `migration`, `verify-e2e`, `retro`, `nowe-issue`, `resolving-merge-conflicts`: odwołania do L2, fixera i agentów językowych;
+  - `audit-360`: przebiegi językowe i deps+docs robi `code-reviewer` z dotychczasowymi promptami; STEP 8 proponuje reguły projektu (`audit/RULE_UPDATES.md`) zamiast zmian w agentach;
+  - `new-project`: tabela routingu dla zadań z własnym kontekstem;
+  - `lang-guidelines`: tylko kandydaci na reguły `.claude/rules`; `references/agent-template.md` usunięty;
+  - opisy `verify-e2e`, `migration`, `audit-360`, `nowe-issue` i `resolving-merge-conflicts` tylko jako wyzwalacz (≤ 250 znaków; opis `audit-360` mówił jeszcze o ekspertach językowych).
+- **`POMIAR` (2026-10-26):** bramka w 6 scenariuszach, linia `Otwarte` w 4, hook w 14 przypadkach; `scal.sh` przeszedł klasyfikator trybu auto w sesji tmux (`SCALONO e8e8c08`), surowy merge zablokowany (`roadmapa/references/evidence.md`).
+- **Do zmierzenia po ~20 issue nowej metody:**
+  - koszt na issue (mediana) vs 3,46M przy jednym builderze (E29);
+  - okno lidera na issue Large i liczba kompakcji;
+  - rundy review na issue i powody `BRAK:` z bramki;
+  - kontynuacje watchera (ile tur kończy się bez flagi);
+  - udział kosztu przed pierwszym `Edit`.
+- **Otwarte decyzje właściciela:** `disable-model-invocation` dla `audit-360`/`new-project`/`lang-guidelines`; usunięcie „Announce at start” i WERSALIKÓW z pozostałych skilli (A/B); `skills:` w frontmatter agentów; historia „Removed” poza treścią skilli; sweep effortu dla `builder` na Sonnet 5.5.
 
 ## Run: 2026-10-26 — cały toolkit: cel zamiast metody, jeden builder na issue (v1.6.0)
 

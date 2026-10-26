@@ -1,9 +1,9 @@
-# Prompt for `sql-pro` — injection, queries, dialect, immutability
+# Prompt for the SQL pass (`code-reviewer`) — injection, queries, dialect, immutability
 
 Paste the body below as the `prompt` parameter. Replace `<INVENTORY_PATH>`.
 
 ```
-subagent_type: sql-pro
+subagent_type: code-reviewer
 description: SQL audit — injection, NULL, dialect, destructive ops, immutability
 prompt: |
   You are auditing every SQL query in the application described in

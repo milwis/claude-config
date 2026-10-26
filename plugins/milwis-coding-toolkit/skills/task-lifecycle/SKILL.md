@@ -1,137 +1,180 @@
 ---
 name: task-lifecycle
-description: "Use when implementing a complete feature, bugfix, or issue end-to-end with minimal supervision — the full autonomous cycle: build (one builder subagent, which also updates the docs) → code review loop with security inside it, fixes by the same builder kept warm (cap 3) → e2e verification (verify-e2e, fresh subagent) → report package for the user. The main session acts as ORCHESTRATOR and never writes code itself. Input: a spec or issue. Output: reviewed, verified change + evidence, ready for the user's merge/push decision."
+description: "Use when implementing a feature, bugfix or issue end to end with little supervision, through a fresh review and a fresh verification to a report the user can merge from."
 ---
 
-# Task Lifecycle (orchestrated build → review → fix → verify → report)
+# Task Lifecycle
 
-**Core:** The main session coordinates; ALL substantive work happens in subagents. The user reviews the final package (diff + evidence + open items), not the process. Every loop has a hard cap.
+**Goal.** The change does what the spec asks and nothing it does not ask. Tests that can fail prove it. A fresh
+reviewer leaves nothing CRITICAL or REQUIRED on the final commit, and the surface a user touches is verified. The
+user gets one report to decide on. Merge, push and deploy are always the user's decision.
 
-**Announce at start:** "I'm using the task-lifecycle skill."
+**This session implements.** Planning, implementation and testing share one context, so they stay in the session
+that holds it. A chain of agents re-reads at every hand-off what the previous agent had already read (E29).
+Subagents do four jobs only:
+1. a broad search or a sweep: `Explore`;
+2. the review: a fresh `code-reviewer`;
+3. the verification: a fresh `test-automator` with a `verify-e2e` brief;
+4. a sizeable task that is genuinely independent of the rest: `builder`.
 
-Every rule below was paid for in a measured batch; `E<n>` points to that evidence in `references/evidence.md`. Read it only when you question or change a rule — the rule text alone is binding.
+Every `E<n>` points to the measurement behind a rule in `references/evidence.md`. Read it only when you question
+or change a rule; the rule text alone binds.
 
----
+## Limits
 
-## Pipeline overview
+These hold even when everything else in this file has been summarised away.
 
-```
-INPUT: spec / issue / user request
-  │
-  ├─ 0. Intake: classify size, pick branch strategy
-  ├─ 1. BUILD        — ONE builder subagent, all layers, docs included  [via executingplans for planned work]
-  │       reports, then waits warm for the review result
-  ├─ 2. REVIEW LOOP  — code-reviewer subagent (security included when triggers match)
-  │       findings CRITICAL/REQUIRED → the warm builder fixes → fresh re-review
-  │       repeat ≤ 3×; OPTIONAL / NIT / FYI / uncertain → collect for report, do NOT auto-fix
-  │       loop over → STOP to the builder
-  ├─ 3. SECURITY     — inside Step 2 (no separate agent)
-  ├─ 4. VERIFY       — verify-e2e skill in a FRESH subagent
-  │       FAIL → fix via a fresh fixer → re-verify (≤ 3×); BLOCKED → record gap, report
-  └─ 5. REPORT       — one package: what/why, review iterations, evidence, open items
-OUTPUT: verified change on a branch + evidence — user decides merge/push/deploy
-```
+- **Review rounds:** 2 for Standard and 3 for Large, never more than 3. Small gets one narrow pass and a
+  re-review only for a CRITICAL finding.
+- **Verification rounds:** 3.
+- **One defect, three failed fixes:** stop and list the attempts. Outcome: `ambiguous. ask: <question>`.
+- **A limit reached:** stop and report what remains and why it persists. Never widen the scope to make it pass,
+  never carry review or security debt silently.
+- **Never merge, push or deploy.** If the project's tracker uses a done label (e.g. "to be merged"), adding it is
+  the only tracker write.
 
----
+## Size classes
 
-## Step 0: Intake
+Classify at intake. Check the class again against the real diff before the review: a diff that touches money/VAT,
+auth/permissions or regulated data is never Trivial or Small, whatever was predicted. When the project lists
+sensitive paths (the queue's `## Bramka` section), those count too.
 
-1. Restate the task in 1-2 sentences; if the spec is ambiguous on something that changes the implementation, ask now — never mid-pipeline.
-2. Classify size:
-   - **Trivial** (copy, CSS, config, docs; **also a test-only diff ≤ 10 lines whose proof is a one-command mutation probe** — a new latch entry, a fixture row, a deleted tautological assertion) — skip to Step 1, DIRECT edit allowed (per `executingplans` DIRECT rules), then jump to Step 4. For the test-only case the DIRECT edit is legitimate ONLY with the mutation probe run and its RED/GREEN line quoted in the report; without the probe it is a Small task. Inline with the probe costs ~2k tokens against a ≥40k builder spawn (`references/evidence.md` E1).
-   - **Small** (single coherent fix, expected diff < 30 lines, ≤ 2 files, NOT touching money/VAT, auth/permissions, or regulated data) — one builder subagent, then ONE review pass (no loop; findings fixed once, no re-review unless CRITICAL). Step 4 only if a user-facing surface changed. This class exists to stop 8-line fixes from paying the full-pipeline cost. **Small has a builder call budget of ~50 tool calls**, stated in the brief; a "does this defect class occur elsewhere" sweep is NOT the builder's job — it is either a separate `Explore` brief (`model: sonnet`, ≤ 20 calls, report the hits only) or the brief says "one grep, report the hits, do not dig". A sweep inside the builder produces spin-off findings in the most expensive context available (E2). **The Small review pass is NARROW:** the brief carries the diff stat plus 3–4 two-sided questions specific to the change ("does X hold or not-X — what decides it"), `code-reviewer` on opus, tier S on its side, expected ≤ 15 calls. (E3) Sensitive modules are excluded by the class definition, so the narrow form never meets them. If the project's own review threshold (CLAUDE.md) exempts a diff of this size outside sensitive modules from the reviewer agent, the builder's self-audit checklist replaces the review pass — the project rule wins over this generic one. **Small tasks whose diff is test-only, or whose production diff is ≤ 10 lines outside sensitive modules, skip Step 4 entirely:** the builder's self-audit plus the targeted run IS the verification, and a fresh verifier would re-derive the same two commands for a 30k spawn. Step 4 stays mandatory the moment a user-facing surface changes.
-   - **Standard** (single feature/bugfix, one coherent change) — Step 1 with one builder subagent.
-   - **Large** (multi-task, 3+ modules, needs design — or the project's own decision tree routes it to a written plan, e.g. more than 3 implementation steps, a regulated/financial domain) — route through `brainstorming` → `writingplans` → `executingplans` for the build; this skill then owns Steps 2-5 on the combined result.
-3. **Task context block (mandatory for Standard/Large):** at intake write a short context block — target files, canonical paths/services for any variant work, decisions already made, hard constraints ("do NOT touch X"). Paste it into EVERY subagent prompt in this lifecycle. Before each review iteration, append the previous iteration's findings + what was changed — reviewer N must know what reviewer N-1 found. Subagents rediscovering the project from scratch is both the main token cost and a source of contradictory decisions. Every number and fact in the block — and in every later brief — comes from a command executed in this turn, quoted next to it, never from memory or an earlier turn; a false number in a brief is an anchor the subagent pays to unlearn (E4).
-4. **Branch strategy:** if the project deploys from its main branch (deploy gate on push), create a feature branch first — `agent/<slug>` or `agent/issue-<n>`. Autonomous work must never have a direct path to production. Merge/push to main is ALWAYS the user's decision. If this lifecycle runs outside the main tree (the roadmapa queue's worktree, or any parallel work), it runs in its OWN worktree — a branch cannot share a working tree with another branch — and every command in every subagent prompt uses absolute paths under that worktree (the session cwd stays in the main tree). Apply the project's worktree checklist (missing `.env`, build flags, `node_modules`, tool binaries) before the first test run — a worktree without it produces a false baseline.
+| class | what it is | review | verification |
+|---|---|---|---|
+| **Trivial** | copy, CSS, config, docs; or a test-only diff ≤ 10 lines proven by ONE executed mutation probe (RED/GREEN quoted). Without the probe it is Small (E1) | none | only if a surface changed |
+| **Small** | one coherent fix, < 30 lines expected, ≤ 2 files, outside the sensitive areas | one NARROW pass (E3). When the project's own threshold (CLAUDE.md) exempts a diff this size from review, the self-audit checklist replaces it | only if a surface changed; a test-only diff, or ≤ 10 production lines, skips it |
+| **Standard** | one coherent feature or fix | the loop, 2 rounds | Step 4 |
+| **Large** | 3+ modules, needs design, or the project's decision tree asks for a written plan (> 3 implementation steps, a regulated or financial domain) | the loop, 3 rounds | Step 4 |
 
-## Step 1: Build (in a subagent)
-
-- **One builder per issue.** Pick its type by the layer that holds most of the change, per the `executingplans` agent table (php-pro / javascript-pro / sql-pro / ...). When unsure → a builder agent, not DIRECT. A brief spanning layers (SQL migration + PHP service + JS front) goes to that one builder: it does the layers in dependency order and commits at each layer boundary. Splitting by layer made every builder re-read what the previous one had read, and it doubled the review and fix rounds (E29, which supersedes E5). An issue too big for one builder is a `too-big. split:` report, not a split by layer.
-- **The builder keeps the docs true.** A doc the change makes stale (a flow description, a module doc, a runbook, a troubleshooting entry) is updated by the builder in the same commit as the code. The brief names the project's doc map when the project has one, and the report lists the doc files changed or says `docs: none stale` with the check that shows it. There is no separate documentation agent in this lifecycle.
-- **A Standard/Large builder brief orders the work write-first, and a builder has no self-assessed context budget.** The brief says, as text: "the first edit lands before the third file you open beyond the ones named here; commit in stages; a stop for context is legitimate ONLY after the relay hook's own-window message (`RELAY_SUB_WARN`, quoted verbatim in the report) — never on your own estimate". The brief's measured anchors (`file:line`, counts, the decisions already taken) exist so the builder does not repeat the investigation; a builder that starts by reading is re-deriving them. A report with zero lines of code and "context exhausted" as the reason, without the hook message, violates the hard-rule-8 contract: the orchestrator does not resume the builder (hard rule 6) — it takes whatever `MEASURED` findings the report carries as anchors into a fresh brief that also says "start by writing". The cost sits in the ordering, not in the task (E6).
-- The builder prompt is self-contained: task block, exact files, acceptance criteria, canon references for variant paths — and for every "copy pattern X" instruction **the latch that guards X** (the test that goes red when X is broken), with the requirement that the copy carries its own latch (E7), "do NOT touch X" where relevant — and, when this orchestrator is itself a named subagent, its agent name with the instruction to deliver the final report via `SendMessage` to that name (see hard rule 7). When the orchestrator is the top-level session, subagent reports arrive as task-notifications on their own — do not ask for SendMessage to a name that does not exist.
-- **A skill does not reach a subagent by its name.** Builders loaded a skill in 0 of 278 queue runs, even when the brief named it; the project's path-scoped rules (`.claude/rules/*.md` with `paths:`) do reach them, attached when they open a matching file (E29). So what the discipline skills demand goes into the brief as lines: new behaviour gets a test that was seen red first (`test-driven-development`); a failure gets its root cause at `file:line` before any fix, and three failed fixes of one defect stop the builder with `ambiguous. ask:` listing the attempts (`systematic-debugging`); a diff that changes a persisted or public shape (schema, data, API, config, dependency major) does only the requested stage and never performs Contract implicitly (`migration`).
-- **Verification-type briefs are two-sided.** "Establish whether X or not-X, and name what decides it" — never "check whether X". A confirmation-shaped brief makes a subagent confirm a false thesis while holding its disproof in its own context (E8). Every subagent report labels load-bearing claims MEASURED (command / file:line) or INFERRED; the orchestrator treats an INFERRED link under a CONFIRMED claim as unverified.
-- **A latch/test brief names its properties, and the report carries a MUTANT TABLE — one row per named property** (`property | mutant <sed> | expected RED | result | command`); a property without a row is SKIPPED and the report is incomplete. A builder proving a latch with mutants it picks itself picks the easiest — the branch that already works. (E9) Checklist the brief passes on for a latch: lists in a frozen baseline compared by content, thresholds per tree/unit, and every test has an input on which it can fail. **The mutant is EXECUTED, never narrated:** if the project's probe script (`scripts/mutation-probe.sh` or equivalent) does not fit the file after ONE attempt, the builder builds an ad-hoc harness — copy of the file + `--bootstrap` / `-d` / env override — and runs it; a row whose result is "would fail" without the quoted red output is not a row, and the report goes back. (E10)
-- **The brief caps documentation in production code, says where the derivation goes, and names a template test.** "Docblock ≤ 10 lines in production code and on any single test method; the full derivation (the measured race, the counts behind a threshold, library line numbers, why the alternative fails, the mine for the next task) goes into the TEST FILE's header block — the class docblock or the docblock of the constant it explains — which has no line cap and in exchange carries only commands with their results, `file:line` anchors and named mines". **The cap is verified where it applies:** the longest run of added comment lines in `git diff <base>..<tip> -- <production trees>` (and, inside a test file, from the first `function` onward) — never the same awk over the whole diff, which measures the header the rule itself points at; an unscoped check turns a held rule into a standing violation report (E11) — and, when the task needs a test of a kind the repo already has once (a real library loaded in jsdom, a live-DB parity test, an A/B route test), the brief passes the path of that existing test as the template. (E12)
-- **A test against a live database asserts on rows it wrote itself, never on what the dev dump happens to contain.** The brief for such a test carries the rule as text: seed your own fixture (in a transaction with rollback, or with the project's run marker), assert on that fixture, and a `markTestSkipped` (or an early return) whose condition depends on the contents of the database is forbidden — a test that passes or does not exist depending on who last loaded the dump is a lottery, not a test. Skips stay legitimate only for infrastructure (host unreachable, missing opt-in variable). Projects that police this shape statically have a **test-corpus latch** — a test that scans `tests/` as text (a skip registry, a raw-PDO budget, an unconditional-skip scanner) — and it goes red from the builder's new file without ever referencing the builder's symbols, so the symbol-based targeted run of Step 2.5 cannot find it: the brief names those latches (`--filter '<A|B|C>'`, ≈ 2k tokens, under 10 s) and the builder runs them before the report whenever its diff adds, removes or changes a test file or a skip call. The class is cheap when caught by the builder and expensive when caught by the suite (E13).
-- **A decision with a documented precedent in the repo is the builder's to take, not to return.** When the standards, `incident-lessons`, a runbook or an existing migration already use the idiom (e.g. `SET FOREIGN_KEY_CHECKS=0/1` around an `ALTER` on a referenced column), the builder applies it and cites the precedent in its report; `ambiguous. ask:` is reserved for no precedent or conflicting ones. (E14)
-- **Every builder, fixer and verifier brief carries the "classifier-safe commands" block.** In auto mode the permission classifier bounces `cp` and `rm`, and a subagent that gets bounced improvises — measured to be worse than the bounce itself. The block: copies via `cat <file> > .claude/tmp/<name>` (a redirect, not `cp`); restore via `cat .claude/tmp/<name> > <file>` and confirm with `diff` (never `git checkout --`/`git restore` — the file may be shared, memory `zakaz-w-prompcie-to-nie-zapadka`); no `rm` outside `.claude/tmp/`; no `mv` of a tracked or generated artefact. (E15)
-- **Brief checklist — a rule from this step reaches the builder only as a line in the brief, never as a reference to this skill.** Before the spawn the orchestrator confirms the brief carries, as text: the task context block; the numbered items the report will walk as `DONE`/`SKIPPED`; the call budget; for every "copy pattern X" the latch of X; for a latch/test the property list; the docblock cap WITH its scope (production code and single test methods; the test file's header is where the derivation goes) and the template test path; for a live-DB test the own-fixture rule and the project's test-corpus latch filter; for a diff that adds or removes a route, controller method, endpoint or other counted artefact the project's counter-latch filter plus the ratchet-down-in-the-same-commit instruction; for a diff touching the source of a generated artefact the generator command plus the regenerate-in-the-same-commit instruction; for a Standard/Large builder the write-first line (first edit before the third unnamed file, staged commits, no self-declared context stop); the discipline lines (red test first, root cause first, requested migration stage only); the docs line with the project's doc map; the warm-wait block when this orchestrator is a named subagent; the classifier-safe block; the report contract (hard rule 8) and the `SendMessage` target when one exists. A line the orchestrator cannot fill is written as `skipped: <reason>`, not left out. The same checklist governs a FIXER brief and a fix message to the warm builder, plus the new-surface mutant rule of Step 2.2 — a fixer is a builder with a narrower task, not a builder exempt from proof. A rule absent from the brief is a rule not applied (E16).
-- **The builder waits warm for the review.** When this orchestrator is itself a named subagent, the builder brief carries this block as text: "After you send the report, do not end your turn. Wait in Bash, `sleep 270` with `timeout: 300000`, one call per step and nothing else in between; a message from the orchestrator arrives with the next tool result. Findings → fix them under the same rules, commit, report again, wait again. `STOP` → end your turn. No message after 6 steps → end your turn. When the relay hook has warned you about your own window (`RELAY_SUB_WARN`), end your turn after the report instead of waiting." The wait keeps the builder's prompt cache alive, so a fix costs a cache read of a context that already knows the change instead of a fresh fixer's orientation. The relay hook refuses a message to a subagent that has ended its turn or is past 260k, so a builder that is gone gets no fix message: a fresh fixer takes it. When the orchestrator is the top-level session, the builder ends its turn after the report and fixes go to a fresh fixer (E29).
-- The builder returns, in the hard-rule-8 contract (terminal token first, `path:line` findings, no narration): **every numbered item of the brief with `DONE <path:line>` or `SKIPPED <reason>`** — an item absent from the report is treated as SKIPPED, and a SKIPPED item without a reason sends the report back. (E17) Then: files changed, tests added/updated, verification commands it ran. Confirm with `git diff --stat` — a builder's success report is not evidence (`verification-before-completion`). **Every NUMBER from a subagent report that goes into the user-facing report, the ledger or the next brief is re-executed by the orchestrator first** — the report's command, run again, output quoted — or it is written as `reported, not re-measured`. A count from someone else's report, copied under a `MEASURED`/`POMIAR` label, passes every gate downstream because nothing else re-runs it. A wrong number in a right verdict is the one that survives review (E18).
-
-## Step 2: Review loop (cap 3)
-
-1. Dispatch `code-reviewer` subagent on the diff:
-   - the reviewer sizes itself from `git diff --stat` (its tier table): **S** (≤ 3 files, < 100 lines) = one pass, one-line coverage; **M** (≤ 10 files, ≤ 400 lines) = risk plan + coverage table; **L** = review units + a second pass per unit. The brief passes the stat, not a tier — a sensitive path (money/VAT/auth, migrations, CI, manifests) lifts the tier on the reviewer's side. Do not ask an S diff for "thorough" review: the extra process costs tokens and finds nothing a measured pass doesn't.
-   - the brief lists the project's rules files whose `paths:` match the diff. A reviewer reads the diff and opens few files, so path-scoped rules reach it only when it Reads them (22 of 235 queue reviews had them attached; E29).
-   - when the diff touches a security trigger (Step 3), the brief says so and names the touched entry points; security is part of this review.
-2. Split findings by severity (the reviewer's labels):
-   - **CRITICAL / REQUIRED** → the fix goes to the builder that produced the diff while it waits warm (Step 1): the orchestrator sends it, by `SendMessage`, the findings **verbatim**. When the builder has ended its turn, has no warm wait (top-level orchestrator), or the relay hook refuses the message, dispatch a **NEW** fixer subagent instead (fresh context; hard rule 6) with the task context block + the findings **verbatim** (file:line, description, suggested direction) + the reviewer's proposed diff when one was given + the proof required for each fix (which test/probe must turn RED→GREEN) + the current `git diff --stat` **+ the same mutant-table rule the builder brief carries, extended to the fixer's own new surface: every NEW guard, condition, branch or log line the fix introduces in production code gets a row (`line | mutant <sed> | expected RED | result | command`) with the red output quoted from an executed run, whether or not the finding named that line; a new line without a row = commit not ready for review, and the report goes back.** The fix message to the warm builder carries the same findings, proofs and mutant-table rule, without the context block it already holds. The fix-up prompt also says what the fixer must NOT do: no reading files outside the listed findings, no re-review of the untouched rest of the diff, no "while I'm here" changes — a fixer that re-explores the module pays the builder's cost a second time. **Before the re-reviewer is spawned, the orchestrator probes the fixer's new surface itself:** `git diff <previous tip>..HEAD -- <production paths> | grep '^+' | grep -E '<the project's guard/log spelling: if \(|Logger::|throw|return null>'` lists the new lines; each one is matched against the fixer's table, and a line without a RED row gets a one-command probe on a copy (`scripts/mutation-probe.sh` or the ad-hoc harness) — 2–5k tokens. A GREEN mutant goes back for a fix first (inline within the Step 2 bounds, else a fresh fixer), never to the reviewer: a reviewer that finds it charges a full round. (E19) Then re-review the touched areas — the sign-off re-review is likewise a fresh reviewer fed the diff and the previous findings, not the previous reviewer resumed with its full exploration context.
-   - **Trivial fix-up exception (inline, no fixer spawn):** when a finding's fix is test-only or docs-only, ≤ 40 lines, a copy of a neighbouring pattern already in the diff or the file, and provable by ONE command — a mutation probe for a test, `ls`/`git grep -nF` showing the corrected reference resolves for a doc — the orchestrator makes the edit itself (DIRECT, as in Step 0 Trivial) and quotes the probe's RED/GREEN line (or the resolving command) in the ledger/report. The probe copy of a TEST file keeps the file's directory depth (`.claude/tmp/<probe>/tests/<same subdirectories>/`): a test that resolves paths through `dirname(__DIR__, n)` goes red at the wrong depth for a reason unrelated to the mutant (E20). The same exception covers an **OPTIONAL or NIT (P3) finding whose fix is ≤ 10 lines and changes no semantics** (a rename, a comment or docblock, assertion order, a message string) — a mutation probe is not required when the change touches no assertion and no branch; the orchestrator quotes the targeted test run instead. It also covers a **comment-only fix of any size up to 30 lines, in ANY file — production code, a migration header, a test docblock** — a diff in which no code token changes: proof is `git diff -w --stat` plus the language's syntax check on each touched file (`php -l`, `node --check`, `python -m py_compile`, or the migration runner's dry parse) plus the targeted run of the file's tests, and a mutation probe is NOT required because a comment has no behaviour to mutate. Two caveats: a comment latch, when the project has one (a docblock-cap scanner, a header-format test), runs with the targeted tests; and a comment edit in an ALREADY-APPLIED migration whose runner keys by file name changes nothing in any database — the orchestrator says so in the ledger instead of expecting a re-run. (E21) And it covers a **P3 whose fix is ≤ 10 lines in production code or tests WITH semantics** (a missing `TRIM()`, an unlatched guard member, one added assertion) **only when the orchestrator itself executes a one-command mutation probe on a copy** and quotes RED under the mutant + GREEN restored + the targeted run — the probe is what makes a production-code edit admissible under hard rule 1, not the line count. Inline costs single-digit k against 140k+ per fixer spawn (E22). Anything outside those bounds (more than 10 lines of production code, a new mechanism, a semantic change without an executed probe) goes to the warm builder or a fresh fixer as above. `podagent-piszacy-tanszy-niz-inline` is about writing from scratch, not about a 10-line correction with the location already known (E23). The choice is inline, the warm builder, or a fresh fixer — a builder that has ended its turn is never resumed (hard rule 6).
-   - A finding the reviewer labels PLAUSIBLE (chain has an unmeasured link) is NOT dispatched as a fix — it goes back as a two-sided brief ("establish whether X or not-X") and only a MEASURED result enters the fix loop.
-   - **OPTIONAL / NIT / FYI / uncertain ("plausible")** → collect for the final report; never a fix message or a fixer spawn for them. An OPTIONAL or NIT finding that meets the inline exception above may be done inline and reported as fixed; the rest are listed, not dropped.
-3. **Test-only diffs (new latch, new fixtures, deleted assertions):** the reviewer's brief requires it to RE-RUN at least one of the builder's mutants AND one CONTROL mutant of its own choosing **placed on a step of the pattern the diff did NOT touch** (a sibling branch, the neighbouring tree, the untouched leg of the same guard) on its own copy of the file (never on the tracked file), and to report each as `mutant → RED/GREEN` with the command. Before its own mutants the reviewer checks the builder's mutant table against the brief's property list — a property without a RED row is a finding on its own. That report REPLACES Step 4 — there is no user-facing surface to verify, and a fresh verifier would repeat the same probe for a full spawn. A review of a test-only diff that only reads the assertions is a review of prose, not of a latch.
-4. Repeat review→fix up to **2 iterations** for Standard tasks, **3 for Large** — 3 is the absolute ceiling (hard rule 2), 2 is where a Standard task stops even if findings remain. Cap exhausted → STOP; report remaining findings and why they persist. Never loop indefinitely, never merge review debt silently. **When the loop ends (a clean review, or the cap), send `STOP` to the builder if it still waits** — its wait is paid per step, and a verify FAIL goes to a fresh fixer anyway.
-5. **Test-run economy inside the loop:** builders run TARGETED tests ONLY — a builder NEVER runs the full suite. **Targeted = the tests that reference the changed symbols, found by `git grep -l '<class or method>' tests/` across the WHOLE tests tree — never "the directory that mirrors the source" — PLUS, whenever the diff adds, removes or changes a test file or a skip call, the project's test-corpus latches (tests that read `tests/` as text: skip registries, budget latches, shape scanners), which reference no symbol and are therefore invisible to the grep — PLUS, whenever the diff adds or removes a route, a controller method, an endpoint, a permission entry, a raw SQL call site or any other artefact the project COUNTS, the project's counter latches (snapshot / budget / ratchet tests asserting an exact count of production artefacts — a route registry, a permission matrix, a raw-PDO budget, a DOM-tag budget): they read production code as text and assert `assertSame(<N>, …)`, so `git grep -l '<removed symbol>' tests/` returns 0 for them by construction, and a removal leaves them red until the constant is ratcheted DOWN in the same commit (an upward bump is never automatic — it is a design question the builder reports and the reviewer decides).** **PLUS, whenever the diff touches the SOURCE of a generated artefact** (a route inventory, an API listing, a schema dump, a permission-matrix document — a file a project script regenerates and a freshness latch compares to its source), the regenerated artefact in the same commit: the brief names the generator command (`php scripts/generate-<x>.php` or equivalent) and the latch's `--filter`; a pre-commit hook does not regenerate it, and the latch has no symbol to grep for. The orchestrator derives both latch lists once per project (the project's test rules or endpoint checklist, or `git grep -l 'ls-files\|glob(' tests/` and `git grep -lE 'BUDGET|Snapshot' tests/`) and puts the `--filter` into every builder and fixer brief. A behaviour change in a repository breaks mocks in service and controller tests; the mirror directory is where the change is least likely to be consumed. Each latch class missed here surfaces only at the end-of-batch full suite, as a fixer plus a second suite run (E24). The FULL suite runs exactly once — at the final gate before the report, executed by the orchestrator or delegated to the reviewer alongside the final code review — and its result is reported with BOTH counts (passed AND skipped, with the skip reason). Re-running the full suite after every fix is waste, not rigor. On a shared dev database the full suite is a shared resource: when other lifecycles run in parallel, take the project's exclusive slot/lock for it (never run two full suites against one DB at once), and read the result from YOUR log path, not from "the newest log file" — a parallel run's log may be newer.
-
-## Step 3: Security (inside the review)
-
-Triggers: the change touches auth/session, input parsing, SQL, file upload/download, payments/money, secrets/config, permissions/groups, or an external API surface.
-→ The Step 2 reviewer covers security for a triggered diff; its brief names the triggers and the touched entry points. No separate security agent is spawned in this lifecycle (`backend-security-coder` serves `audit-360` and explicit security passes). Security findings share the Step 2 fix loop and its cap; if the cap is exhausted, security findings go to the user as blockers — security debt is never silently carried.
-
-## Step 4: Verify (fresh subagent — anti-cheating gate)
-
-Run the **`verify-e2e`** skill: fresh isolated subagent (type `test-automator`, which has a verification mode for a `verify-e2e` brief, unless the session allows `general-purpose`), adversarial prompt, evidence artifacts (screenshots / HTTP dumps / recordings). When the change lives in a worktree, the surface under test must be served FROM that worktree (per-worktree server port), and the verifier must show a **discriminator** — an observation that differs between the fixed tree and the unfixed one — because a server that answers on some port proves only that a server is up, not which tree executes.
-
-The verify brief is the `verify-e2e` Step 3 template with EVERY line filled — a measurement from this turn or `skipped: <reason>`. The `Entry point` line carries the orchestrator's own grep of the handler binding, so an unreachable GUI path is scoped out before the spawn instead of being diagnosed by the verifier. (E25)
-
-- **PASS** → proceed to report with evidence paths.
-- **FAIL** → repro steps go to a fresh fixer subagent (the builder was stopped after the review loop); re-verify with a NEW fresh verifier. Cap 3 verify-fix cycles.
-- **BLOCKED** (missing env: account, key, tool) → record the gap in `docs/VERIFICATION_ENV.md`, mark the task "verified: NO (blocked on X)" in the report. A blocked verification is a first-class result, not a footnote.
-
-## Step 5: Report package
-
-The ONLY thing the user needs to read. Structure:
-
-```
-## <Task title> — ready for review
-**What changed & why:** 2-4 sentences.
-**Branch / commits:** agent/<slug>, tip SHA, N commits, diff stat (the SHA is what the user merges — without it the report is not actionable).
-**Review:** X iteration(s); fixed: <counts by severity>, by <warm builder | fresh fixer | inline>; remaining (not auto-fixed): <OPTIONAL/NIT/uncertain list or "none">.
-**Security (in review):** covered / not triggered (+why) ; findings summary.
-**Docs:** <doc files updated> or "none stale" (+ the check).
-**Verification:** PASS/FAIL/BLOCKED + evidence paths (screenshots/recording/responses).
-**Open items / blockers:** anything needing a human decision.
-**Your move:** e.g. "review evidence → merge PR" / "provide X to unblock verification".
-```
-
-Never merge, push to the deploy branch, or deploy — present the package and stop. If the project uses a done-label on the tracker (e.g. "to be merged"), add it to the issue at this point — it is the only tracker write allowed, and without it the next wave re-triages the issue from scratch.
-
----
+Large goes through `brainstorming`, then `writingplans`, then `executingplans` in this session. Only tasks that
+are sizeable and share no file, symbol or decision with the rest go to a `builder`. This skill then owns Steps 2–5
+on the combined result.
 
 ## Hard rules
 
-1. **Orchestrator writes no code.** Every implementation and fix goes through a subagent (the only exceptions: trivial DIRECT edits from Step 0 and the Step 2 inline fix-up bounds — ≤ 10 lines with an executed probe, or a comment-only diff ≤ 30 lines with `git diff -w --stat` + syntax check).
-2. **Caps are absolute:** review-fix iterations 2 (Standard) / 3 (Large) — never more than 3; verify-fix cycles 3. Exhausted cap → stop and report, never widen scope to "make it pass".
-3. **Fresh context for verification.** The verifier never shares context with any builder.
-4. **Evidence or it didn't happen** — `verification-before-completion` governs every claim in the report.
-5. **Manual step spotted twice → automate it.** If the user has to correct or remind you about a step of this lifecycle, propose adding it to this skill / project CLAUDE.md immediately. **And the same rule reported as broken a third time is a defect in the rule, not in the agent** — before writing "instance of an existing rule, not a gap" again, check what the verdict actually measured against what the rule says (`retro` Step 2), then change the rule's mechanism: its scope, its check command, or a probe that runs in the pipeline. (E26) **A new prose rule goes where it loads only when it applies:** a rule tied to recognizable paths goes into a `.claude/rules/*.md` file with `paths:` frontmatter, not into `CLAUDE.md` or an always-loaded rules file — those are paid by every session and every subagent; if the project has a budget latch on them, a new line there replaces or compresses an existing one.
-6. **One agent per unit of work — a finished agent is never resumed.** Each review, each re-review and each verify run is its own fresh subagent whose prompt carries the task context block, the previous findings and the current diff state; the report of the previous agent is the compression point (200k of exploration → 2k of findings), so resuming carries ballast instead of trimming it. A resumed agent pays its whole accumulated context on every turn (E27). The one exception is the builder: it has not finished while it waits warm (Step 1), so it takes the review fixes until `STOP`, its 6-step wait runs out or the relay hook's 260k line — and never after it has ended its turn; then a fresh fixer takes over (E29).
-7. **Every subagent reports by `SendMessage` to the orchestrator BY NAME.** Spawn subagents with an explicit `name:`, put the orchestrator's own agent name in their prompt, and require the final report to be sent to it. Without it, task-notifications of a nested orchestrator's subagents land with the top-level session, not the spawner (E28). Agents whose `tools:` list is restricted must include `SendMessage`. Spawn every subagent with an explicit `model:` as well (project policy: writers `sonnet`, reviewers `opus`) — the agent registry loads at session start and can be stale. Exception: when the orchestrator is the top-level session (no agent name), reports arrive as task-notifications and no SendMessage target is given.
-8. **Subagent reports are findings, not stories — and their first token is a verdict.** Put the report contract into every subagent prompt: (a) the first line is one terminal token the orchestrator can grep — builder: `done.` / `too-big. split: <n one-line tasks>` / `ambiguous. ask: <one question>` (no repo precedent — Step 1) / `needs-confirm. op: <command>` / `regressed. revert <path:line>. cause: <fragment>`; reviewer: `No issues.` or the verdict line; verifier: `VERDICT: PASS | FAIL | BLOCKED`; (b) every finding is `path:line` first, symbols backticked, MEASURED/INFERRED labelled, every COUNT carries the command that produced it in the same sentence and every `0` carries its positive control (the same pattern against a line known to match), a number taken from the brief or another agent is written as `reported: <source>`, and a builder's report walks the brief's numbered items as `DONE <path:line>` / `SKIPPED <reason>` (Step 1); (c) no narration of tool calls, no exploration story, no restating the brief — the diff is the artifact, the report is the proof; (d) no invented abbreviations (`cfg`, `impl`, `req`, `res`, `fn`, `auth`) and no arrow chains (`→`) in prose — the tokenizer splits them like the full word, so they save nothing and cost the reader a decode; plain words, exact names; (e) a value that is redacted, removed or replaced (host, mailbox, path, credential, key) appears in a report, a commit message or evidence only as a placeholder such as `<host>`, never the real value, not even in a before/after pair. Security warnings and irreversible-action confirmations are written in full sentences regardless. A report that violates (a) or (b) is sent back for the contract, not read around.
-9. **A named orchestrator waits warm.** When this orchestrator is itself a named subagent and has nothing left to do but wait for a subagent's report, it waits in Bash: `sleep 270` with `timeout: 300000`, one call per step, nothing else in between, repeated until the report arrives — a `SendMessage` report is delivered alongside the next tool result. A subagent's prompt cache lives 5 minutes; ending the turn lets it expire, and the next turn rewrites the whole window at the write price, while a 270-second step reads it at about 1/12 of that. `POMIAR` (KonkretnyTMS, 54 L2 runs 2026-10-06…10-09): 59 full-window rewrites after waits of 5–21 minutes, 22% of L2 cost. The 1-hour TTL (`subagentPromptCacheTtl`) is not the fix: its writes cost 2× instead of 1.25×, a net loss over all subagent types in the same data. The top-level session (1-hour cache) waits for task-notifications as before. The builder uses the same wait between its report and the end of the review loop (Step 1).
+1. **Evidence or it did not happen.** `verification-before-completion` governs every claim. Every number in a
+   report, a ledger or a brief comes from a command run in this session, quoted next to it. A number taken from a
+   subagent's report is re-run first or written `reported` (E4, E18).
+2. **Review and verification run in a fresh context, one agent per round, never resumed.** Each brief carries the
+   task context, the previous round's findings and the current diff state (E27).
+3. **Every spawn has an explicit `name:` and `model:`.** Reviewers use `opus`; the verifier, `Explore` and
+   `builder` use `sonnet`. Subagents write long reports to the file the brief names. They follow the report
+   contract in `references/briefy.md`, and a report that breaks it goes back.
+4. **A skill does not reach a subagent by its name.** What a subagent must apply goes into its brief as lines
+   (E16, E29).
+5. **Use classifier-safe commands, in this session and in every brief** (E15):
+   - copy with `cat <file> > .claude/tmp/<name>`, not `cp`;
+   - restore with `cat .claude/tmp/<name> > <file>` plus `diff`, never `git checkout --` or `git restore`;
+   - no `rm` outside `.claude/tmp/`;
+   - no `mv` of a tracked or generated artefact.
+6. **A manual step spotted twice gets automated.** A rule reported as broken a third time is a defect in the rule.
+   Before calling it "an instance of an existing rule" again, compare what the verdict measured with what the rule
+   says (`retro` Step 2). Then change the rule's mechanism: its scope, its check command, or a probe in the pipeline
+   (E26). A new prose rule goes where it loads only when it applies: a path-tied rule goes into
+   `.claude/rules/*.md` with `paths:`, not into `CLAUDE.md`.
 
----
+## Step 0: Intake
+
+1. **Restate the task** in 1–2 sentences. An ambiguity that changes the implementation is asked now, never
+   mid-pipeline. When nobody is there to answer, the outcome is `ambiguous. ask:`.
+2. **Classify the size** (table above).
+3. **Write the task context block**, for Standard and Large, to `.claude/tmp/<task>/kontekst.md`:
+   - target files;
+   - canonical paths and services for any variant work;
+   - decisions already taken;
+   - hard constraints ("do NOT touch X").
+
+   Every fact in it comes from a command run now (E4). It goes into every subagent brief. Before each review
+   round, append that round's findings and what changed. Decisions that cross files land here too, so a
+   compaction cannot lose them.
+4. **Branch strategy.**
+   - If the project deploys from its main branch, work on `agent/<slug>` or `agent/issue-<n>`.
+   - Outside the main tree (the queue's worktree, parallel work), use the branch's own worktree with absolute
+     paths everywhere. Apply the project's worktree checklist (`.env`, build flags, `node_modules`, tool binaries)
+     before the first test run: a worktree without it gives a false baseline.
+
+## Step 1: Implement
+
+**Read `references/implementacja.md` before the first edit.** It holds the rules for whoever writes the code:
+test first, root cause first, latches and their mutant tables, tests on a live database, the docblock cap,
+targeted tests and the latches a symbol grep cannot find, generated artefacts, precedent, and the proof each kind
+of fix needs. They bind this session. A `builder` gets them as lines of its brief (`references/briefy.md`).
+
+- **Docs stay true.** A doc the change makes stale (flow, module doc, runbook, troubleshooting) is updated in the
+  same commit as the code. The report lists the doc files, or says `docs: none stale` with the check that shows it.
+- **Commit in stages.** A decision that crosses layers goes into a test, the commit message or the context block.
+- **An issue too big for one run** is a `too-big. split: <n one-line tasks>` outcome, not a split by layer (E29).
+
+## Step 2: Review loop
+
+1. **Spawn a fresh `code-reviewer` on the committed diff.** The brief follows `references/briefy.md`:
+   - the diff stat (the reviewer sizes itself; a sensitive path lifts its tier);
+   - the project's rules files whose `paths:` match the diff, because a reviewer opens few files (E29);
+   - the security triggers the diff touches (Step 3);
+   - the context block.
+
+   From round 2 on, it also carries the previous findings and the previous tip.
+2. **Act on the findings by severity:**
+   - **CRITICAL / REQUIRED:** fix them here, with the proof `references/implementacja.md` asks for each kind of
+     fix. Every new guard, branch or log line gets an executed mutant before the next round (E19). Then a fresh
+     reviewer reviews the delta.
+   - **PLAUSIBLE** (a link in the chain is not measured): settle it first with a two-sided measurement ("X or
+     not-X, and what decides it", E8). Only a measured finding gets fixed.
+   - **OPTIONAL / NIT / FYI:** fix one only when the fix is small and proven the same way. Otherwise list it in
+     the report. Never drop it.
+3. **A test-only diff:** the reviewer re-runs one of your mutants plus a control mutant on a step the diff did not
+   touch, on its own copy. Its report replaces Step 4.
+4. **When the loop ends**, run the full suite once (`references/implementacja.md`, test economy). A red test
+   that is not on the base branch is a finding of this change.
+
+## Step 3: Security, inside the review
+
+**Triggers:** the change touches auth or sessions, input parsing, SQL, file upload or download, payments or money,
+secrets or config, permissions or groups, or an external API surface. The Step 2 reviewer covers security for a
+triggered diff; its brief names the triggers and the touched entry points. No separate security agent runs here:
+`backend-security-coder` serves `audit-360` and explicit security passes. Security findings share the loop and
+its limit. A limit reached with a security finding open makes the finding a blocker for the user.
+
+## Step 4: Verify (fresh subagent)
+
+Run the `verify-e2e` skill:
+- **who and how:** a fresh `test-automator` with an adversarial brief and evidence files (screenshots, HTTP
+  dumps, recordings);
+- **in a worktree:** the surface is served from that worktree, and the verifier shows a discriminator, i.e. an
+  observation that differs between the fixed tree and the unfixed one;
+- **the brief:** `verify-e2e` Step 3 with every line filled, by a measurement from this turn or
+  `skipped: <reason>`. The `Entry point` line carries your own grep of the handler binding (E25).
+
+**On the verdict:**
+- **PASS:** go to the report with the evidence paths.
+- **FAIL:** fix here, then a new verifier. When a gate needs the review and the verification on the same commit
+  (the queue's `bramka.sh`), a fresh reviewer also reviews the fix.
+- **BLOCKED** (account, key or tool missing): record the gap in `docs/VERIFICATION_ENV.md`. The report says
+  "verified: NO (blocked on X)".
+
+## Step 5: Report
+
+The only thing the user reads:
+```
+## <Task title> — ready for review
+**What changed & why:** 2-4 sentences.
+**Branch / commits:** branch, tip SHA, N commits, diff stat.
+**Review:** N round(s); fixed: <counts by severity>; remaining: <OPTIONAL/NIT/uncertain list or "none">.
+**Security (in review):** covered / not triggered (+why); findings.
+**Docs:** <files> or "none stale" (+ the check).
+**Verification:** PASS/FAIL/BLOCKED + evidence paths.
+**Decisions:** what you chose where the spec left room, and why.
+**Open items / blockers:** anything needing a human decision.
+**Your move:** e.g. "review evidence → merge" / "provide X to unblock verification".
+```
 
 ## Integration
 
-- `brainstorming` / `writingplans` / `executingplans` — the build stage for large tasks.
-- `code-reviewer` — review stage, security included. `backend-security-coder` is not a stage of this lifecycle (audits: `audit-360`).
-- Builder agents (`executingplans` table) — goal-only: the rules they follow are the project's own (CLAUDE.md, `.claude/rules`, `docs/standards`) plus the lines of the brief.
-- `verify-e2e` — verification stage (Step 4).
-- `roadmapa` — the issue queue: one task-lifecycle per issue, run by a fresh subagent, one issue at a time.
-- `nowe-issue` — creating issues sized for one run of this skill; a `too-big. split:` report goes there as input.
-- `test-driven-development`, `systematic-debugging`, `migration`, `verification-before-completion` — the orchestrator applies them; inside a subagent they act only through the brief lines of Step 1.
+- `brainstorming`, `writingplans`, `executingplans`: the build stage for Large.
+- `code-reviewer`: the review, security included.
+- `verify-e2e`: the verification.
+- `builder`: an independent sizeable task, briefed per `references/briefy.md`.
+- `roadmapa`: the issue queue. Its lead runs this skill for one issue per session and merges through its gate.
+- `nowe-issue`: issues sized for one run; a `too-big. split:` report goes there.
+- `test-driven-development`, `systematic-debugging`, `migration`, `verification-before-completion`: this session
+  applies them. In a subagent they act only through brief lines.

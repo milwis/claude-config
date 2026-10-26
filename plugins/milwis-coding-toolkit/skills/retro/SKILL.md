@@ -17,7 +17,7 @@ disable-model-invocation: true
 
 Read, in this order, and keep every number with the command that produced it:
 
-1. **The ledger** (`docs/plans/kolejka-ledger.md`, older runs: `docs/plans/<date>-roadmapa-…-ledger.md`) plus the L2 reports in `.claude/tmp/kolejka/raport-<nr>.md`: per issue — token, review iterations, `POMIAR`/`WNIOSEK` rows, what was left `NIE zmaterializowane`, every `partial.`, every cap exhausted, every deferral and BLOCKED.
+1. **The ledger** (`docs/plans/kolejka-ledger.md`, older runs: `docs/plans/<date>-roadmapa-…-ledger.md`) plus the lead's reports in `.claude/tmp/kolejka/raport-<nr>.md` (before v1.7.0: the L2 reports) and the verdict files `recenzja-<nr>-<k>.md` / `weryfikacja-<nr>-<k>.md`: per issue — token, review iterations, `POMIAR`/`WNIOSEK` rows, what was left `NIE zmaterializowane`, every `partial.`, every cap exhausted, every deferral and BLOCKED.
 2. **Subagent transcripts** for that run: `~/.claude/projects/<project-slug>/*.jsonl`, filtered by the run's date range. Per subagent, extract with a script (never by reading the JSONL in context): model, turn count, max context (`.message.usage` cache-read + input), tool-call histogram (`Read`/`Grep`/`Bash`/`Agent`), re-reads of the same file, first and last user-facing message. Write the table to `.claude/tmp/retro-<date>.tsv` and read only the table.
 3. **The diff of the run**: `git log --oneline <base>..<tip>` per branch, `git diff --stat`, review iterations per issue (count reviewer spawns), verify verdicts.
 4. **The toolkit as it was**: the plugin version in `UPDATE_LOG.md` that the run used — a rule that already exists in a newer version is not a proposal.
@@ -75,6 +75,6 @@ Show the ranked list and ask which to apply. The apply step is ordinary toolkit 
 
 ## Integration
 
-- `task-lifecycle` hard rule 5 ("manual step spotted twice → automate it") is the in-flight version of this skill; retro is the batch version.
+- `task-lifecycle` hard rule 6 ("a manual step spotted twice gets automated") is the in-flight version of this skill; retro is the batch version.
 - `lang-guidelines` — the same A / B / B-gap / C classification (latch, project rule, missing rule with a precedent, drop) decides where a proposed rule lands.
 - `roadmapa` § Measurement discipline — POMIAR / WNIOSEK labels are mandatory here as there.

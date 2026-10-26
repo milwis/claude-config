@@ -54,15 +54,14 @@ make test          # all pass
 - [ ] `.env.example` documents every variable's purpose + format
 - [ ] `docs/plans/` directory exists for future implementation plans
 
-## Agent routing (CRITICAL — without this, Claude bypasses the agents)
+## Agent routing (CRITICAL — without this, review and verification happen in the context that wrote the change)
 
 - [ ] `CLAUDE.md` has a `## Agent routing` section with a table
-- [ ] Every tech layer in the project has an agent row
 - [ ] `code-reviewer` row marked **MANDATORY** before commit
 - [ ] `debugger` row mentions "start from logs"
 - [ ] Non-negotiable rules section present (5–8 bullets)
 - [ ] Workflow line: `brainstorming → writingplans → executingplans → code-reviewer → commit`
-- [ ] Agent names match the marketplace (no typos like `code_reviewer` or `php_pro`)
+- [ ] Agent names match the marketplace (no typos like `code_reviewer`)
 
 ## Domain safety (skip if N/A)
 
