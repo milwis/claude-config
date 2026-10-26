@@ -18,6 +18,8 @@
 #   issues whose surface verification ended BLOCKED, for the owner to check by hand), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
 #   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_LIDER (opus — the lead implements), KOLEJKA_MODEL_TRIAGE (opus),
 #   KOLEJKA_EFFORT (high), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
+#   KOLEJKA_AUTOCOMPACT (350000 — CLAUDE_CODE_AUTO_COMPACT_WINDOW of the queue processes only; the owner's interactive
+#   sessions keep their own value),
 #   KOLEJKA_TYPY / KOLEJKA_ZATWIERDZONY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
 #   by its title, set empty = off), KOLEJKA_DEPLOY_WORKFLOW (workflow whose last successful run = the last deploy, for
@@ -71,6 +73,11 @@ start)
     echo "Nie startuję: $POWOD. Start mimo limitu: kolejka.sh start --limit 100"; exit 1
   fi
 
+  AUTOCOMPACT="${KOLEJKA_AUTOCOMPACT:-350000}"
+  if ! [[ "$AUTOCOMPACT" =~ ^[0-9]+$ ]] || [ "$AUTOCOMPACT" -lt 100000 ] || [ "$AUTOCOMPACT" -gt 1000000 ]; then
+    echo "KOLEJKA_AUTOCOMPACT=$AUTOCOMPACT poza zakresem 100000–1000000 (CLAUDE_CODE_AUTO_COMPACT_WINDOW)."; exit 1
+  fi
+
   mkdir -p "$K"
   rm -f "$K"/{rotuj,pusto,stop,zatrzymaj,tura-koniec,blad-api,pauza,start-prompt.txt}
   cat > "$K/config.env" <<EOF
@@ -87,6 +94,7 @@ ETYKIETA_RECZNA="${KOLEJKA_ETYKIETA_RECZNA:-weryfikacja:reczna}"
 MODEL_LIDER="${KOLEJKA_MODEL_LIDER:-opus}"
 MODEL_TRIAGE="${KOLEJKA_MODEL_TRIAGE:-opus}"
 EFFORT="${KOLEJKA_EFFORT:-high}"
+AUTOCOMPACT="$AUTOCOMPACT"
 IDLE_MIN="${KOLEJKA_IDLE_MIN:-30}"
 STALL_MIN="${KOLEJKA_STALL_MIN:-90}"
 GRACE_MIN="${KOLEJKA_GRACE_MIN:-10}"
@@ -100,9 +108,14 @@ KOLEJKA_ODROCZENIA="${KOLEJKA_ODROCZENIA:-docs/plans docs/runbook}"
 STATUS_ISSUE="$(status_issue)"
 DEPLOY_WORKFLOW="$(deploy_workflow)"
 EOF
-  # Hooks live only in this file, passed with --settings: no other session in the repo sees them.
+  # Hooks live only in this file, passed with --settings: no other session in the repo sees them. Its env overrides
+  # the same variable from the owner's user settings (docs: settings, env — the higher-precedence file wins per
+  # variable; --settings sits above user settings). The window: the lead implements and compacts (v1.7.2). POMIAR
+  # (2026-10-26, KonkretnyTMS, 32 issues): the trigger fires at window − ~31k, the summary is ~4k, the lead starts at
+  # ~93k; a lead that grows 382–481k per issue compacts 2.2–2.8× at 300k and 1.5–1.9× at 350k, at the same cost (±10%).
   jq -n --arg ss "$SKRYPTY/hook-session-start.sh" --arg st "$SKRYPTY/hook-stop.sh" \
-    --arg sf "$SKRYPTY/hook-stop-failure.sh" --arg pt "$SKRYPTY/hook-pre-tool.sh" '{hooks: {
+    --arg sf "$SKRYPTY/hook-stop-failure.sh" --arg pt "$SKRYPTY/hook-pre-tool.sh" --arg okno "$AUTOCOMPACT" '{
+    env: {CLAUDE_CODE_AUTO_COMPACT_WINDOW: $okno}, hooks: {
     SessionStart: [{matcher: "startup|clear|compact", hooks: [{type: "command", command: $ss}]}],
     PreToolUse: [{matcher: "Bash|Write|Edit|MultiEdit|NotebookEdit", hooks: [{type: "command", command: $pt}]}],
     Stop: [{hooks: [{type: "command", command: $st}]}],

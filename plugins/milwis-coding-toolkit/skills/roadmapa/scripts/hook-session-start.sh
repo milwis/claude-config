@@ -8,9 +8,11 @@
 # "you are the LEAD", deferred #906 and #909 on GitHub, wrote two ledger rows and the stop flag.
 # v1.5.29 exited on agent_id in the payload. POMIAR (2026-09-25 07:17, KonkretnyTMS #973): the builder build-973-1
 # (sonnet, depth 2) compacted and still got this text — the SessionStart:compact payload of a subagent does NOT carry
-# agent_id. So `compact` is silent for everyone: the lead is a new process for every issue and never compacts in practice
-# (113–122k of 300k over the first night), while a subagent told "you are the LEAD" does damage on GitHub and main.
-# The compact payload is logged (hook-compact.log) so the discriminator can be measured before compact is re-enabled.
+# agent_id. So `compact` is silent for everyone, while a subagent told "you are the LEAD" does damage on GitHub and main.
+# Since v1.7 the lead implements and does compact; its post-compaction pointer ($K/stan-<N>.md, then the rules) is in
+# the appended system prompt (lider.sh), which reaches only the lead. POMIAR (2026-10-26, KonkretnyTMS hook-compact.log,
+# 35 compactions): the payload carries no agent_id/agent_type and a subagent's compaction reports the lead's
+# transcript_path and model, so this hook still cannot tell them apart. The payload stays logged (hook-compact.log).
 INPUT=$(cat)
 [ -n "$(jq -r '.agent_id // empty' <<<"$INPUT" 2>/dev/null)" ] && exit 0
 K="${CLAUDE_PROJECT_DIR:-.}/.claude/tmp/kolejka"

@@ -41,3 +41,22 @@ reported that the full checklist "wyłapywał dużo błędów". On top of the fu
 - `Rules read:` is a line of the report;
 - the security table comes from the former `backend-security-coder`;
 - MEDIUM is mapped to REQUIRED, so the gate counts it.
+
+**v1.7.2 (2026-10-26), the lead's memory across a compaction and the queue's window.** `POMIAR` (KonkretnyTMS
+`hook-compact.log` and transcripts, 32 issues of 2026-10-24…25, v1.5/v1.6 shape): all 35 compactions were in the
+L2 agent (35 of 70 transcripts; peak median 257k, max 270k), none in the lead (median peak 137k), the language
+builders (0/64, median 151k), the reviewers (0/55) or the verifiers (0/33). The trigger fired at window − ~31k
+(context before it: median 269k at a 300k window); the first call after it: median 101k; the summary: ~4k. The lead
+starts at ~93k (CLAUDE.md, memory, rules, skills listing). `SZACUNEK` (the v1.7 lead = the L2 window plus the
+builders' work, 382–481k growth per issue): 2.2–2.8 compactions per issue at 300k, 1.5–1.9 at 350k, 3.7–4.8 at
+250k; cost flat within ±10% across 250–350k, because each compaction rewrites the ~93k prefix and re-reads files.
+Owner's range: 250–350k ("więcej niż 350 to już nie"). Chosen: 350k for the queue only (`KOLEJKA_AUTOCOMPACT`,
+`env` of the `--settings` file). `POMIAR` (`claude -p --settings` with that `env`, Claude Code 2.1.310): the process
+sees `CLAUDE_CODE_AUTO_COMPACT_WINDOW=350000`; without it, the owner's 300000.
+
+What the summary drops (an acceptance criterion, the reason for a cross-file decision) now lives in
+`$K/stan-<N>.md`: a `## Kryteria` checklist written at step 5 and one line per step, appended inside commands the
+lead runs anyway. The pointer to it after a compaction is the lead's appended system prompt, not the
+`SessionStart:compact` hook: the hook's output would reach a compacting subagent too (the 2026-09-24 incident), and
+its payload still carries no `agent_id`/`agent_type`. `NIEZMIERZONE`: compactions per issue and criteria lost after
+one in the v1.7 lead — re-measure from `hook-compact.log` and `stan-*.md` after ~10 issues.
