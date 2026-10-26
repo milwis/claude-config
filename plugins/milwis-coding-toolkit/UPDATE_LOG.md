@@ -7,6 +7,27 @@
 > 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-26 — pamięć lidera przy kompakcji i okno kolejki (v1.7.2)
+
+Pytanie właściciela: czy lider, który sam implementuje issue i kompaktuje kontekst, nie gubi szczegółów. Druga decyzja dotyczyła okna. Właściciel podał zakres 250–350k („więcej niż 350 to już nie”).
+
+- **`roadmapa/references/cykl-lidera.md`:** `$K/stan-<N>.md` to pamięć lidera na czas kompakcji:
+  - krok 3 zakłada plik z nagłówkiem „podagent: nie dotyczy”;
+  - krok 5 dopisuje `## Kryteria`, czyli kryteria akceptacji K1…Kn wraz z testem i ograniczeniami regulowanymi;
+  - po każdym kroku dochodzi jedna linia z rozmiarem, rundą, spełnionymi kryteriami i decyzjami międzyplikowymi.
+
+  Plik zawiera tylko kryteria i decyzje, bez narracji, poniżej ~5k tokenów. Dopisuje się go wyłącznie wewnątrz komend, które lider i tak uruchamia. Lider czyta go tylko po kompakcji: najpierw stan, potem `git log`, potem zasady w całości.
+- **`roadmapa/scripts/lider.sh`:** dopisany prompt systemowy lidera wskazuje tę kolejność. To jedyny wskaźnik po kompakcji, bo trafia wyłącznie do lidera.
+- **`roadmapa/scripts/hook-session-start.sh`:** zachowanie bez zmian, hook pozostaje cichy przy `compact`. Zaktualizowany komentarz zawiera POMIAR, z którego wynika, że payload nadal nie odróżnia podagenta.
+- **`roadmapa/scripts/kolejka.sh`:** `KOLEJKA_AUTOCOMPACT` (domyślnie 350000, zakres 100000–1000000) trafia do `env` pliku `--settings`, więc dotyczy tylko procesów kolejki. Sesje interaktywne właściciela zostają przy 300k z ustawień użytkownika. POMIAR (`claude -p`): z plikiem proces widzi 350000, bez niego 300000.
+- **Dlaczego 350k:** z pomiaru 32 issue wynika:
+  - wyzwalacz działa przy oknie − ~31k, a podsumowanie ma ~4k;
+  - przy 350k lider kompaktuje 1,5–1,9 razy na issue, przy 300k 2,2–2,8 razy, przy 250k 3,7–4,8 razy;
+  - koszt jest płaski (±10%).
+
+  Mniej kompakcji to mniej miejsc, w których ginie szczegół, przy tym samym koszcie. Szczegóły w `references/evidence.md`, sekcja v1.7.2.
+- **Do zmierzenia po ~10 issue:** liczba kompakcji na issue (`hook-compact.log`) i to, czy po kompakcji lider wrócił do `## Kryteria`. Następna dźwignia to bazowy kontekst lidera (~93k: CLAUDE.md, pamięć, reguły, lista skilli), bo zwolnione miejsce działa przy każdym oknie.
+
 ## Run: 2026-10-26 — pełny recenzent i domknięte obejścia bramki (v1.7.1)
 
 Zmiany wynikają z niezależnej oceny v1.7.0. Werdykt oceny był mieszany: kod pisany w jednym kontekście to plus, ale recenzja domenowa i bramka miały luki. Decyzja właściciela: „popraw recenzenta, bo wyłapywał dużo błędów; ma nie być gorszy niż poprzednio”.

@@ -108,8 +108,11 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
 
 The lead's procedure, the triage brief, the review and verification contracts, the outcomes and the stop conditions →
-`references/cykl-lidera.md`. The lead reads it together with `task-lifecycle`; the `SessionStart` hook and the
-lead's appended system prompt (`lider.sh`) point to it, so it is read again after a compaction.
+`references/cykl-lidera.md`. The lead reads it together with `task-lifecycle`. The `SessionStart` hook points to it
+at the start. After a compaction the lead's appended system prompt (`lider.sh`) sends it to `stan-<N>.md` (the issue's
+acceptance criteria and decisions), then back to this file; the hook stays silent on `compact`, because its output
+would reach subagents too. The queue's processes compact at 350k (`KOLEJKA_AUTOCOMPACT`, `references/evidence.md`
+v1.7.2); the owner's interactive sessions keep their own window.
 
 ## Files
 

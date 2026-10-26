@@ -31,13 +31,23 @@ can justify, write the uncertainty into the ledger row, and carry on.
 
   `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-character state path dropped one `/`, wrote its flag
   into a non-existent directory, reported success, and the queue stood still.
-- **Record progress as you go.** After each numbered step below, append one line to `$K/stan-<N>.md`:
-  - the step;
-  - the size class;
-  - the review and verification round;
-  - each decision that crosses files (a data shape, a name, a normalisation).
-- **After a compaction**, before the next action, re-read this file, `$K/stan-<N>.md` and the `task-lifecycle`
-  skill. Then `git -C "$WT" log --oneline "$MAIN..HEAD"`.
+- **`$K/stan-<N>.md` is your memory across a compaction.** You implement, so your window fills and compacts; the
+  summary keeps ~4k of ~200k, and what it drops — an acceptance criterion, the reason for a decision — is gone.
+  The file holds what you would otherwise re-derive:
+  - step 3 creates it with the line `# Pamięć lidera issue #<N> — podagent: nie dotyczy`;
+  - step 5 adds `## Kryteria`: each acceptance criterion of the issue as `K1`, `K2`… with the test that proves it,
+    and the regulated constraints the fix must keep (money, VAT, KSeF, permissions — from the issue and the triage
+    report);
+  - after each numbered step, one line: the step, the size class, the review and verification round, the criteria
+    met (`K1 ✓`), and each decision that crosses files (a data shape, a name, a normalisation) with its reason.
+
+  Criteria and decisions only, no narration; it stays under ~5k tokens. Append inside a command you are running
+  anyway (`… && printf '%s\n' '<line>' >> "$K/stan-$N.md"`), never as a call of its own. Do not read it back while
+  your context is intact.
+- **After a compaction**, before the next action: read `$K/stan-<N>.md` (`N` is in `$K/w-toku`), then
+  `git -C "$WT" log --oneline "$MAIN..HEAD"`, then this file in full. Claude Code brings the `task-lifecycle`
+  skill back by itself (invoked skills are re-attached after a compaction). Check the next action against
+  `## Kryteria` before you take it.
 - **Keep command output short.** A test suite or a diff goes to a file; read its summary.
 
 ## Who does what
@@ -138,7 +148,7 @@ On the list source it skips only closed issues and done or deferred ones.
 
 **3. Prepare.**
 ```bash
-echo "$N" > "$K/w-toku"
+echo "$N" > "$K/w-toku" && echo "# Pamięć lidera issue #$N — podagent: nie dotyczy" > "$K/stan-$N.md"
 gh issue view "$N" --json title,labels,body -q '.title, ([.labels[].name]|join(",")), (.body|.[0:1500])'
 ```
 - **The worktree is created once and reused.** When `$WT` does not exist:
@@ -228,6 +238,9 @@ Your message to the lead (SendMessage) is at most 3 lines: the token, the report
 
 **5. Implement — yourself, in `$WT`, with the `task-lifecycle` skill.** Load it with the Skill tool. It holds the
 quality rules for the implementer, the review loop and verification. What the queue adds:
+- **Write `## Kryteria` to `$K/stan-<N>.md`** inside your first command of this step (a heredoc appended with
+  `cat >> … <<'EOF'`), from the issue and the triage report. Mark a criterion you cannot yet state as a check with `?`, and
+  measure it before you build on it.
 - **The triage report is your task context.** Do not repeat it. Before you build on one of its anchors, re-run
   that anchor's command once. If an anchor does not reproduce, or a measurement contradicts the report's Cause or
   Fix surface, your outcome is `ambiguous. ask: <the contradiction, both commands>`.
