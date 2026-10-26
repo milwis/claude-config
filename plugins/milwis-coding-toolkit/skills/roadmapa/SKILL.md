@@ -69,7 +69,9 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   `done.`, the newest review on exactly the branch tip with 0 CRITICAL and 0 REQUIRED, the verification on the same
   tip, a review of tier M or L for a diff on the project's sensitive paths, and the project's gate tests
   (`## Bramka` in `docs/VERIFICATION_ENV.md`). The queue's PreToolUse hook (`hook-pre-tool.sh`) blocks a raw
-  `git merge` and `git push` in every queue process, and blocks the lead's own Write/Edit on the verdict files.
+  `git merge`, `git pull` and `git push` in every queue process, and blocks every write to a verdict file except
+  by its role (`code-reviewer` → `recenzja-*`, `test-automator` → `weryfikacja-*`), Bash writes included. A diff on
+  a `powierzchnia:` path cannot pass with `Weryfikacja: n/a`.
 - **One issue at a time**, each branch from the `main` that already contains the previous merge — so no
   two branches ever race for the same base.
 - **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41; ideas = `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).

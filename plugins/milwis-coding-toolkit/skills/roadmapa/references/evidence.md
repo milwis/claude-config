@@ -22,3 +22,22 @@ interactive session in tmux, auto mode, the queue's PreToolUse hook via `--setti
 `SCALONO e8e8c08` (`[roadmapa] Scal #5`); the same session's raw `git -C <repo> merge --no-ff agent/issue-5` was blocked
 by the hook. `NIEZMIERZONE`: the watcher's continuation on a turn that ends with a progress report; the
 lead's window over a Large issue. The first run after v1.7 is watched.
+
+**v1.7.1 (2026-10-26), gaps closed after an independent review.** The review measured four bypasses:
+- the lead's Bash `printf … > $K/recenzja-N-k.md`;
+- a builder's Write on a verdict file;
+- `/usr/bin/git merge` and `git pull`;
+- `Weryfikacja: n/a` declared by the lead on any diff.
+
+`POMIAR` (`hook-pre-tool.sh`, 29 synthetic inputs): the first three now exit 2. The fourth is refused by
+`bramka.sh` when the diff hits a `powierzchnia:` glob of `## Bramka`. The lead's `head`/`grep` of a verdict
+file and the reviewer's and verifier's own writes (`agent_type`, bare or plugin-scoped) pass. A subagent without
+`agent_type` passes, as before. Docs (hooks, common input fields): `agent_type` is "present when … the hook fires
+inside a subagent", e.g. `"Explore"`, plugin agents as `plugin:name`.
+
+The reviewer prompt went back to the full v1.5 checklist (35 KB). v1.6 had cut it to a 6 KB goal, and the owner
+reported that the full checklist "wyłapywał dużo błędów". On top of the full checklist:
+- the issue is read by the reviewer itself;
+- `Rules read:` is a line of the report;
+- the security table comes from the former `backend-security-coder`;
+- MEDIUM is mapped to REQUIRED, so the gate counts it.

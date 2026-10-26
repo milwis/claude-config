@@ -14,6 +14,8 @@
 #   testy: <command>      run in the worktree, {WT} = its absolute path; exit 0 = pass; keep it under 5 minutes
 #   wrazliwe: <glob>      one per line, case-insensitive, matched against each changed path and its basename;
 #                         a diff that hits one needs a review of tier M or L
+#   powierzchnia: <glob>  same matching; paths a user or a client reaches (UI, endpoints). A diff that hits one
+#                         cannot pass with `Weryfikacja: n/a` — it needs a verifier's PASS or BLOCKED
 # shellcheck disable=SC1090
 . "$1"
 N="${2:?numer issue}"
@@ -22,6 +24,21 @@ BLAD=0
 ok() { echo "OK    $*"; }
 brak() { echo "BRAK: $*"; BLAD=1; }
 # Newest round file for a prefix: highest k that exists.
+# Changed paths of the branch that match one of the globs in $1 (one per line), space-separated.
+trafione() {
+  local P G T=""
+  [ -n "$1" ] || return 0
+  shopt -s nocasematch
+  while IFS= read -r P; do
+    while IFS= read -r G; do
+      [ -n "$G" ] || continue
+      # shellcheck disable=SC2053
+      if [[ "$P" == $G || "${P##*/}" == $G ]]; then T="$T $P"; break; fi
+    done <<<"$1"
+  done < <(git -C "$WT" diff --name-only "$MAIN...$GALAZ")
+  shopt -u nocasematch
+  echo "$T"
+}
 ostatni() { local k f=""; for k in 1 2 3 4 5 6 7 8 9; do [ -s "$K/$1-$N-$k.md" ] && f="$K/$1-$N-$k.md"; done; echo "$f"; }
 # Value of a `Klucz: wartość` line (first match, leading markup ignored).
 pole() { grep -m1 -E "^[#*> ]*$2:" "$1" 2>/dev/null | sed -E "s/^[#*> ]*$2:[* ]*//"; }
@@ -32,6 +49,11 @@ ILE=$(git -C "$WT" rev-list --count "$MAIN..$GALAZ")
 [ -z "$(git -C "$WT" status --short)" ] && ok "worktree czysty" || brak "worktree ma niezacommitowane zmiany"
 [ "$(git -C "$WT" rev-parse HEAD)" = "$TIP" ] || [ "$(git -C "$WT" rev-parse --abbrev-ref HEAD)" = HEAD ] \
   || brak "worktree stoi na innej gałęzi niż $GALAZ"
+
+# Project section `## Bramka` of docs/VERIFICATION_ENV.md.
+SEKCJA=$(awk '/^## Bramka/{f=1;next} /^## /{f=0} f' "$REPO/docs/VERIFICATION_ENV.md" 2>/dev/null)
+WRAZLIWE=$(trafione "$(sed -n 's/^wrazliwe: *//p' <<<"$SEKCJA")")
+POWIERZCHNIA=$(trafione "$(sed -n 's/^powierzchnia: *//p' <<<"$SEKCJA")")
 
 R="$K/raport-$N.md"
 if [ "$(head -1 "$R" 2>/dev/null | tr -d '[:space:]')" = "done." ]; then ok "raport: done."; else brak "raport $R nie zaczyna się od done."; fi
@@ -71,31 +93,19 @@ case "$WER" in
     elif [ -z "$SHA_W" ] || [ "${TIP#"$SHA_W"}" = "$TIP" ]; then brak "$(basename "$WFY") weryfikuje ${SHA_W:-?}, a tip to ${TIP:0:9}"
     else ok "weryfikacja $CHCE na ${TIP:0:9}"; fi ;;
   n/a*)
-    if [ "$VERD" = FAIL ]; then brak "raport mówi n/a, a ostatnia weryfikacja to FAIL"; else ok "weryfikacja n/a (${WER#n/a})"; fi ;;
+    if [ "$VERD" = FAIL ]; then brak "raport mówi n/a, a ostatnia weryfikacja to FAIL"
+    elif [ -n "$POWIERZCHNIA" ]; then brak "raport mówi n/a, a diff dotyka powierzchni ($(cut -c1-200 <<<"$POWIERZCHNIA")) — potrzebny weryfikator: PASS albo BLOCKED"
+    else ok "weryfikacja n/a (${WER#n/a})"; fi ;;
   *) brak "raport nie ma linii Weryfikacja: PASS / BLOCKED — … / n/a — …" ;;
 esac
 
-# Project section `## Bramka`: sensitive paths and the gate tests.
-SEKCJA=$(awk '/^## Bramka/{f=1;next} /^## /{f=0} f' "$REPO/docs/VERIFICATION_ENV.md" 2>/dev/null)
-GLOBY=$(sed -n 's/^wrazliwe: *//p' <<<"$SEKCJA")
-if [ -n "$GLOBY" ]; then
-  shopt -s nocasematch
-  TRAF=""
-  while IFS= read -r P; do
-    while IFS= read -r G; do
-      [ -n "$G" ] || continue
-      # shellcheck disable=SC2053
-      if [[ "$P" == $G || "${P##*/}" == $G ]]; then TRAF="$TRAF $P"; break; fi
-    done <<<"$GLOBY"
-  done < <(git -C "$WT" diff --name-only "$MAIN...$GALAZ")
-  shopt -u nocasematch
-  if [ -n "$TRAF" ]; then
-    TIER=$(pole "$REC" Tier | grep -oE '^[SML]')
-    case "$TIER" in
-      M|L) ok "ścieżki wrażliwe, recenzja tier $TIER:$(cut -c1-200 <<<"$TRAF")" ;;
-      *) brak "ścieżki wrażliwe ($(cut -c1-200 <<<"$TRAF")), a recenzja ma tier ${TIER:-?} — potrzebny M albo L" ;;
-    esac
-  fi
+# Sensitive paths need a review of tier M or L.
+if [ -n "$WRAZLIWE" ]; then
+  TIER=$(pole "$REC" Tier | grep -oE '^[SML]')
+  case "$TIER" in
+    M|L) ok "ścieżki wrażliwe, recenzja tier $TIER:$(cut -c1-200 <<<"$WRAZLIWE")" ;;
+    *) brak "ścieżki wrażliwe ($(cut -c1-200 <<<"$WRAZLIWE")), a recenzja ma tier ${TIER:-?} — potrzebny M albo L" ;;
+  esac
 fi
 TESTY=$(sed -n 's/^testy: *//p' <<<"$SEKCJA" | head -1)
 if [ -n "$TESTY" ]; then

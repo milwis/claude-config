@@ -22,7 +22,7 @@ Every agent states a goal and where the rules live, not the rules themselves (v1
 
 | Agent | Focus |
 |-------|-------|
-| code-reviewer | Decides whether a diff merges: spec, project rules for the touched paths (it Reads them), security when the diff touches a trigger, tests that can fail. Tiers S/M/L from `git diff --stat`, measured findings, an `Otwarte: <n> CRITICAL, <m> REQUIRED` line a merge gate reads |
+| code-reviewer | Decides whether a diff merges, in a fresh context: reads the issue itself, then the project rules for the touched paths, tests first, 7 axes (security and data integrity included) with the full defect checklist from audits (variant paths, silent money fallbacks, ambiguous external outcomes, TOCTOU). Tiers S/M/L from `git diff --stat`, measured findings, an `Otwarte: <n> CRITICAL, <m> REQUIRED` line a merge gate reads |
 | backend-security-coder | Security audits (`audit-360`, explicit passes): exploit paths input → sink / missing check, each link measured; proposes fixes, never edits. A diff's security is reviewed by `code-reviewer` |
 
 ### Model class — two-tier policy (2026-08-19)

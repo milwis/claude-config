@@ -74,6 +74,9 @@ Before the spawn, check that the brief carries each of these lines:
 
 ## Review (fresh `code-reviewer`, `opus`)
 
+0. **Spec:** the issue number or the plan/task file, with "read it yourself before my notes: it is the spec, my
+   summary and decisions are claims to check". The reviewer judges the diff against the spec, not against your
+   restatement of it; a reviewer framed by the implementer inherits the implementer's blind spot.
 1. **Scope:**
    - `git diff --stat <base>...<tip>` and the tip SHA;
    - the stat, not a tier: the reviewer sizes itself, and a sensitive path (money/VAT/auth, migrations, CI,
