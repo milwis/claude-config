@@ -11,7 +11,7 @@ Complete development toolkit: language-specific coding agents, security review, 
 | python-pro | Python 3.13+/3.14 | AI error prevention, PEP 8, type hints, async, security |
 | javascript-pro | JavaScript/TypeScript | Security-first, ES2025, XSS/injection prevention, npm defense |
 | sql-pro | SQL | AI error prevention, query optimization, injection defense |
-| php-pro | PHP 8.3+/8.4/8.5 | Security-first, PSR-12, Laravel/Symfony, AI vulnerability mitigation |
+| php-pro | PHP | Goal-only builder (since v1.5.52): rules come from the project's `CLAUDE.md` / `.claude/rules` / standards, and the project's checks prove the change |
 | nextjs-pro | Next.js 15+/React 19/TypeScript | App Router, Server Components, Server Actions as public endpoints, Next 15 caching semantics, CVE-2025-29927 |
 
 ### Universal Tools

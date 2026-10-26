@@ -5,6 +5,52 @@
 > 2. **Nie dodawaj sekcji „newsowych"** (wydania PostgreSQL/MySQL/Node/Safari, listy narzędzi, statystyki branżowe z datami). Zostały celowo usunięte 2026-08-19 — starzeją się co miesiąc, nie zmieniają decyzji przy pisaniu kodu i zżerają tokeny przy każdym wywołaniu agenta. Aktualizuj wyłącznie REGUŁY (co wolno / czego nie wolno / jak zweryfikować).
 > 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
 > 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
+> 5. **`php-pro` od v1.5.52 zawiera tylko cel, zasadę „reguły projektu wiążą” i definicję „gotowe”.** Nie dopisuj do niego reguł PHP ani domenowych. Reguła sprawdzalna maszynowo trafia do testu, zapadki albo PHPStan projektu. Reguła domenowa trafia do `.claude/rules/*.md` z `paths:` albo do `CLAUDE.md` projektu. Wiedzy ogólnej o PHP nie zapisuj nigdzie.
+
+## Run: 2026-10-26 — php-pro: cel i reguły projektu zamiast metody (v1.5.52, pilot)
+
+Źródło: film o składaniu podagentów z powrotem w jedną pętlę („split by context, not by problem type”) i pomiar kolejki KonkretnyTMS, oba na prośbę właściciela.
+
+- `POMIAR` (KonkretnyTMS, 238 sesji kolejki od 2026-10-10, rola z `name` w `subagents/*.meta.json`, jednostki = input-equivalent w ramach modelu):
+  - `php-pro` to 213 z 322 agentów piszących. Mediana to 0,48M jednostek, a 29,1% kosztu przypada na wywołania przed pierwszym `Edit`/`Write`. Na sesję z `php-pro` przypada 1,26 review i 0,29 fixera.
+  - Reguły ścieżkowe projektu docierają do podagentów: treść `php-rules.md` jest wpisem `attachment` w transkrypcie 80 z 87 builderów, którzy otworzyli `Read` plik PHP spoza `tests/`.
+  - Skille wywoływane przez opis nie ładują się wcale (builderzy 0/278, także 0/26 przy TDD wymienionym w briefie).
+- Klasyfikacja 27,9 KB agenta:
+  - **(A) Sprawdzane maszynowo w KonkretnyTMS:**
+    - `StrictTypesCoverageTest`,
+    - `RuntimeDdlRegressionTest`,
+    - zapadki KSeF z WHERE-guard,
+    - job `money-parity` i zapadki kanonu VAT,
+    - `LastInsertIdIntTest`,
+    - `OperatorScriptSapiGuardTest`,
+    - zapadki skipów zależnych od zawartości dumpa,
+    - `RuntimeVersionParityLatchTest`,
+    - `NipValidatorTest`.
+  - **(B) Już w `CLAUDE.md` / `.claude/rules` projektu i konkretniej niż w agencie:**
+    - kanon Money/VAT z regułą kierunku dokumentu,
+    - `PartsFifoService` jako jedyna ścieżka magazynu,
+    - KSeF,
+    - „nie zgaduj” brakujących danych,
+    - placeholdery zamiast zredagowanych wartości,
+    - procedura falsyfikacji (`incident-lessons.md` §„Klasa nadrzędna”),
+    - sonda `.gitignore`/`.htaccess`,
+    - nazwa klasy = implementacja,
+    - `EMULATE_PREPARES`.
+  - **(C) Duplikat briefu task-lifecycle albo wiedza ogólna — usunięte:**
+    - z briefu: tabela mutantów, limit docbloka, write-first, kontrakt raportu, ekonomia testów i zapadki licznikowe;
+    - wiedza ogólna: lista PHP 8.x, PSR-12, DI, repozytoria, wydajność, weryfikacja pakietów.
+  - **Świadomie pominięte (brak realnego trafienia):**
+    - PK z czasu: `uniqid(` w kodzie produkcyjnym to 5 trafień, wszystkie w nazwach plików tymczasowych;
+    - limit 1500 LOC: kolejka nie dzieli plików.
+  - **Do decyzji właściciela:** spójność plik + DB (kolejność zapisu, sprzątanie po rollbacku). Reguły projektu o tym nie znalazłem.
+- `agents/php-pro.md`: 27,9 KB → 1,6 KB. Model i narzędzia bez zmian. `audit-360` jest nietknięty, bo `prompts/02-php-pro.md` niesie własną listę kontrolną.
+- Do zmierzenia po ~20 issue z `php-pro`, tymi samymi definicjami:
+  - mediana kosztu buildera,
+  - udział kosztu przed pierwszą edycją,
+  - review i fixery na sesję,
+  - ustalenia recenzenta, które naruszają regułę z klas (A)/(B).
+
+  Wzrost rund review albo ustaleń z (B) = przywrócić konkretne reguły do reguł projektu (nie do agenta).
 
 ## Run: 2026-10-22 — lider rozpoznaje `Weryfikacja: BLOCKED` także jako nagłówek (v1.5.51)
 
