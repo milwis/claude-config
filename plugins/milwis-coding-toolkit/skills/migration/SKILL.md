@@ -1,6 +1,6 @@
 ---
 name: migration
-description: "Use when a change alters a persisted or public shape — DB schema, stored data, API contract, message/protocol format, config keys, a dependency's major version. Enforces a reversible, compatibility-safe transition: map readers/writers first, forward AND rollback path, expand → migrate → verify → contract, destructive steps authorized separately, never contract implicitly."
+description: "Use when a change alters a persisted or public shape: DB schema, stored data, API contract, message or protocol format, config keys, or a dependency's major version."
 ---
 
 # Migration (reversible, compatibility-safe transitions)
@@ -70,4 +70,4 @@ Mixed-version safety: during Expand and Migrate the old reader must still work a
 - `executingplans` — migrations are always sequential and precede the code that depends on them.
 - `roadmapa` — the queue runs one issue at a time, so DB-touching changes never run in parallel (shared dev database).
 - `code-reviewer` — gets this skill's stage rules as lines of its brief (a skill does not load inside a subagent): a migration without a rollback path or with an implicit Contract is CRITICAL.
-- The issue's one builder writes the migration as its first layer (`sql-pro` when the change has no application code), with the requested stage named in its brief; `verify-e2e` — the DB-migration surface row.
+- `task-lifecycle` — whoever implements the issue writes the migration as its first step, doing only the requested stage (a `builder` gets the stage as a line of its brief); `verify-e2e` — the DB-migration surface row.

@@ -1,6 +1,6 @@
 ---
 name: test-automator
-description: Test builder and surface verifier. Writes the tests a brief asks for on the project's own harness and proves each can fail; given a verification brief, tries to falsify a done-claim on the surface the user touches. Follows the project's own rules.
+description: Writes the tests a brief asks for and proves each can fail; given a verification brief, tries to falsify a done-claim on the surface the user touches.
 model: sonnet
 tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, Skill
 ---

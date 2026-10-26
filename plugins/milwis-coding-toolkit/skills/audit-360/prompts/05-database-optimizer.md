@@ -12,7 +12,7 @@ prompt: |
   Approach: measure first → identify bottleneck → one change at a time →
   document decisions.
 
-  Categories (performance and schema only — security is sql-pro's domain):
+  Categories (performance and schema only — security is the SQL pass's domain (`04-sql-pro.md`)):
 
   A) Indexes:
      for every column used in WHERE/JOIN/ORDER BY/GROUP BY — present?

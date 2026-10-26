@@ -1,9 +1,9 @@
-# Prompt for `javascript-pro` — deep JS/TS audit (skip if none detected)
+# Prompt for the JS/TS pass (`code-reviewer`) — deep JS/TS audit (skip if none detected)
 
 Paste the body below as the `prompt` parameter. Replace `<INVENTORY_PATH>`.
 
 ```
-subagent_type: javascript-pro
+subagent_type: code-reviewer
 description: JS/TS audit — XSS, async, npm supply chain, AI anti-patterns
 prompt: |
   You are auditing the JavaScript / TypeScript code in the application

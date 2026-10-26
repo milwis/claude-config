@@ -76,55 +76,48 @@ If NOT from marketplace:
 
 | Agent | When needed |
 |---|---|
-| `code-reviewer` | ALWAYS — before every commit |
-| `debugger` | ALWAYS — root cause analysis |
-| `test-automator` | ALWAYS — test strategy |
-| `refactoring-orchestrator` | ALWAYS — refactoring end-to-end |
-| `backend-security-coder` | When project has API/auth/user data — for security audits; diffs are reviewed for security by `code-reviewer` |
+| `code-reviewer` | ALWAYS — fresh review of every non-trivial diff, security included |
+| `test-automator` | ALWAYS — tests as their own task, and surface verification (`verify-e2e`) |
+| `debugger` | ALWAYS — a failure with an unknown cause |
+| `builder` | ALWAYS — an independent sizeable task beside the main session |
+| `refactoring-orchestrator` | ALWAYS — a behaviour-preserving refactor as its own task |
+| `backend-security-coder` | When project has API/auth/user data — security audits only |
 | `database-optimizer` | When project has database |
-| `sql-pro` | When project has SQL database |
-| `{language}-pro` | Create via `/lang-guidelines` for primary language |
-| `mobile-pwa-developer` | When project has PWA/mobile |
+
+Language rules live in `.claude/rules/<language>-rules.md` with `paths:` (`/lang-guidelines`), not in agents.
 
 ### MANDATORY: Agent Routing Table in CLAUDE.md
 
-The routing table tells Claude which builder agent owns which files. Without it, code gets written in the main session instead of by a builder that proves its change with the project's checks. The rules every builder follows are the project's own (`CLAUDE.md`, the stack rules files), not the agents'.
+The session that holds the task writes the code: it has read the spec and the code, and a subagent would read them again. The routing table names the jobs that need a context of their own — a fresh review, a fresh verification, an investigation, an independent task — so they are not done in the context that wrote the change. The rules every writer follows are the project's own (`CLAUDE.md`, the stack rules files).
 
 Generate based on stack from Step 0:
 
 ```markdown
 ## Agent routing (marketplace: milwis-coding-toolkit)
 
-| Files / Context | Agent | Invocation |
+| Context | Agent | Invocation |
 |---|---|---|
-| {backend_paths} | `{language}-pro` | {language} code |
-| {frontend_paths} | `javascript-pro` | JS/TS code |
-| {sql_paths}, DB queries | `sql-pro` | SQL |
-| Security, API keys, auth | the layer's builder, then `code-reviewer` | Review covers security; `backend-security-coder` for audits |
-| Before every commit | `code-reviewer` | Required before every commit |
+| Review of a diff, security included | `code-reviewer` | **MANDATORY** before every commit (a fresh agent each round) |
+| User-facing change | `test-automator` with a `verify-e2e` brief | Fresh, adversarial, with evidence |
 | Bugs, errors, failures | `debugger` | Start from logs, then code |
 | DB performance | `database-optimizer` | For slow queries, indexing |
-| Tests | `test-automator` | For test creation |
-| Refactoring | `refactoring-orchestrator` | Orchestrated, zero-regression process |
-| PWA / mobile | `mobile-pwa-developer` | Only if PWA |
+| Refactoring as its own task | `refactoring-orchestrator` | Behaviour-preserving, equivalence proof |
+| Independent sizeable task | `builder` | Shares no file, symbol or decision with the main work |
+| Security audit | `backend-security-coder` | Audits only; diffs are reviewed by `code-reviewer` |
 
-**Workflow:** `/brainstorming → /writingplans → /executingplans → code-reviewer → commit`
+**Workflow:** `/brainstorming → /writingplans → /executingplans → code-reviewer → commit` (one task end to end: `/task-lifecycle`)
 ```
 
 Rules for generating the table:
-1. Replace `{backend_paths}` with actual paths (`src/**/*.py`, `app/**/*.php`)
-2. Replace `{language}-pro` with actual (`python-pro`, `php-pro`)
-3. Multiple backend languages → a row for each
-4. No frontend → remove `javascript-pro` row
-5. No DB → remove `sql-pro` and `database-optimizer` rows
-6. No PWA → remove `mobile-pwa-developer` row
+1. No DB → remove the `database-optimizer` row
+2. No API/auth/user data → remove the `backend-security-coder` row
 
 ### Non-negotiable rules (add to CLAUDE.md alongside routing table)
 
 ```markdown
 ## Non-negotiable rules
 
-- Code in a path the routing table covers is written by that agent; the rules it follows are this project's (`CLAUDE.md`, `.claude/rules/*.md`)
+- Code is written under this project's rules (`CLAUDE.md`, `.claude/rules/*.md`); review and verification run in a fresh agent, never in the context that wrote the change
 - Run `code-reviewer` before every commit
 - Debugging starts with `debugger`: logs first, then code
 - Use `Decimal` for money — NEVER float

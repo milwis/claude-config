@@ -50,6 +50,7 @@ nowy_cykl() {
   rm -f tura-koniec blad-api
   tmux respawn-pane -k -t "$SESJA:0" -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
   STALL_ZGLOSZONY=0
+  KONTYNUACJE=0
   ST_OD=$(date +%s)
   status_github pracuje
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
@@ -182,6 +183,8 @@ trap 'twardy_stop SIGINT' INT
 status_github pracuje
 BEZ_FLAGI=0
 STALL_ZGLOSZONY=0
+KONTYNUACJE=0
+KONT_MIN="${KOLEJKA_KONT_MIN:-2}"
 
 while sleep 20; do
   tmux has-session -t "$SESJA" 2>/dev/null || { log "sesja tmux zniknęła"; status_github zatrzymana "sesja tmux zniknęła"; exit 1; }
@@ -242,10 +245,23 @@ while sleep 20; do
     czekaj_do "$CEL" "kolejka pusta"
     nastepny_cykl
   else
-    # Turn ended without a flag: the lead asked something, hit an error, or was interrupted.
-    # Give it $GRACE_MIN (a background notification may wake it), then restart the cycle once;
-    # the second time in a row means something systemic — stop and wait for the owner.
+    # Turn ended without a flag. Opus 5.5 ends some turns with a progress report while work is still owed, and a
+    # loop that treats that as the end "stops running there" (docs: prompting-claude-opus-5-5, Unattended agentic
+    # runs). So first, after $KONT_MIN quiet minutes (a running subagent writes its transcript and counts as
+    # activity), ask the same session to go on — at most twice per issue, as the docs advise.
     WIEK=$(( $(date +%s) - $(cat tura-koniec) ))
+    if [ "$KONTYNUACJE" -lt 2 ] && ! martwy; then
+      [ "$WIEK" -lt $((KONT_MIN * 60)) ] && continue
+      aktywnosc_w_ciagu "$KONT_MIN" && continue
+      KONTYNUACJE=$((KONTYNUACJE + 1))
+      NR=$(cat w-toku 2>/dev/null || echo '?')
+      rm -f tura-koniec
+      wyslij "Kolejka: tura skończyła się bez flagi rotuj/pusto/stop, więc issue #$NR nie jest zamknięte. Kontynuuj według $K/stan-$NR.md i zasad. Jeśli coś blokuje, napisz co i odłóż issue (krok 8)."
+      log "lider: tura bez flagi — kontynuacja $KONTYNUACJE/2 (issue #$NR)"
+      continue
+    fi
+    # Still no flag: the lead asked something, hit an error, or was interrupted. Give it $GRACE_MIN, then restart
+    # the cycle once; the second time in a row means something systemic — stop and wait for the owner.
     [ "$WIEK" -lt $((GRACE_MIN * 60)) ] && continue
     aktywnosc_w_ciagu "$GRACE_MIN" && continue
     BEZ_FLAGI=$((BEZ_FLAGI + 1))

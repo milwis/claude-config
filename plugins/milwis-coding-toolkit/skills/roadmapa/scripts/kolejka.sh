@@ -16,7 +16,8 @@
 #   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_ETYKIETA_RECZNA (weryfikacja:reczna — merged
 #   issues whose surface verification ended BLOCKED, for the owner to check by hand), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
-#   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_L2 (opus), KOLEJKA_MODEL_TRIAGE (opus), KOLEJKA_MODEL_LIDER (session default), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
+#   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_LIDER (opus — the lead implements), KOLEJKA_MODEL_TRIAGE (opus),
+#   KOLEJKA_EFFORT (high), KOLEJKA_LIMIT_TYG (92), KOLEJKA_OKNO_H (5),
 #   KOLEJKA_TYPY / KOLEJKA_ZATWIERDZONY / KOLEJKA_POMIJAJ / KOLEJKA_ODROCZENIA (backlog filter, see wybierz-issue.sh),
 #   KOLEJKA_STATUS_ISSUE (number of the closed status issue the watcher writes for the dashboard; unset = found
 #   by its title, set empty = off), KOLEJKA_DEPLOY_WORKFLOW (workflow whose last successful run = the last deploy, for
@@ -83,9 +84,9 @@ LEDGER="${KOLEJKA_LEDGER:-docs/plans/kolejka-ledger.md}"
 WT="$REPO/.claude/worktrees/kolejka"
 ETYKIETA_ZROBIONE="${KOLEJKA_ETYKIETA_ZROBIONE:-status:zrobione-lokalnie}"
 ETYKIETA_RECZNA="${KOLEJKA_ETYKIETA_RECZNA:-weryfikacja:reczna}"
-MODEL_L2="${KOLEJKA_MODEL_L2:-opus}"
+MODEL_LIDER="${KOLEJKA_MODEL_LIDER:-opus}"
 MODEL_TRIAGE="${KOLEJKA_MODEL_TRIAGE:-opus}"
-MODEL_LIDER="${KOLEJKA_MODEL_LIDER:-}"
+EFFORT="${KOLEJKA_EFFORT:-high}"
 IDLE_MIN="${KOLEJKA_IDLE_MIN:-30}"
 STALL_MIN="${KOLEJKA_STALL_MIN:-90}"
 GRACE_MIN="${KOLEJKA_GRACE_MIN:-10}"
@@ -101,15 +102,16 @@ DEPLOY_WORKFLOW="$(deploy_workflow)"
 EOF
   # Hooks live only in this file, passed with --settings: no other session in the repo sees them.
   jq -n --arg ss "$SKRYPTY/hook-session-start.sh" --arg st "$SKRYPTY/hook-stop.sh" \
-    --arg sf "$SKRYPTY/hook-stop-failure.sh" '{hooks: {
+    --arg sf "$SKRYPTY/hook-stop-failure.sh" --arg pt "$SKRYPTY/hook-pre-tool.sh" '{hooks: {
     SessionStart: [{matcher: "startup|clear|compact", hooks: [{type: "command", command: $ss}]}],
+    PreToolUse: [{matcher: "Bash|Write|Edit|MultiEdit|NotebookEdit", hooks: [{type: "command", command: $pt}]}],
     Stop: [{hooks: [{type: "command", command: $st}]}],
     StopFailure: [{hooks: [{type: "command", command: $sf}]}]}}' > "$K/settings.json"
   # The owner's authorisation. lider.sh passes it verbatim as the first message of every lead session;
   # the lead quotes it in ledger row 0. One line.
   if [ -n "$LISTA" ]; then ZRODLO="weź następne issue z listy $LISTA (w tej kolejności)"
   else ZRODLO="weź jedno issue z backlogu wg priorytetu P0→P3: bugi, braki testów i pomysły zatwierdzone przez właściciela (pomysl:zatwierdzony); pomysły bez tej etykiety pomijasz"; fi
-  echo "Kolejka roadmapa: $ZRODLO, rozwiąż je podagentem, scal lokalnie do $MAIN (--no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
+  echo "Kolejka roadmapa: $ZRODLO, rozwiąż je sam w worktree kolejki (triage, recenzja i weryfikacja to świeże podagenty), scal lokalnie do $MAIN przez scal.sh (bramka, --no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
 
   # One claude process per issue: the watcher replaces it (respawn-pane) after every issue.
   tmux new-session -d -s "$SESJA" -n lider -x 220 -y 50 -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"

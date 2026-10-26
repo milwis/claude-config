@@ -1,9 +1,9 @@
-# Prompt for `php-pro` — deep PHP audit (skip if no PHP detected)
+# Prompt for the PHP pass (`code-reviewer`) — deep PHP audit (skip if no PHP detected)
 
 Paste the body below as the `prompt` parameter. Replace `<INVENTORY_PATH>` with the path to `audit/INVENTORY.md`.
 
 ```
-subagent_type: php-pro
+subagent_type: code-reviewer
 description: PHP deep audit — strict types, OWASP, AI anti-patterns
 prompt: |
   You are auditing the PHP code in the application described in

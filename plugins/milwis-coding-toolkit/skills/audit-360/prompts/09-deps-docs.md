@@ -1,18 +1,18 @@
-# Prompt for SECOND PASS by primary language specialist — dependencies + docs
+# Prompt for the dependencies + docs pass (`code-reviewer`)
 
-Run after the first language pass (e.g., a second `php-pro` or `python-pro` call) focused on supply chain and documentation. Skip if dep/docs surface area is small.
+Run after the language passes, focused on supply chain and documentation. Skip if dep/docs surface area is small.
 
 Paste the body below as the `prompt` parameter. Replace `<INVENTORY_PATH>`.
 
 ```
-subagent_type: <project-primary-language-pro>     # php-pro / python-pro / javascript-pro
+subagent_type: code-reviewer
 description: Dependencies + docs audit (second pass)
 prompt: |
   You are auditing DEPENDENCIES and DOCUMENTATION of the application in
   <INVENTORY_PATH>. Mode: READ-ONLY.
 
-  This is your SECOND `Agent` call. Do NOT repeat findings from the first
-  language pass — focus exclusively on supply chain and docs.
+  The language passes have run. Do NOT repeat their findings —
+  focus exclusively on supply chain and docs.
 
   ZONE A — DEPENDENCIES:
 

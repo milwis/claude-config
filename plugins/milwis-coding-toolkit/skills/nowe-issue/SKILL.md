@@ -1,12 +1,12 @@
 ---
 name: nowe-issue
-description: "Use whenever a new GitHub issue must be created — a bug found during work, a spin-off from NOWE PROBLEMY, an audit finding, a `too-big.` report, or a large problem the owner wants broken down. Sizes every issue so ONE agent running task-lifecycle (the roadmapa queue, or a single Claude Code web session) can finish it; a bigger problem becomes an umbrella plus several or a dozen independent portions. Every issue gets the mandatory label axes, read live from the repo: modul:*, P0-P3, srodowisko:web|lokalne, typ:*. Checks duplicates first, writes measured anchors into the body, validates labels after creation with scripts/sprawdz-etykiety.sh."
+description: "Use whenever a new GitHub issue must be created: a bug found during work, a spin-off from NOWE PROBLEMY, an audit finding, a `too-big.` report, or a large problem the owner wants split."
 ---
 
 # Nowe issue — one issue = one task-lifecycle run
 
-**Core:** an issue is a work order for ONE fresh agent running `task-lifecycle` with no owner at hand — the
-roadmapa queue's L2 or a single Claude Code web session. If that agent cannot finish it in one run, the
+**Core:** an issue is a work order for ONE session running `task-lifecycle` with no owner at hand — the
+roadmapa queue's lead or a single Claude Code web session. If that agent cannot finish it in one run, the
 issue is wrong, not the agent: split it before it is created, never after it fails.
 
 **Announce at start:** "I'm using the nowe-issue skill."
@@ -44,7 +44,7 @@ one without the owner's OK. A repo without these axes at all (only GitHub defaul
    now, quoted with its date and branch/SHA (`POMIAR (<command>, main <sha>, 2026-09-26): …`). Mark
    conclusions `WNIOSEK`. A `0` counts only with a positive control. The agent solving the issue starts from
    these anchors; a false anchor is one it pays to unlearn (`task-lifecycle` Step 0.3).
-3. **No open decisions.** A builder stops on ambiguity (`ambiguous. ask:`) and the queue defers the issue. If
+3. **No open decisions.** The implementing session stops on ambiguity (`ambiguous. ask:`) and the queue defers the issue. If
    the fix needs a choice (business rule, option A vs B, data semantics), either the owner decides now and the
    decision goes into the body, or the decision becomes its own `typ:analysis` issue that the implementation
    depends on.
@@ -99,9 +99,8 @@ It fits ONLY when **all** hold:
    steps in money/VAT/regulated code) is a plan, not an issue → split, or `brainstorming` → `writingplans` with
    the owner.
 3. **Envelope:** about ≤ 10 files and ≤ 400 changed lines (the `code-reviewer` M tier — beyond it the review
-   gets shallower) and at most 2 layers (migration + backend, or backend + frontend). Basis: one builder per
-   layer at ≤ ~60 tool calls; one builder across three layers cost 2.7× (`task-lifecycle` Step 1, `POMIAR`
-   #687). Reference split: the #437 portions — 10–19 moved call sites in 2–3 controllers each.
+   gets shallower) and at most 2 layers (migration + backend, or backend + frontend). Basis: about 60 tool calls
+   of implementation per layer; one run across three layers cost 2.7× (`POMIAR` #687). Reference split: the #437 portions — 10–19 moved call sites in 2–3 controllers each.
 4. **Mergeable alone.** `main` stays green after merging just this issue — tests, latches, static analysis,
    and no half-built screen.
 5. **Self-contained.** The body carries everything; the agent never needs the conversation that produced it.

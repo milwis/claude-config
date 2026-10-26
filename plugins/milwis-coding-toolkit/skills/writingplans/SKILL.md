@@ -137,7 +137,7 @@ Find timeline-breaking issues in Task 1, not Task 8.
 
 ### No implementation code in the plan
 
-**DO NOT put full implementation code in the plan.** The executing agent (`php-pro`, `sql-pro`, etc.) generates code following the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`). Plans describe intent; agents implement.
+**DO NOT put full implementation code in the plan.** Whoever executes the plan (the session running `executingplans`, or a `builder` for an independent task set) writes the code under the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`). Plans describe intent; the executor implements.
 
 The only reason to include code is a very specific, non-obvious pattern — and even then, reference it by file path rather than inline.
 
@@ -180,7 +180,7 @@ Write findings as a checklist. Record every real gap you find, each with the tas
 
 **Run Pass 2 only for plans with more than 5 tasks OR touching money/VAT, auth/permissions, or regulated data — and cap it at 2 auditors.** Auditing the TEXT of a small plan with a panel of agents costs more than the reality-check the code itself will force during execution; the review loop in `task-lifecycle` catches what a plan audit would. For plans below the threshold, skip to Pass 3 with Pass 1 findings only.
 
-The builder agents (`php-pro`, `javascript-pro`, ...) are goal-only writers and carry no checklist of their own, so they are not plan auditors. Pass 2 uses the reviewers, spawned **in parallel** (single message, multiple `Agent` calls):
+The `builder` agent is a goal-only writer with no checklist of its own, so it is not a plan auditor. Pass 2 uses the reviewers, spawned **in parallel** (single message, multiple `Agent` calls):
 
 | Plan touches | Agent | Audits |
 |---|---|---|

@@ -1,47 +1,87 @@
 # The lead's cycle — one issue per session
 
-You are the lead (L1) of the `roadmapa` queue. This session handles **exactly one issue**, then ends its
-turn; the watcher ends this claude process and starts the next cycle in a new one. Everything you need is in this file —
-do not load the `roadmapa` skill. The `SessionStart` hook has already given you the configuration, ledger
-row 0 (the owner's authorisation) and the last ledger rows.
+You are the lead of the `roadmapa` queue. This session takes **exactly one issue**, implements it in the queue
+worktree, merges it through the gate and ends its turn; the watcher then starts the next cycle in a new process.
+Do not load the `roadmapa` skill. The `SessionStart` hook has already given you the configuration, ledger row 0
+(the owner's authorisation) and the last ledger rows.
 
-**Why one session per issue:** the quality of the work lives in L2, which always starts with a clean window.
-The lead only dispatches, but over dozens of issues its window would still fill and be compacted; after
-a fresh process per issue it never is. So nothing you need may live only in your context: the state is GitHub labels, `git`
-merges, the ledger and the flag files in `$K`.
+**Goal.** The issue is fixed on `agent/issue-<N>`, a fresh reviewer found nothing CRITICAL or REQUIRED on the
+branch tip, the surface a user touches is verified, and `scal.sh` merged the branch into `$MAIN`. Otherwise the
+issue carries a deferral that says what unblocks it. Either way the ledger gets its row. Nobody is at the
+keyboard, so you never stop to ask: in a state this file does not cover, take the cheapest reversible action you
+can justify, write the uncertainty into the ledger row, and carry on.
 
-## Configuration — never retype a path
+**Why this shape.**
+- **One session per issue:** the window starts clean for every issue.
+- **Triage is a separate agent:** measured below.
+- **You implement:** planning, implementation and testing share one context. Handing them to a chain of agents
+  made each one re-read what the previous one had read.
+- **Review and verification are fresh agents:** an unattended run needs a check from outside the context that
+  wrote the code.
+- **The merge is a script:** the evidence is checked by code, not by judgement.
 
-**Every Bash call starts with `. .claude/tmp/kolejka/config.env &&`** (your working directory is the main
-tree) and uses the variables: `$REPO` main tree, `$K` state directory, `$SKRYPTY`, `$MAIN`, `$LEDGER`
-(relative to `$REPO`), `$WT` L2 worktree, `$ETYKIETA_ZROBIONE`, `$ETYKIETA_RECZNA`, `$MODEL_L2`, `$KOLEJKA_LISTA` (empty =
-backlog source). `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-character state path dropped one
-`/`, wrote its flag into a non-existent directory, reported success, and the queue stood still.
+## State lives outside your context
 
-## Levels
+- **Every Bash call starts with `. .claude/tmp/kolejka/config.env &&`.** Your working directory is the main tree.
+  Use the variables:
+  - `$REPO` main tree; `$K` state directory; `$SKRYPTY`; `$MAIN`; `$LEDGER` (relative to `$REPO`);
+  - `$WT` the queue worktree;
+  - `$ETYKIETA_ZROBIONE`, `$ETYKIETA_RECZNA`, `$MODEL_TRIAGE`;
+  - `$KOLEJKA_LISTA` (empty = backlog source).
 
-- **L1 — you.** You read no code and write no code. You alone merge into `$MAIN`, close/label/create issues
-  and commit the ledger.
-- **Triage — one subagent per issue**, before L2: `general-purpose`, `model: ${MODEL_TRIAGE:-opus}`,
-  `name: triage-<nr>`. It decides whether the problem exists on HEAD and writes a compact report (step 4a). It
-  changes no tracked file, commits nothing and spawns nobody.
-- **L2 — issue subagent**, only after a `VALID.` triage: `general-purpose` (it needs the `Agent` tool), `model: $MODEL_L2`,
-  `name: issue-<nr>`; your turn stays open until its report exists (step 4b). It runs `task-lifecycle` in full in `$WT`
-  on top of the triage report and reports. It never merges, pushes, closes or creates issues, never edits the ledger.
-- **L3 — specialists** spawned by L2 per `task-lifecycle`: ONE builder per issue (`php-pro`, `javascript-pro`, `sql-pro`…;
-  it also updates the docs and takes the review fixes while it waits warm), `code-reviewer` (security included), the
-  verifier (`test-automator`), a fresh fixer when the builder is gone, `Explore`. L3 spawns nobody.
+  `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-character state path dropped one `/`, wrote its flag
+  into a non-existent directory, reported success, and the queue stood still.
+- **Record progress as you go.** After each numbered step below, append one line to `$K/stan-<N>.md`:
+  - the step;
+  - the size class;
+  - the review and verification round;
+  - each decision that crosses files (a data shape, a name, a normalisation).
+- **After a compaction**, before the next action, re-read this file, `$K/stan-<N>.md` and the `task-lifecycle`
+  skill. Then `git -C "$WT" log --oneline "$MAIN..HEAD"`.
+- **Keep command output short.** A test suite or a diff goes to a file; read its summary.
 
-**Why triage is a separate agent:** `POMIAR` (2026-10-06, 393 L2 transcripts of KonkretnyTMS, 2026-09-22…10-04, cost at
-Opus 5.5 list prices): when L2 did triage itself, its window grew from 74k to 165k (median) before the first spawn, and that
-residue rode along through ~30 orchestration calls; 59% of L2's cost was cache writes, 41% of them full rewrites after a
-wait over the 5-minute cache TTL. L2 was 42% of the cost of an issue. A separate triage hands L2 a ~3k report instead.
-  Nobody at any level starts `claude --bg`. `POMIAR` (2026-09-22, KonkretnyTMS transcripts): 69 of 1,916
-  subagent transcripts contain their own `Agent` call — depth 2 works in this harness.
+## Who does what
+
+- **You:**
+  - pick and prepare;
+  - implement and fix;
+  - run the full suite;
+  - merge through `scal.sh`;
+  - close, label and create issues;
+  - commit the ledger.
+- **`triage-<N>`:**
+  - `general-purpose`, `model: ${MODEL_TRIAGE:-opus}`.
+  - It decides whether the problem exists on HEAD and writes a compact report (step 4).
+  - It changes no tracked file, commits nothing and spawns nobody.
+- **`recenzja-<N>-<k>`:**
+  - `code-reviewer`, `model: opus`, a fresh agent for every round k.
+  - It writes `$K/recenzja-<N>-<k>.md`.
+- **`weryfikacja-<N>-<k>`:**
+  - `test-automator` with a `verify-e2e` brief, `model: sonnet`, a fresh agent for every round k.
+  - It writes `$K/weryfikacja-<N>-<k>.md`.
+- **`Explore` or `builder-<N>-<k>`:** only where `task-lifecycle` sends work out — a sweep, or a sizeable task
+  that is genuinely independent.
+
+**No subagent** merges, pushes, closes or creates issues, or edits the ledger. The queue's PreToolUse hook blocks
+`git merge` and `git push` in every queue process, and blocks your own Write/Edit on the verdict files. Nobody
+starts `claude --bg`.
+
+**Why triage is a separate agent.** `POMIAR` (2026-10-06, 393 orchestrator transcripts of KonkretnyTMS,
+2026-09-22…10-04): when the agent that dispatched the work also did triage, its window grew from 74k to 165k
+(median) before the first spawn. That residue rode along through every later call. A separate triage hands over a
+~3k report instead.
+
+**Waiting for a subagent.** The Agent tool starts subagents in the background. If your turn ends while one works,
+the Stop hook marks `tura-koniec`, and the watcher may restart the cycle over a running issue after `GRACE_MIN`.
+So right after each spawn, block in Bash with `timeout: 600000` and repeat the call until it prints the token.
+`R` is the report file the brief names:
+```bash
+. .claude/tmp/kolejka/config.env && R="$K/<report file>" && for i in $(seq 1 108); do test -s "$R" && break; sleep 5; done; test -s "$R" && head -1 "$R" || echo CZEKAM
+```
+Do nothing else in between. When the subagent's message arrives first, use it. When the file appears first, go on
+from its first line. Your own prompt cache lives an hour, so a 9-minute step is cheap.
 
 ## The cycle
-
-Keep every command's output short — never pull test-suite output or diffs into your window.
 
 **0. Preconditions.**
 ```bash
@@ -52,76 +92,76 @@ git -C "$REPO" cat-file -e "$MAIN":docs/plans/STOP-roadmapa 2>/dev/null && echo 
 [ "$(git -C "$REPO" branch --show-current)" = "$MAIN" ] || echo NOT-MAIN
 git -C "$REPO" status --short --untracked-files=no          # must be empty
 ```
-`STOP` → `touch "$K/rotuj"` and end the turn (the watcher stops). `NOT-MAIN` or a dirty tree → stop condition.
-Ledger missing → create it (format at the end) with row 0 = the start prompt verbatim, commit it (step 7).
+- `STOP` → `touch "$K/rotuj"` and end the turn (the watcher stops).
+- `NOT-MAIN` or a dirty tree → stop condition.
+- Ledger missing → create it (format at the end) with row 0 = the start prompt verbatim, and commit it (step 9).
 
-**1. Recovery** — only when `$K/w-toku` exists (the previous lead ended mid-issue). `N=$(cat "$K/w-toku")`:
-- `git -C "$REPO" merge-base --is-ancestor agent/issue-$N "$MAIN"` succeeds and the issue is still open →
-  the merge happened, the close did not: close it (step 6), ledger row, continue with step 2;
-- otherwise → defer it (step 5, reason "przerwane — lider zakończył sesję w trakcie issue; gałąź
-  agent/issue-N zostaje do decyzji właściciela"), ledger row `przerwane`, `rm "$K/w-toku"`, step 2.
-  Never re-run it automatically — whatever interrupted it may interrupt it again.
+**1. Recovery** — only when `$K/w-toku` exists (the previous lead ended mid-issue). Set `N=$(cat "$K/w-toku")`.
+- **The branch is merged and the issue is still open**
+  (`git -C "$REPO" merge-base --is-ancestor agent/issue-$N "$MAIN"` succeeds): the merge happened, the close did
+  not. Close it (step 8), write the ledger row, continue with step 2.
+- **Otherwise:** defer it (step 8) with the reason "przerwane — lider zakończył sesję w trakcie issue; gałąź
+  agent/issue-N zostaje do decyzji właściciela". Then the ledger row `przerwane`, `rm "$K/w-toku"`, step 2.
+
+Never re-run it automatically: whatever interrupted it may interrupt it again.
 
 **2. Pick.**
 ```bash
 N=$("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>"$K/pominiete.txt"); echo "N=$N RC=$?"; cat "$K/pominiete.txt"
 ```
-- `RC` ≠ 0 is a picker failure (`gh` auth, network), NOT an empty queue: `echo "błąd selektora: <last
-  stderr line>" > "$K/pusto"`, end the turn — the watcher logs it and retries after `IDLE_MIN`.
-- Every `pominięto #<nr>: odroczenie w <file:line>` line is a deferral written in the repo but not on GitHub:
-  label it now (`status:odlozone` + comment "Odroczone wg <file:line>" — step 5 mechanics), so the next cycle
-  does not grep for it again.
-- `N` empty: source = list (`$KOLEJKA_LISTA` set) → `echo "lista wyczerpana" > "$K/stop"`, end the turn;
-  source = backlog → `touch "$K/pusto"`, end the turn. No ledger row for an empty cycle.
+- **`RC` ≠ 0** is a picker failure (`gh` auth, network), NOT an empty queue. Run
+  `echo "błąd selektora: <last stderr line>" > "$K/pusto"` and end the turn. The watcher logs it and retries after
+  `IDLE_MIN`.
+- **Each `pominięto #<nr>: odroczenie w <file:line>` line** is a deferral written in the repo but not on GitHub.
+  Label it now (`status:odlozone` + comment "Odroczone wg <file:line>", step 8 mechanics), so the next cycle does
+  not grep for it again.
+- **`N` empty:**
+  - list source (`$KOLEJKA_LISTA` set) → `echo "lista wyczerpana" > "$K/stop"`, end the turn;
+  - backlog source → `touch "$K/pusto"`, end the turn.
 
-The picker (backlog source) takes only open issues with a bug-type label (`typ:bug`, `typ:point-fix`,
-`typ:structural`, legacy `bug`), a missing-test label (`typ:test`) or an owner-approved idea (`pomysl:zatwierdzony`)
-and a priority, P0 → P3 then oldest — approved ideas rank like bugs; it skips unapproved ideas (`pomysl:do-analizy`, `pomysl:odlozony`),
-legacy features (`enhancement`, `new_idea`, `request`), `typ:analysis`, `status:odlozone`/`do-scalenia`/`zrobione-lokalnie`,
-`tor:remediacja-danych`, issues with an existing local `agent/issue-<nr>` branch (someone started it — the
-owner's call) and deferrals written in `docs/plans`/`docs/runbook`. On the list source only closed and
-done/deferred issues are skipped — the owner chose the rest.
+  No ledger row for an empty cycle.
+
+**What the picker takes** (backlog source):
+- open issues with a priority, ordered P0 → P3, then oldest;
+- with a bug-type label (`typ:bug`, `typ:point-fix`, `typ:structural`, legacy `bug`), a missing-test label
+  (`typ:test`), or an owner-approved idea (`pomysl:zatwierdzony`). Approved ideas rank like bugs.
+
+**What it skips:**
+- unapproved ideas (`pomysl:do-analizy`, `pomysl:odlozony`);
+- legacy features (`enhancement`, `new_idea`, `request`) and `typ:analysis`;
+- `status:odlozone`, `status:do-scalenia`, `status:zrobione-lokalnie`, `tor:remediacja-danych`;
+- issues with an existing local `agent/issue-<nr>` branch;
+- deferrals written in `docs/plans` or `docs/runbook`.
+
+On the list source it skips only closed issues and done or deferred ones.
 
 **3. Prepare.**
 ```bash
 echo "$N" > "$K/w-toku"
 gh issue view "$N" --json title,labels,body -q '.title, ([.labels[].name]|join(",")), (.body|.[0:1500])'
 ```
-L2 worktree, created once and reused. When `$WT` does not exist: `git -C "$REPO" worktree add --detach "$WT"
-"$MAIN"`, copy `.env` from `$REPO`, and apply the project's worktree checklist (port, `node_modules`,
-discriminator — the project's local-adaptations doc). Do NOT use `isolation: "worktree"`: it branches from
-`origin/<default>`, not local `$MAIN`, and has no `.env` (`POMIAR` 2026-09-05 dry run: the subagent's
-"tests green" were SKIPs). Then:
+- **The worktree is created once and reused.** When `$WT` does not exist:
+  - run `git -C "$REPO" worktree add --detach "$WT" "$MAIN"`;
+  - copy `.env` from `$REPO`;
+  - apply the project's worktree checklist (port, `node_modules`, discriminator), from the project's
+    local-adaptations doc.
+
+  Do NOT use `isolation: "worktree"`. It branches from `origin/<default>`, not local `$MAIN`, and has no `.env`
+  (`POMIAR` 2026-09-05 dry run: the subagent's "tests green" were SKIPs). Then:
 ```bash
 git -C "$WT" status --short                     # must be empty — someone else's work is a stop, not a cleanup
 git -C "$WT" checkout -b "agent/issue-$N" "$MAIN"
 ```
-**Verification environment** — when the project has a control CLI (a `cli: <script path relative to the repo
-root>` line in the `## CLI` section of `docs/VERIFICATION_ENV.md`), `lider.sh` already ran its `doctor` with the
-fix option before this session (plain bash, outside the auto-mode classifier), so a missing test account is
-restored before anyone needs it. Do not run it yourself; read the result:
-```bash
-. .claude/tmp/kolejka/config.env && cat "$K/doctor.json"
-```
-A failing check is not a stop: the file goes to triage and L2 as the environment state, and the verify brief
-carries it. `brak CLI` = the CLI steps below are `skipped: project has no CLI`.
+- **Verification environment.** When the project has a control CLI (`cli:` under `## CLI` in
+  `docs/VERIFICATION_ENV.md`), `lider.sh` already ran its `doctor` with the fix option before this session.
+  `cat "$K/doctor.json"` gives the result.
+  - A failing check is not a stop: the file goes to triage and to the verify brief as the environment state.
+  - `brak CLI` means the CLI steps are `skipped: project has no CLI`.
 
-**4. Triage, then L2 — keep your turn open while each one works.** The Agent tool starts subagents in the
-background — there is no foreground option to rely on (`POMIAR` 2026-09-24, first KonkretnyTMS run: both L2s
-ran in the background). If your turn ended while a subagent works, the Stop hook would mark `tura-koniec` and the
-watcher could restart the cycle over a running issue once it goes quiet for `GRACE_MIN` (a long test run).
-So right after each spawn, block in Bash with `timeout: 600000` — one call waits at most ~9 minutes; repeat
-the call until it prints the token. `R` is `$K/triage-<N>.md` after the triage spawn, `$K/raport-<N>.md` after the L2 spawn:
-```bash
-. .claude/tmp/kolejka/config.env && R="$K/triage-<N>.md" && for i in $(seq 1 108); do test -s "$R" && break; sleep 5; done; test -s "$R" && head -1 "$R" || echo CZEKAM
-```
-Nothing else in between — no reading, no Monitor, no other work. When the subagent's message arrives first, use it; when
-the report file appears first, go on from its first line.
-
-**4a. Triage.** Spawn `triage-<N>` with this brief:
+**4. Triage.** Spawn `triage-<N>` with this brief, then wait for `$K/triage-<N>.md`:
 
 ```
-You are the triage subagent triage-<N> of the roadmapa queue. Lead: <your agent name, or "the top-level session">.
+You are the triage subagent triage-<N> of the roadmapa queue. Lead: the top-level session.
 Working tree: <$WT> — every command uses absolute paths under it; branch agent/issue-<N> is checked out at HEAD.
 Never touch <$REPO> (the main tree). Change no tracked file, commit nothing, spawn no agent. Probe copies and
 scratch files go under <$WT>/.claude/tmp/ only (git-ignored).
@@ -155,8 +195,8 @@ Issue text: <title + body>.
    production. Before your final message stop every background shell, Monitor and timer you started (TaskStop);
    `git -C <$WT> status --short` must be empty.
 
-Write the report to <$K>/triage-<N>.md. Its reader is the orchestrator that will brief the builder from it
-without exploring again: give it every fact it would otherwise re-derive, and nothing of how you found it.
+Write the report to <$K>/triage-<N>.md. Its reader is the lead, who implements the fix from it without
+exploring again: give it every fact it would otherwise re-derive, and nothing of how you found it.
 Hard cap: 120 lines. Any raw output longer than 10 lines goes to <$K>/triage-<N>-<k>.txt and the report quotes
 its path plus the decisive line(s). Every claim is MEASURED (command → result) or INFERRED; no narration, no
 dead ends except under "Ruled out". The template, all sections present (`n/a` when empty):
@@ -176,140 +216,156 @@ dead ends except under "Ruled out". The template, all sections present (`n/a` wh
      user-facing surface (yes/no + entry point path:line from a grep of the handler binding).
   ## Repro — <$K>/repro-<N>.sh, its output on HEAD (decisive lines), and what a fixed tree should print instead;
      or `n/a: <why>` (item 4).
-  ## Ruled out — ≤ 5 one-liners: hypothesis → the command that excluded it. Spares the orchestrator re-checking.
-  ## Open — INFERRED points the orchestrator must confirm before building on them.
+  ## Ruled out — ≤ 5 one-liners: hypothesis → the command that excluded it. Spares the lead re-checking.
+  ## Open — INFERRED points the lead must confirm before building on them.
   ## NOWE PROBLEMY — as in 3, or `n/a`.
 
 Your message to the lead (SendMessage) is at most 3 lines: the token, the report path.
 ```
 
-Dispatch on the triage token: `VALID.` → 4b. Any other token → step 5 with that token (the branch has no commits).
+`VALID.` → step 5. Any other token goes to step 8 with that token (the branch has no commits).
 
-**4b. L2.** Spawn `issue-<N>` with this brief:
+**5. Implement — yourself, in `$WT`, with the `task-lifecycle` skill.** Load it with the Skill tool. It holds the
+quality rules for the implementer, the review loop and verification. What the queue adds:
+- **The triage report is your task context.** Do not repeat it. Before you build on one of its anchors, re-run
+  that anchor's command once. If an anchor does not reproduce, or a measurement contradicts the report's Cause or
+  Fix surface, your outcome is `ambiguous. ask: <the contradiction, both commands>`.
+- **Bugs, missing tests and approved ideas only.** If the fix turns out to need new functionality and the issue
+  does not carry `pomysl:zatwierdzony`, your outcome is `feature. <why>`.
+- **Size class** per `task-lifecycle` Step 0, from the report's Sizing facts. A diff that touches a sensitive
+  path is never Small. The sensitive paths are the `wrazliwe:` globs in the `## Bramka` section of
+  `docs/VERIFICATION_ENV.md`; check them against the diff, not against the prediction. Large goes through
+  `/writingplans` (with Pass 2) and `/executingplans` in this session; commit the plan.
+- **Work only under `$WT`, with absolute paths.** Never edit a file under `$REPO` outside `$WT`.
+- **Full suite once, at the end,** in the project's exclusive slot (the local-adaptations doc), with output to a
+  file. Read the summary and the red test NAMES, and compare them with the same names on `$MAIN`.
+- **Defects outside the scope are not fixed.** They go to `NOWE PROBLEMY` in your report under the triage's
+  rule 3, together with the reviewers' out-of-scope findings.
+- **Docs and comments you write cite symbols** (`Class::method`), never line numbers.
+
+**6. Review** — a fresh `code-reviewer` for every round, `name: recenzja-<N>-<k>`, `model: opus`. Commit
+everything first; the reviewer reviews the tip. The brief carries:
+- the diff stat;
+- the previous round's findings and tip, from round 2 on;
+- the security triggers the diff touches (`task-lifecycle` Step 3);
+- the rules files that match the diff and the changed paths that hit a `wrazliwe:` glob, both printed by
+  `"$SKRYPTY/reguly.sh" "$K/config.env" <N>`; with sensitive paths, the brief says "these paths are sensitive in
+  this project: tier M at least" (the gate refuses tier S for them);
+- the output contract, as written here:
 
 ```
-You are the issue subagent issue-<N> of the roadmapa queue. Lead: <your agent name, or "the top-level session">.
-Working tree: <$WT> — every command uses absolute paths under it; branch agent/issue-<N> is checked out.
-Never touch <$REPO> (the main tree).
-
-1. Triage is done: read <$K>/triage-<N>.md first — it is your task context (task-lifecycle Step 0) and the
-   source for the builder brief. Do not repeat it: no exploration to re-establish whether the problem exists or
-   where it lives. Its numbers and path:line anchors are `reported: triage-<N>`; before one goes into a brief,
-   re-run its command once (task-lifecycle E18). If an anchor does not reproduce, or a measurement contradicts the
-   report's Cause or Fix surface, stop and report `ambiguous. ask: <the contradiction, both commands>`.
-2. Bugs, missing tests and approved ideas only. If the fix turns out to need new functionality (a new feature, screen, report, option,
-   integration — not restoring behaviour that is broken) and the issue does not carry `pomysl:zatwierdzony`,
-   report `feature. <one sentence why>` and stop.
-3. Run the task-lifecycle skill IN FULL, including every delegation step. Size class per its Step 0, from the
-   report's Sizing facts;
-   Large → /writingplans with Pass 2, commit the plan, then /executingplans. Spawn only specialist types and
-   Explore — never general-purpose, never `claude --bg`; the verifier is spawned as `test-automator`. One builder
-   for the whole issue; it writes the docs and waits warm for the review fixes (task-lifecycle Step 1). Every spawn
-   with `name:` and explicit `model:`.
-   Full test suite: run it in the background with stdout to a file under the project's exclusive slot and
-   read only the summary and the red test NAMES — never its output into your window.
-4. Project-local rules: <path to the project's local-adaptations doc, if any>.
-   Verification environment: <$K>/doctor.json (the project CLI's doctor output from this cycle, or `brak CLI`)
-   and the triage's `## Repro`. The verify brief (task-lifecycle Step 4) carries both: the doctor output as its
-   `Control CLI` line, the repro command as `Repro from triage` and as the discriminator.
-5. Forbidden: git merge, git push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
-   production.
-6. Leave nothing running: before your final message send `STOP` to a builder that still waits, and stop every
-   background shell, Monitor and wait timer you started (TaskStop) — a leftover timer wakes you after the lead has moved on (`POMIAR` 2026-09-24, issue-898
-   woke 10 minutes after its report). Then, before ANY report token, commit everything on the branch — `git status --short` must be empty, also for
-   BLOCKED / ambiguous. Near your window cap (the hook's own-window message) on a Large issue: commit, report
-   `partial.` with what remains.
-7. Defects found OUTSIDE this issue's scope are not fixed. List them in a `NOWE PROBLEMY` section only when
-   they pass the value gate of the nowe-issue skill (§2a). Each entry needs a `skutek:` line, title,
-   path:line, the POMIAR that shows it, and the proposed modul:* / P* / typ:* / srodowisko:*. A repeat of a
-   known class (§2b) is one entry with its sites. Reviewer findings outside the scope pass the same gate.
-   Docs and comments you write cite symbols (`Class::method`), never line numbers, so they do not go stale.
-Write the full report to <$K>/raport-<N>.md: first line one terminal token (done. / closed-on-head. /
-partial. / feature. / ambiguous. / needs-confirm. / too-big. / regressed. / BLOCKED), then tip SHA, commits,
-one plain line (no heading, no bold) `Weryfikacja: PASS` / `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>` /
-`Weryfikacja: n/a — <why no surface>`, evidence paths, review iterations, POMIAR/WNIOSEK labels, NOWE PROBLEMY. Your message to the lead
-(SendMessage) is at most 3 lines: the token, the tip SHA, the report path.
+Write your report to <$K>/recenzja-<N>-<k>.md. Line 1: `No issues.` or your verdict line. Then the lines
+`SHA: <output of git -C <$WT> rev-parse HEAD at your start>`, `Tier: S|M|L` and
+`Otwarte: <n> CRITICAL, <m> REQUIRED` (every CRITICAL and REQUIRED finding below, PLAUSIBLE included), then the report.
+Change no tracked file; probe copies go under <$WT>/.claude/tmp/. Your message to the lead is the first line and
+the path.
 ```
 
-**5. Dispatch on the token** (first line of the triage's or L2's message; `head -1` of its report file if garbled).
-"The report" below is the file that carried the token — `triage-<N>.md` or `raport-<N>.md`:
+CRITICAL and REQUIRED findings are yours to fix, under the `task-lifecycle` proof rules. Then round k+1 with a new
+reviewer. The cap is 2 rounds for Standard and 3 for Large. A cap reached with CRITICAL or REQUIRED still open
+gives the outcome `needs-confirm. <the open findings>`.
 
-| token | you do |
+**7. Verify** — when a surface a user touches changed (`task-lifecycle` Step 4). A fresh `test-automator`,
+`name: weryfikacja-<N>-<k>`, `model: sonnet`, gets the `verify-e2e` brief. The brief carries:
+- `$K/doctor.json` as its `Control CLI` line;
+- the triage's repro command, as `Repro from triage` and as the discriminator;
+- the output contract: `<$K>/weryfikacja-<N>-<k>.md`, line 1 `VERDICT: PASS|FAIL|BLOCKED`, line 2
+  `SHA: <rev-parse HEAD at your start>`.
+
+On FAIL you fix and run a new verifier. The fix is a new commit, so a new reviewer reviews the delta too: the gate
+wants both verdicts on the same tip. The cap is 3 verify rounds.
+
+**Your report**, `$K/raport-<N>.md`:
+- **Line 1** is the outcome: `done.`, `feature.`, `ambiguous.`, `needs-confirm.`, `too-big.`, `regressed.` or
+  `BLOCKED`.
+- **One plain line `Weryfikacja: …`** (no heading, no bold), one of:
+  - `Weryfikacja: PASS`;
+  - `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>`;
+  - `Weryfikacja: n/a — <why there is no surface>`.
+- **Then:**
+  - the tip SHA and commits;
+  - review rounds and what each found;
+  - the decisions you took and why;
+  - evidence paths;
+  - POMIAR and WNIOSEK labels;
+  - NOWE PROBLEMY.
+
+  Numbers from triage, reviewer or verifier reports are written `reported` unless you re-ran their command.
+
+**8. Outcome.**
+
+| outcome | you do |
 |---|---|
-| `VALID.` (triage only) | step 4b |
-| `done.` | step 6 |
-| `closed-on-head. ALREADY-FIXED\|NOT-A-BUG` | re-run the decisive measurement quoted in the report → comment + `gh issue close --reason completed` / `"not planned"`; `git -C "$WT" checkout --detach "$MAIN"`; `git -C "$REPO" branch -D "agent/issue-$N"` |
-| `partial.` | spawn ONE fresh L2 on the same branch with the report's remainder (still this session); a second `partial.` → defer |
+| `done.` | `"$SKRYPTY/scal.sh" "$K/config.env" <N>`, then close (below) |
+| `closed-on-head. ALREADY-FIXED\|NOT-A-BUG` (triage) | re-run the decisive measurement quoted in the report → comment + `gh issue close --reason completed` / `"not planned"`; `git -C "$WT" checkout --detach "$MAIN"`; `git -C "$REPO" branch -D "agent/issue-$N"` |
 | `feature.` | defer with "to nowa funkcjonalność — kolejka naprawia tylko błędy, decyzja właściciela"; delete the branch if it has no commits |
-| `ambiguous.` / `needs-confirm.` / `too-big.` / `BLOCKED` / `regressed.` | defer with the question or blocker from the report; the branch stays |
+| `too-big.` | defer with the split (`nowe-issue` §3); the branch stays |
+| `ambiguous.` / `needs-confirm.` / `regressed.` / `BLOCKED` | defer with the question or blocker; the branch stays |
 
-**Defer** = label + comment in the issue itself (the picker never returns `status:odlozone`, so the queue
-cannot loop on it). Comments always go through a file — an inline multi-line `--comment` breaks in zsh
-(`POMIAR` batch 2.4: parse error, the close did not happen):
+**What `scal.sh` prints last:**
+- **`SCALONO <SHA>`:** merged.
+- **`BRAMKA`:** a gate check failed; the lines above it say which. Make up what is missing within the caps (a
+  review of the newest commits, a verification on the tip, a report line), then run `scal.sh` again. A check you
+  cannot satisfy within the caps → defer with the gate lines quoted.
+- **`KONFLIKT: <paths>`:** someone committed to `$MAIN` meanwhile. The merge is already aborted. Defer with the
+  paths and continue; never resolve a conflict in the main tree.
+
+**Defer** = label + comment in the issue itself (the picker never returns `status:odlozone`). Comments always go
+through a file, because an inline multi-line `--comment` breaks in zsh:
 ```bash
-printf '%s\n' "Odłożone przez kolejkę: <reason>. Odblokowuje: <condition>. Raport: <$K/triage-N.md, $K/raport-N.md or file:line>." > "$K/issue-$N-komentarz.md"
+printf '%s\n' "Odłożone przez kolejkę: <reason>. Odblokowuje: <condition>. Raport: <$K/raport-N.md or $K/triage-N.md>." > "$K/issue-$N-komentarz.md"
 gh issue comment "$N" --body-file "$K/issue-$N-komentarz.md" && gh issue edit "$N" --add-label status:odlozone
 ```
 
-**6. Control, merge, close** (only after `done.`). The report is not the evidence — re-measure:
+**Close** after `SCALONO`:
 ```bash
-git -C "$WT" log --oneline "$MAIN..agent/issue-$N"          # the commits L2 named exist
-git -C "$WT" status --short                                  # clean
-test -e "$WT/<evidence path from the report>" && echo OK || echo MISSING
-```
-Any control failing → treat as `BLOCKED` with the failed command quoted. Then:
-```bash
-git -C "$WT" checkout --detach "$MAIN"                       # release the branch before merging it
-git -C "$REPO" merge --no-ff -m "[roadmapa] Scal #$N: <title>" "agent/issue-$N"
-git -C "$REPO" rev-parse --short HEAD
 printf '%s\n' "<comment>" > "$K/issue-$N-zamkniecie.md" \
   && gh issue comment "$N" --body-file "$K/issue-$N-zamkniecie.md" \
   && gh issue close "$N" --reason completed \
   && gh issue edit "$N" --add-label "$ETYKIETA_ZROBIONE"
 ```
-The comment says: merged locally into `main` at `<SHA>`, **not pushed and not deployed**, branch tip,
-verification evidence, review iterations. A surface verification that ended BLOCKED goes to the owner as a
-manual check — the label is how `kolejka.sh status` lists it, the comment line says what to click:
+- **The comment says:** merged locally into `main` at `<SHA>`, **not pushed and not deployed**, the branch tip,
+  the verification evidence and the review rounds. An issue closed without "not pushed and not deployed" reads as
+  "in production".
+- **A verification that ended BLOCKED** goes to the owner as a manual check:
 ```bash
 . .claude/tmp/kolejka/config.env && L=$(grep -m1 -E '^(#+ +)?[*]*Weryfikacja:[*]* *BLOCKED' "$K/raport-$N.md"); if [ -n "$L" ]; then gh label create "$ETYKIETA_RECZNA" --color FBCA04 --description "Scalone przez kolejkę, weryfikacja powierzchni BLOCKED — sprawdź ręcznie" 2>/dev/null; printf '%s\n' "Do ręcznego sprawdzenia: ${L#Weryfikacja: BLOCKED — }" > "$K/issue-$N-reczna.md" && gh issue comment "$N" --body-file "$K/issue-$N-reczna.md" && gh issue edit "$N" --add-label "$ETYKIETA_RECZNA"; fi
-``` An issue closed without that sentence reads as "in production".
-The `[roadmapa]` marker is how the owner's push rule finds these merges. Closing is what keeps the next cycle
-from taking the same issue.
+```
+- **The `[roadmapa]` marker** is how the owner's push rule finds these merges.
+- **Closing** keeps the next cycle from taking the same issue.
 
-**Merge conflict** (someone committed to `$MAIN` meanwhile): `git -C "$REPO" merge --abort`, defer the issue
-with the conflicting paths, continue — the next issue branches from the new `$MAIN`. Never resolve a
-conflict in the main tree (`/resolving-merge-conflicts` is the owner's tool).
-
-**Spin-offs** from the `NOWE PROBLEMY` of both reports (triage and L2), whatever the token. Before
-creating, the lead applies the gate itself, because a report can carry a finding the subagent should have
-dropped:
-- drop an entry with no `skutek:` line, or one that falls into a "never an issue" category (`nowe-issue` §2a);
-- an entry of a class (§2b) with an open class issue becomes a comment on that issue, with the new sites;
-- what remains: check for a duplicate first, then create.
-
-The ledger `uwagi` record it as `spin-off: #a, #b; do klasy: #c; odrzucone: <n>`. A queue that keeps more
-spin-offs than it closes issues grows its backlog without end.
-
+**Spin-offs** come from the `NOWE PROBLEMY` of triage and of your report, whatever the outcome. Apply the gate
+before creating anything:
+- drop an entry with no `skutek:` line, or one in a "never an issue" category (`nowe-issue` §2a);
+- an entry of a class (§2b) that already has an open class issue becomes a comment on that issue, with the new
+  sites;
+- for what remains, check for a duplicate first, then create:
 ```bash
 gh issue list --state all --search "<2-3 distinctive words>" --json number,title,state
 printf '%s\n' "<body: evidence, source issue #N, found by the roadmapa queue>" > "$K/spinoff.md" \
   && gh issue create --title "<title>" --body-file "$K/spinoff.md" --label "<modul:*>" --label "<P*>" --label "<typ:*>" --label "<srodowisko:*>"
 ```
-A duplicate gets a comment with the new evidence instead. Size, body sections and the four label axes follow the
-`nowe-issue` skill (§3 size, §4 web vs local, §6a body); a spin-off too big for one L2 becomes an umbrella + portions. A spin-off joins the queue by its own priority in a
-later cycle; one labelled as an unapproved feature (`pomysl:do-analizy` / `pomysl:odlozony`) never enters it. A problem that BLOCKS this issue makes this issue
-`BLOCKED`, not a new queue item.
+- A duplicate gets a comment with the new evidence instead.
+- Size, body sections and the four label axes follow `nowe-issue` (§3 size, §4 web vs local, §6a body). A
+  spin-off too big for one run becomes an umbrella plus portions.
+- A spin-off labelled as an unapproved feature (`pomysl:do-analizy` / `pomysl:odlozony`) never enters the queue.
+- A problem that BLOCKS this issue makes this issue `BLOCKED`, not a new queue item.
 
-**7. Ledger row and rotation.** Numbers you write come from commands you ran in this session, quoted; a number
-taken from the triage's or L2's report is written `reported`, never as your measurement. The `uwagi` start with
-the triage token (`triage VALID.`, `triage closed-on-head. …`). Append one row, commit ONLY the
-ledger with a pathspec, hand over:
+The ledger `uwagi` record it as `spin-off: #a, #b; do klasy: #c; odrzucone: <n>`. A queue that keeps more
+spin-offs than it closes issues grows its backlog without end.
+
+**9. Ledger row and rotation.**
+- **Numbers you write come from commands you ran in this session,** quoted. A number from a subagent's report is
+  written `reported`.
+- **The `uwagi` start with the triage token** (`triage VALID.`, `triage closed-on-head. …`), then the size class
+  and the review rounds.
+- **Append one row, commit ONLY the ledger** with a pathspec, then hand over:
 ```bash
 git -C "$REPO" add -- "$LEDGER" && git -C "$REPO" commit -m "docs(plans): Kolejka — #$N <token>" -- "$LEDGER"
 rm -f "$K/w-toku"
 touch "$K/rotuj"
 ```
-End the turn with at most 3 lines (issue, token, SHA). **Do not start another issue.**
+End the turn with at most 3 lines (issue, outcome, SHA). **Do not start another issue.**
 
 Ledger (`$LEDGER`, created in the first cycle):
 ```
@@ -318,18 +374,16 @@ Ledger (`$LEDGER`, created in the first cycle):
 | lp | data | issue | token | merge SHA | uwagi |
 |---|---|---|---|---|---|
 | 0 | 2026-09-24 | - | autoryzacja | - | "<start prompt verbatim>" |
-| 1 | 2026-09-24 | #898 | done. | a1b2c3d | P2, 2 rundy review (reported), spin-off #950 |
+| 1 | 2026-09-24 | #898 | done. | a1b2c3d | triage VALID., Standard, 2 rundy review, spin-off #950 |
 ```
 `lp` = previous row + 1. Rows are appended, never edited.
 
 ## Stop conditions — write the reason to `$K/stop`, end the turn
 
-- main tree dirty or not on `$MAIN` at step 0; `$WT` dirty at step 3;
-- the last ledger rows plus this issue show two consecutive `BLOCKED` with the same environmental cause
-  (database down, dev server down, `gh` auth) — the rest would fail the same way;
+- the main tree is dirty or not on `$MAIN` at step 0, or `$WT` is dirty at step 3;
+- the last ledger rows plus this issue show two consecutive `BLOCKED` with the same environmental cause (database
+  down, dev server down, `gh` auth), because the rest would fail the same way;
 - anything that needs push, deploy, production or KSeF.
 
-Never stop to ask the owner a question — nobody is at the keyboard. In a state this file does not cover:
-take the cheapest reversible action you can justify from the ledger, write the uncertainty into the row's
-`uwagi`, and carry on. A turn ended with no flag at all is restarted once by the watcher after `GRACE_MIN`
-(recovery in step 1 picks the issue up); a second one in a row stops the queue.
+A turn ended with no flag at all is restarted once by the watcher after `GRACE_MIN`; recovery in step 1 picks the
+issue up. A second such turn in a row stops the queue.

@@ -14,26 +14,27 @@ description: Use when you have a written implementation plan to execute. Drives 
 ## Step 1: Load, Review, Plan the Dispatch
 
 1. Read the plan file
-2. For each task, decide: **DIRECT** or **AGENT: {name}**?
+2. For each task, decide: **DIRECT** (this session writes it) or **AGENT: {name}**?
 3. Map dependencies → assign **Group numbers**
 4. Create the todo list with labeled items (format below)
 5. Concerns → raise before starting. Otherwise proceed.
 
 ### Dispatch mode — DIRECT vs AGENT
 
-**DIRECT** (no agent dispatch, much cheaper) when the task is:
-- CSS / HTML structure / copy / text changes
-- Config values, environment variables
-- Formatting, imports, renames
-- Documentation edits
+**DIRECT is the default: this session writes the task.** It has read the plan, the Canon and the code; a builder
+would read them again, and the agents carry no checklist of their own, so a dispatch adds re-reading, not rigour
+(`task-lifecycle` E29). Business logic, SQL, auth and money code are written here too, under the project's rules
+and the `test-driven-development` / `systematic-debugging` / `migration` disciplines.
 
-**AGENT** when the task introduces or modifies:
-- Business logic, new functions / classes
-- SQL queries or schema changes
-- Input validation, auth, security-sensitive code
-- Anything that benefits from the agent's checklist (type safety, injection prevention, async correctness)
+**AGENT** only when the task set has its own context:
+- **`builder`** (`sonnet`): a task set that passes all four parallel conditions below against everything else and is
+  big enough that running it beside this session pays for its orientation (more than one file of new logic, or
+  roughly 40+ tool calls). Brief it per `task-lifecycle/references/briefy.md` §Builder.
+- **A specialist** whose job is a context of its own: `debugger` (a failure with an unknown cause),
+  `database-optimizer` (a measured slow path), `refactoring-orchestrator` (a cross-module refactor that is its own
+  task), `test-automator` (a tests-only task set).
 
-When unsure → AGENT. Quality beats speed.
+When unsure → DIRECT.
 
 ### Reuse ladder — decide WHERE the change lives before deciding WHO writes it
 
@@ -57,9 +58,9 @@ Tasks may run in parallel ONLY if ALL four hold:
 
 If ANY fails → sequential.
 
-**Same-file rule (critical):** if N tasks touch the same file, **dispatch ONE agent with all N tasks in its prompt**. Never dispatch parallel agents on the same file — they clobber each other, AND you pay N× the agent boot-up cost.
+**Same-file rule (critical):** tasks that touch the same file are never split between this session and an agent, or between two agents — they clobber each other, AND you pay the boot-up cost twice.
 
-**Split by context, never by layer.** One builder carries every task that shares a file, a symbol, a column or a decision with another task, in dependency order, committing at each task boundary — a migration, the service on its new column and the front-end module that calls it are ONE builder, typed by the layer that holds most of the change. A second builder is justified only for a task set that passes all four conditions above against everything else, or to take the remaining tasks when the first builder's window reaches the relay hook's warning (it starts from the plan and `git log --oneline <base>..HEAD`). Builders split by layer re-read each other's files and doubled the review and fix rounds (`task-lifecycle` E29).
+**Split by context, never by layer.** This session carries every task that shares a file, a symbol, a column or a decision with another task, in dependency order, committing at each task boundary — a migration, the service on its new column and the front-end module that calls it are ONE context. A builder takes only a task set that passes all four conditions above against everything else. Writers split by layer re-read each other's files and doubled the review and fix rounds (`task-lifecycle` E29). On a long plan the todo list and `git log --oneline <base>..HEAD` carry the state across a compaction.
 
 **Always sequential:** migrations before queries on new columns, git commits, the final review/test group.
 
@@ -75,8 +76,8 @@ One todo item per task (TodoWrite / the session's task tracker), labeled:
 
 Example:
 ```
-[GROUP 1|PARALLEL] Tasks 1-3: Migration (status column), then Feature A and B endpoints+JS on it — one builder, in order [AGENT: php-pro]
-[GROUP 1|PARALLEL] Task 4: Feature C JS module — shares no file, symbol or state with tasks 1-3 [AGENT: javascript-pro]
+[GROUP 1|PARALLEL] Tasks 1-3: Migration (status column), then Feature A and B endpoints+JS on it — in order [DIRECT]
+[GROUP 1|PARALLEL] Task 4: Feature C JS module, ~300 lines — shares no file, symbol or state with tasks 1-3 [AGENT: builder]
 [GROUP 2|SEQ]      Task 5: CSS polish [DIRECT]
 [GROUP 3|SEQ]      Verify + code review [AGENT: code-reviewer]
 [GROUP 3|SEQ]      Commit [DIRECT]
@@ -97,14 +98,14 @@ For each group G:
 
   If G contains MULTIPLE tasks (PARALLEL):
     - Mark ALL in_progress
-    - Send ONE assistant message with N Agent tool calls — concurrent dispatch
-    - Wait for ALL to return
+    - Send ONE assistant message with the Agent tool calls — concurrent dispatch
+    - Do the group's DIRECT tasks meanwhile, then wait for the agents
     - Verify the group (Step 3)
     - If any failed → Stop-the-Line for that task; do NOT start the next group
     - Mark all completed → advance
 ```
 
-**Parallel dispatches must be self-contained.** Each agent prompt contains:
+**Dispatches must be self-contained.** Each agent prompt contains:
 - The task block verbatim from the plan
 - Exact files to create / modify
 - Acceptance criteria for THIS task only
@@ -122,13 +123,13 @@ For each group G:
 2. Run **TARGETED tests only** — the test classes/files covering what this group touched: `phpunit --filter <ChangedClass>` / `phpunit tests/Path/`, `pytest -k`, `vitest run <file>`. **NEVER the full suite at a group boundary** — on a 10k-test suite a full run costs minutes and proves nothing the targeted run doesn't; builders and subagents inherit this rule. Derive the filter from the group's changed files (`git diff --name-only` → matching test classes + tests added in this group).
 3. Check acceptance criteria for each task in the group
 
-**The FULL suite runs exactly ONCE per plan execution — in the final group, before commit** (it catches `failOnWarning`/`failOnRisky`, orphan tests and cross-module regressions that filters miss). It is run by the final gate (orchestrator, or delegated to `code-reviewer`/`test-automator` in that group) — **task builders never run it**. Report it with BOTH counts: passed AND skipped, with the skip reason.
+**The FULL suite runs exactly ONCE per plan execution — in the final group, before commit** (it catches `failOnWarning`/`failOnRisky`, orphan tests and cross-module regressions that filters miss). It is run by this session in the final group — **builders never run it**. Report it with BOTH counts: passed AND skipped, with the skip reason.
 
 **Verification fails → Stop-the-Line (Rule 1).** Invoke `systematic-debugging` for root cause before any fix.
 
 **Before marking any todo item `completed`** — the verification for its group must have run in this session. This is the `verification-before-completion` gate applied at group granularity, not per-task.
 
-**Final group** is always sequential and always contains:
+**Final group** is always sequential and always contains (when this execution is the build stage of `task-lifecycle`, review and verification follow its Steps 2–4 instead of the two middle items):
 - Comprehensive test pass — the single FULL-suite run of this execution (dispatch `test-automator` if new tests are needed)
 - Code review (dispatch `code-reviewer`). If the project defines a review threshold (e.g. CLAUDE.md), it wins: a diff it exempts gets the project's self-audit checklist instead.
 - **Surface verification** for user-facing changes: run the `verify-e2e` skill in a FRESH subagent (GUI → browser + screenshots, API → real request). Tests passing ≠ the surface working.
@@ -162,24 +163,17 @@ For tasks that modify existing files: read the file IF you need context you don'
 
 ## Agent Selection
 
-Pick the builder by the layer that holds most of the task set's change; it does the other layers of that set too.
-
-| Task set mostly in | Agent |
+| Task set | Agent |
 |-----------|-------|
-| PHP (controllers, services, API) | `php-pro` |
-| JS/TS front end | `javascript-pro` |
-| Next.js / React app | `nextjs-pro` |
-| Python | `python-pro` |
-| SQL queries, migrations (no application code) | `sql-pro` |
+| Independent and sizeable, any language | `builder` |
 | Query optimization, indexes, EXPLAIN | `database-optimizer` |
-| PWA / mobile | `mobile-pwa-developer` |
 | Bug with an unknown cause | `debugger` |
-| Refactoring across modules | `refactoring-orchestrator` |
+| Refactoring across modules, as its own task | `refactoring-orchestrator` |
 | Tests only | `test-automator` |
 | Final code review, security included | `code-reviewer` |
 | Surface verification (`verify-e2e` brief) | `test-automator` |
 
-The builder agents are goal-only: they follow the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`) and the lines of the brief, and a skill named in the brief does not load inside them. A rule they must apply goes into the brief as text. Security-sensitive code is built by the layer's builder and reviewed by `code-reviewer`; `backend-security-coder` is for audits.
+The agents are goal-only: they follow the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`) and the lines of the brief, and a skill named in the brief does not load inside them. A rule they must apply goes into the brief as text. `backend-security-coder` is for audits; security in a build is reviewed by `code-reviewer`.
 
 `code-reviewer` (subject to the project's review threshold) and `test-automator` (when new tests are needed) run only in the final sequential group.
 
@@ -202,4 +196,4 @@ The builder agents are goal-only: they follow the project's own rules (CLAUDE.md
 - `verify-e2e` — surface-level verification in the final group (user-facing changes)
 - `systematic-debugging` — mandatory when Stop-the-Line fires
 - `test-driven-development` — for new production code written during execution; a builder gets it as brief lines (red test first, executed), not by the skill name
-- `task-lifecycle` — when this plan execution is one stage of a fully orchestrated task (adds review-fix loop + report package on top)
+- `task-lifecycle` — when this plan execution is the build stage of a Large task (adds the review loop, verification and the report on top)
