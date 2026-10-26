@@ -63,8 +63,9 @@ can justify, write the uncertainty into the ledger row, and carry on.
   that is genuinely independent.
 
 **No subagent** merges, pushes, closes or creates issues, or edits the ledger. The queue's PreToolUse hook blocks
-`git merge` and `git push` in every queue process, and blocks your own Write/Edit on the verdict files. Nobody
-starts `claude --bg`.
+`git merge`, `git pull` and `git push` in every queue process (also as `/usr/bin/git`), and blocks a write to the
+verdict files by anyone but the role that owns them: your own Write/Edit and Bash writes (`>`, `tee`, `cp`, `mv`,
+`rm`, `sed -i`), and a subagent of another type. Read them with `cat`/`head`/`grep`. Nobody starts `claude --bg`.
 
 **Why triage is a separate agent.** `POMIAR` (2026-10-06, 393 orchestrator transcripts of KonkretnyTMS,
 2026-09-22…10-04): when the agent that dispatched the work also did triage, its window grew from 74k to 165k
@@ -245,12 +246,15 @@ quality rules for the implementer, the review loop and verification. What the qu
 
 **6. Review** — a fresh `code-reviewer` for every round, `name: recenzja-<N>-<k>`, `model: opus`. Commit
 everything first; the reviewer reviews the tip. The brief carries:
+- the issue number, with "read the issue yourself (`gh issue view <N> --comments`) before my notes: it is the
+  spec, my summary and decisions are claims to check". Never paste your own restatement of the issue in its place;
 - the diff stat;
 - the previous round's findings and tip, from round 2 on;
 - the security triggers the diff touches (`task-lifecycle` Step 3);
 - the rules files that match the diff and the changed paths that hit a `wrazliwe:` glob, both printed by
   `"$SKRYPTY/reguly.sh" "$K/config.env" <N>`; with sensitive paths, the brief says "these paths are sensitive in
-  this project: tier M at least" (the gate refuses tier S for them);
+  this project: tier M at least" (the gate refuses tier S for them). The same output lists the changed paths that
+  hit a `powierzchnia:` glob: for them verification is mandatory (step 7);
 - the output contract, as written here:
 
 ```
@@ -281,7 +285,8 @@ wants both verdicts on the same tip. The cap is 3 verify rounds.
 - **One plain line `Weryfikacja: …`** (no heading, no bold), one of:
   - `Weryfikacja: PASS`;
   - `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>`;
-  - `Weryfikacja: n/a — <why there is no surface>`.
+  - `Weryfikacja: n/a — <why there is no surface>`. The gate refuses `n/a` when the diff hits a `powierzchnia:`
+    glob of `## Bramka`: run the verifier, and report BLOCKED when it cannot reach the surface.
 - **Then:**
   - the tip SHA and commits;
   - review rounds and what each found;
