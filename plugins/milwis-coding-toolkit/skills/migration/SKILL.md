@@ -21,7 +21,7 @@ Before any change, list with `file:line`:
 1. **Readers and writers** of the shape — every query, model, serializer, export, import, report, cron, mobile/PWA twin, analytics consumer. Same inventory as `writingplans` Step 0.5 (canon + variants); a reader you did not list is the one that breaks in production.
 2. **Data shape today** — from physical evidence (`SHOW CREATE TABLE`, real rows, actual API responses), never from comments or docs. Count rows that violate the target shape (`GROUP BY … HAVING`, nulls, duplicates) — a migration that assumes clean data is a migration that fails halfway.
 3. **Compatibility window** — can old and new code run at the same time (rolling deploy, queued jobs still in flight, cached clients, mobile app versions)? If yes, every intermediate state must be readable by both.
-4. **Ownership** — which versioned migration mechanism the project uses (`sql/migrations/`, Liquibase/Flyway, framework migrations). Runtime DDL in application code is an automatic P1 (`sql-pro`).
+4. **Ownership** — which versioned migration mechanism the project uses (`sql/migrations/`, Liquibase/Flyway, framework migrations). Runtime DDL in application code is an automatic P1.
 
 ---
 
@@ -59,7 +59,7 @@ Mixed-version safety: during Expand and Migrate the old reader must still work a
 
 - Perform Contract because "it was obviously next" — a later destructive stage is never implied by an earlier one.
 - Write a migration that is not idempotent, or a backfill without a resume point.
-- Seed from a same-named legacy twin table by ID (`sql-pro` — join by name, never by ID across twins).
+- Seed from a same-named legacy twin table by ID (join by name, never by ID across twins).
 - Claim "migration done" without the rollback having been run on a copy.
 
 ---
@@ -69,5 +69,5 @@ Mixed-version safety: during Expand and Migrate the old reader must still work a
 - `writingplans` Step 0.5 — the reader/writer inventory is the same canon-and-variants inventory.
 - `executingplans` — migrations are always sequential and precede the code that depends on them.
 - `roadmapa` — the queue runs one issue at a time, so DB-touching changes never run in parallel (shared dev database).
-- `code-reviewer` — flags a migration without a rollback path or with an implicit Contract as CRITICAL.
-- `sql-pro` — the writer agent for the migration itself; `verify-e2e` — the DB-migration surface row.
+- `code-reviewer` — gets this skill's stage rules as lines of its brief (a skill does not load inside a subagent): a migration without a rollback path or with an implicit Contract is CRITICAL.
+- The issue's one builder writes the migration as its first layer (`sql-pro` when the change has no application code), with the requested stage named in its brief; `verify-e2e` — the DB-migration surface row.

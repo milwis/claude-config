@@ -1,10 +1,112 @@
 # Update Log
 
-> **MAINTENANCE POLICY (obowiązuje rutynę miesięczną — od 2026-08-19):**
+> **MAINTENANCE POLICY (obowiązuje rutynę miesięczną — od 2026-08-19, przepisana 2026-10-26 w v1.6.0):**
 > 1. **Nie zmieniaj frontmatter `model:`** — podział jest celowy: `sonnet` dla agentów piszących, `opus` dla code-reviewer / backend-security-coder / refactoring-orchestrator. Audyty (audit-360) i tak spawnują specjalistów z override `model: opus` — patrz SKILL.md §1.
-> 2. **Nie dodawaj sekcji „newsowych"** (wydania PostgreSQL/MySQL/Node/Safari, listy narzędzi, statystyki branżowe z datami). Zostały celowo usunięte 2026-08-19 — starzeją się co miesiąc, nie zmieniają decyzji przy pisaniu kodu i zżerają tokeny przy każdym wywołaniu agenta. Aktualizuj wyłącznie REGUŁY (co wolno / czego nie wolno / jak zweryfikować).
-> 3. **Nie przywracaj sekcji frameworkowych do php-pro** (Laravel/Symfony) ani katalogów narzędzi do test-automator.
-> 4. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
+> 2. **Agenci zawierają cel, nie reguły (od v1.6.0).** Piszący: cel, „reguły projektu wiążą”, precedens zamiast pytania, decyzje odporne na kompakcję, definicja „gotowe” — do 3 KB. `code-reviewer` (do 6 KB) i `backend-security-coder` (do 3 KB): cel, obowiązek wczytania reguł projektu dla dotkniętych ścieżek, progi S/M/L i kontrakt raportu. **Nie dopisuj do agentów reguł, list błędów AI, sekcji frameworkowych ani „newsowych”.** Reguła sprawdzalna maszynowo trafia do testu, zapadki albo linta projektu. Reguła domenowa trafia do `.claude/rules/*.md` z `paths:` albo do `CLAUDE.md` projektu, z precedensem w repo. Reguła procesu trafia do szablonu briefu w skillu (task-lifecycle, verify-e2e). Wiedzy ogólnej o języku nie zapisuj nigdzie.
+> 3. **Skill nie działa wewnątrz podagenta.** Nie pisz „skill X obowiązuje w agencie”. Reguła ze skilla dociera do podagenta wyłącznie jako linia briefu (`POMIAR`: builderzy wczytali skill 0/278 razy).
+> 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
+> 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
+
+## Run: 2026-10-26 — cały toolkit: cel zamiast metody, jeden builder na issue (v1.6.0)
+
+Decyzje właściciela (2026-10-26):
+- jeden builder na issue;
+- dokumentację pisze builder;
+- poprawki po review trafiają do ciepłego buildera;
+- security jest częścią review;
+- wszyscy piszący dostają tylko cel;
+- `code-reviewer` i `backend-security-coder` tracą wiedzę ogólną, a zachowują progi, kontrakt raportu i obowiązek wczytania reguł projektu.
+
+Pomiar bazowy: `task-lifecycle/references/evidence.md` E29.
+
+- **Agenci (11 plików):**
+  - 8 piszących według wzoru `php-pro` (`lang-guidelines/references/agent-template.md`): 2,0–2,7 KB, wcześniej 11–33 KB.
+  - `code-reviewer` 5,9 KB: cel, reguły projektu wczytywane samodzielnie, security dla diffu z wyzwalaczem, progi S/M/L, pomiary, raport.
+  - `backend-security-coder` 2,8 KB: audyt ścieżek wejście → ujście, fix jako diff w raporcie, placeholdery zamiast wartości.
+  - `refactoring-orchestrator`: podział według kontekstu, dokumentacja u buildera, bez `skryba`.
+- **Wywołania podagentów w skillach:**
+  - `task-lifecycle`:
+    - jeden builder na issue (E5 zastąpione przez E29);
+    - linia dokumentacji w briefie;
+    - reguły skilli jako linie briefu (TDD, przyczyna przed poprawką, 3 nieudane poprawki = stop, etap migracji);
+    - blok ciepłego czekania buildera (`sleep 270`, maks. 6 kroków, `STOP` po pętli review, świeży fixer, gdy builder skończył turę albo hook odrzuci wiadomość powyżej 260k);
+    - Step 3 = security w review;
+    - weryfikator `test-automator`;
+    - etykiety recenzenta CRITICAL/REQUIRED → poprawka, OPTIONAL/NIT/FYI → raport;
+    - hard rule 6 z wyjątkiem dla buildera, hard rule 8(e) z placeholderami.
+  - `verify-e2e`:
+    - linia „Report contract” w szablonie briefu: 0 z kontrolą dodatnią, liczba z komendą, MEASURED/INFERRED, placeholdery, passed+skipped, bez commitów;
+    - FAIL idzie do świeżego fixera.
+  - `roadmapa/cykl-lidera.md`: lista L3, brief L2 (jeden builder, weryfikator `test-automator`, `STOP` dla czekającego buildera przed raportem).
+  - `executingplans`: podział według kontekstu, nie warstwy; nowa tabela agentów.
+  - `writingplans`: Pass 2 robią `code-reviewer` i `backend-security-coder`, nie piszący.
+  - `migration`, `systematic-debugging`, `verification-before-completion`, `retro`: reguły dla podagentów idą przez brief.
+  - `audit-360`: prompty niosą całe checklisty, a format audytu ma pierwszeństwo przed raportem agenta.
+  - `new-project`: reguły języka trafiają do plików reguł projektu.
+  - `lang-guidelines`: tworzy agenta z samym celem i kandydatów na reguły projektu z klasyfikacją A/B/B-gap/C.
+- **Klasyfikacja reguł usuniętych z agentów** (3 podagenci read-only na KonkretnyTMS; raporty w transkrypcie sesji):
+  - prawie wszystko to (A) zapadka/lint albo (B) reguła projektu, reszta (C);
+  - B-gap z precedensem dodane w KonkretnyTMS:
+    - `NOT IN (subquery)` na kolumnie nullable → `NOT EXISTS` (`sql-rules.md`);
+    - guard „w locie” dla akcji UI (`incident-lessons-frontend.md`);
+    - fikstury zrzucane z bazy z pseudonimami (`test-rules.md`).
+  - Tokeny `--touch-target` w PWA czekają na decyzję właściciela (`.btn-sm` 48 px).
+- **Korekta wpisu v1.5.52:** reguła „placeholdery zamiast zredagowanych wartości” NIE była (B).
+  - `POMIAR`: 0 trafień w `CLAUDE.md` i `.claude/rules` KonkretnyTMS (kontrola dodatnia: agent → 1).
+  - Teraz żyje w `task-lifecycle` hard rule 8(e), w szablonie `verify-e2e` i w `backend-security-coder`.
+- **Do zmierzenia po ~20 issue nowej metody** (te same definicje co E29):
+  - koszt na issue (mediana) vs 3,46M przy jednym builderze dotąd;
+  - rundy review na issue;
+  - poprawki: ciepły builder / świeży fixer / inline;
+  - koszt kroków `sleep 270` buildera vs koszt świeżego fixera, który zastąpił (E27: wznowiony builder 94M — granice 6 kroków i 260k mają to wykluczyć);
+  - udział kosztu przed pierwszym `Edit`;
+  - reguły projektu w transkryptach builderów i recenzentów (recenzenci dotąd 22/235);
+  - nieaktualne dokumenty wykryte w review.
+
+## Run: 2026-10-26 — php-pro: cel i reguły projektu zamiast metody (v1.5.52, pilot)
+
+Źródło: film o składaniu podagentów z powrotem w jedną pętlę („split by context, not by problem type”) i pomiar kolejki KonkretnyTMS, oba na prośbę właściciela.
+
+- `POMIAR` (KonkretnyTMS, 238 sesji kolejki od 2026-10-10, rola z `name` w `subagents/*.meta.json`, jednostki = input-equivalent w ramach modelu):
+  - `php-pro` to 213 z 322 agentów piszących. Mediana to 0,48M jednostek, a 29,1% kosztu przypada na wywołania przed pierwszym `Edit`/`Write`. Na sesję z `php-pro` przypada 1,26 review i 0,29 fixera.
+  - Reguły ścieżkowe projektu docierają do podagentów: treść `php-rules.md` jest wpisem `attachment` w transkrypcie 80 z 87 builderów, którzy otworzyli `Read` plik PHP spoza `tests/`.
+  - Skille wywoływane przez opis nie ładują się wcale (builderzy 0/278, także 0/26 przy TDD wymienionym w briefie).
+- Klasyfikacja 27,9 KB agenta:
+  - **(A) Sprawdzane maszynowo w KonkretnyTMS:**
+    - `StrictTypesCoverageTest`,
+    - `RuntimeDdlRegressionTest`,
+    - zapadki KSeF z WHERE-guard,
+    - job `money-parity` i zapadki kanonu VAT,
+    - `LastInsertIdIntTest`,
+    - `OperatorScriptSapiGuardTest`,
+    - zapadki skipów zależnych od zawartości dumpa,
+    - `RuntimeVersionParityLatchTest`,
+    - `NipValidatorTest`.
+  - **(B) Już w `CLAUDE.md` / `.claude/rules` projektu i konkretniej niż w agencie:**
+    - kanon Money/VAT z regułą kierunku dokumentu,
+    - `PartsFifoService` jako jedyna ścieżka magazynu,
+    - KSeF,
+    - „nie zgaduj” brakujących danych,
+    - placeholdery zamiast zredagowanych wartości,
+    - procedura falsyfikacji (`incident-lessons.md` §„Klasa nadrzędna”),
+    - sonda `.gitignore`/`.htaccess`,
+    - nazwa klasy = implementacja,
+    - `EMULATE_PREPARES`.
+  - **(C) Duplikat briefu task-lifecycle albo wiedza ogólna — usunięte:**
+    - z briefu: tabela mutantów, limit docbloka, write-first, kontrakt raportu, ekonomia testów i zapadki licznikowe;
+    - wiedza ogólna: lista PHP 8.x, PSR-12, DI, repozytoria, wydajność, weryfikacja pakietów.
+  - **Świadomie pominięte (brak realnego trafienia):**
+    - PK z czasu: `uniqid(` w kodzie produkcyjnym to 5 trafień, wszystkie w nazwach plików tymczasowych;
+    - limit 1500 LOC: kolejka nie dzieli plików.
+  - **Do decyzji właściciela:** spójność plik + DB (kolejność zapisu, sprzątanie po rollbacku). Reguły projektu o tym nie znalazłem.
+- `agents/php-pro.md`: 27,9 KB → 1,6 KB. Model i narzędzia bez zmian. `audit-360` jest nietknięty, bo `prompts/02-php-pro.md` niesie własną listę kontrolną.
+- Do zmierzenia po ~20 issue z `php-pro`, tymi samymi definicjami:
+  - mediana kosztu buildera,
+  - udział kosztu przed pierwszą edycją,
+  - review i fixery na sesję,
+  - ustalenia recenzenta, które naruszają regułę z klas (A)/(B).
+
+  Wzrost rund review albo ustaleń z (B) = przywrócić konkretne reguły do reguł projektu (nie do agenta).
 
 ## Run: 2026-10-22 — lider rozpoznaje `Weryfikacja: BLOCKED` także jako nagłówek (v1.5.51)
 

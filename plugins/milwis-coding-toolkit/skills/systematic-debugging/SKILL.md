@@ -19,9 +19,9 @@ This skill defines HOW to debug in any project. The project's own docs (CLAUDE.m
 ## This skill vs. the `debugger` agent
 
 - **This skill** = the discipline (when to stop, when to escalate, how to resist "just one quick fix")
-- **`debugger` agent** = the execution (reading logs, following stack traces, isolating failure)
+- **`debugger` agent** = the execution (reading logs, following stack traces, isolating failure). It is goal-only: it returns the cause at `file:line` with a repro command and an excluded alternative, under the project's rules.
 
-Dispatch the `debugger` agent for focused execution of a complex multi-step investigation that would pollute your main context.
+Dispatch the `debugger` agent for focused execution of a complex multi-step investigation that would pollute your main context. This skill does not load inside it: the phases you need it to respect (no fix before the cause is measured, a failing test before the fix) go into its brief as lines.
 
 ---
 
@@ -233,7 +233,7 @@ update the project's troubleshooting doc (e.g. `docs/troubleshooting.md`) with s
 
 - `test-driven-development` — Phase 4 step 1 (failing test before fix) is a TDD RED step
 - `verification-before-completion` — Phase 4 step 3 (verify fix) is that gate
-- `debugger` agent — dispatch when full log-first investigation would pollute main context
+- `debugger` agent — dispatch when full log-first investigation would pollute main context; brief it with the phase rules as text
 - `executingplans` — when Stop-the-Line fires there, this skill takes over
 
 ---

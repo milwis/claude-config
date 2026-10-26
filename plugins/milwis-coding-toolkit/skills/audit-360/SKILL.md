@@ -359,7 +359,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 ## 8. Reference files (read on demand)
 
 - `checklists/integrations.md` — integration-class checklists used by the consolidator (regulated APIs, accounting/ERP, AI-specific). Read in STEP 4 if the consolidator needs them.
-- `checklists/tools-cheatsheet.md` — language-specific tool commands (PHP, Python, JS/TS, MySQL, PostgreSQL, secrets/supply-chain). Read by a specialist when it needs tool guidance beyond what its system prompt covers.
+- `checklists/tools-cheatsheet.md` — language-specific tool commands (PHP, Python, JS/TS, MySQL, PostgreSQL, secrets/supply-chain). Read by a specialist when it needs tool guidance beyond what its prompt covers.
 
 ## 9. Best practices (operating manual)
 
@@ -369,7 +369,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 4. **Read-only on the project**: specialists write only to `audit/findings/`. Consider `chmod -R a-w` on the audit branch as an extra guardrail.
 5. **Time/token budget**: each specialist has a budget of ~50 tool calls. The prompt already says so.
 6. **No nested subagents**: specialists never spawn further `Agent` calls (budget and single-findings-file discipline, see §4 rule 7).
-7. **Discipline overlay**: `verification-before-completion`, `systematic-debugging`, `test-driven-development` activate inside each specialist (they ship with the toolkit, vendored or plugin).
+7. **The prompt is the whole checklist**: the toolkit's agents are goal-only (v1.6.0) and a skill does not load inside a subagent, so every category, rule and output format an audit pass needs is written in its `prompts/` file. The language agents are builders: the prompt's `Mode: READ-ONLY` and its output file replace their commit-based done-when.
 8. **Consolidation, self-review and P0 reproduction must be opus**: STEP 4, STEP 6 and STEP 5 carry the audit's judgment — Sonnet misses cross-confirmations and mis-attributes root causes, and both failures are silent (no later step re-checks them). Every other specialist is on Opus too; the toolkit does not currently mix classes.
 9. **PoC reproduction is mandatory**: STEP 5 — P0 without reproduction = P1 with note.
 10. **Self-review is mandatory**: STEP 6 — fresh forked `code-reviewer` checks the consolidator's work.

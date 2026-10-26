@@ -28,8 +28,9 @@ backlog source). `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-chara
 - **L2 — issue subagent**, only after a `VALID.` triage: `general-purpose` (it needs the `Agent` tool), `model: $MODEL_L2`,
   `name: issue-<nr>`; your turn stays open until its report exists (step 4b). It runs `task-lifecycle` in full in `$WT`
   on top of the triage report and reports. It never merges, pushes, closes or creates issues, never edits the ledger.
-- **L3 — specialists** spawned by L2 per `task-lifecycle` (`php-pro`, `javascript-pro`, `sql-pro`,
-  `code-reviewer`, `backend-security-coder`, `Explore`, the project's doc agent…). L3 spawns nobody.
+- **L3 — specialists** spawned by L2 per `task-lifecycle`: ONE builder per issue (`php-pro`, `javascript-pro`, `sql-pro`…;
+  it also updates the docs and takes the review fixes while it waits warm), `code-reviewer` (security included), the
+  verifier (`test-automator`), a fresh fixer when the builder is gone, `Explore`. L3 spawns nobody.
 
 **Why triage is a separate agent:** `POMIAR` (2026-10-06, 393 L2 transcripts of KonkretnyTMS, 2026-09-22…10-04, cost at
 Opus 5.5 list prices): when L2 did triage itself, its window grew from 74k to 165k (median) before the first spawn, and that
@@ -154,7 +155,7 @@ Issue text: <title + body>.
    production. Before your final message stop every background shell, Monitor and timer you started (TaskStop);
    `git -C <$WT> status --short` must be empty.
 
-Write the report to <$K>/triage-<N>.md. Its reader is the orchestrator that will brief the builders from it
+Write the report to <$K>/triage-<N>.md. Its reader is the orchestrator that will brief the builder from it
 without exploring again: give it every fact it would otherwise re-derive, and nothing of how you found it.
 Hard cap: 120 lines. Any raw output longer than 10 lines goes to <$K>/triage-<N>-<k>.txt and the report quotes
 its path plus the decisive line(s). Every claim is MEASURED (command → result) or INFERRED; no narration, no
@@ -192,7 +193,7 @@ Working tree: <$WT> — every command uses absolute paths under it; branch agent
 Never touch <$REPO> (the main tree).
 
 1. Triage is done: read <$K>/triage-<N>.md first — it is your task context (task-lifecycle Step 0) and the
-   source for the builder briefs. Do not repeat it: no exploration to re-establish whether the problem exists or
+   source for the builder brief. Do not repeat it: no exploration to re-establish whether the problem exists or
    where it lives. Its numbers and path:line anchors are `reported: triage-<N>`; before one goes into a brief,
    re-run its command once (task-lifecycle E18). If an anchor does not reproduce, or a measurement contradicts the
    report's Cause or Fix surface, stop and report `ambiguous. ask: <the contradiction, both commands>`.
@@ -202,7 +203,9 @@ Never touch <$REPO> (the main tree).
 3. Run the task-lifecycle skill IN FULL, including every delegation step. Size class per its Step 0, from the
    report's Sizing facts;
    Large → /writingplans with Pass 2, commit the plan, then /executingplans. Spawn only specialist types and
-   Explore — never general-purpose, never `claude --bg`. Every spawn with `name:` and explicit `model:`.
+   Explore — never general-purpose, never `claude --bg`; the verifier is spawned as `test-automator`. One builder
+   for the whole issue; it writes the docs and waits warm for the review fixes (task-lifecycle Step 1). Every spawn
+   with `name:` and explicit `model:`.
    Full test suite: run it in the background with stdout to a file under the project's exclusive slot and
    read only the summary and the red test NAMES — never its output into your window.
 4. Project-local rules: <path to the project's local-adaptations doc, if any>.
@@ -211,8 +214,8 @@ Never touch <$REPO> (the main tree).
    `Control CLI` line, the repro command as `Repro from triage` and as the discriminator.
 5. Forbidden: git merge, git push, gh issue close/create/edit, editing the ledger, npm run build, deploy, KSeF,
    production.
-6. Leave nothing running: before your final message stop every background shell, Monitor and wait timer you
-   started (TaskStop) — a leftover timer wakes you after the lead has moved on (`POMIAR` 2026-09-24, issue-898
+6. Leave nothing running: before your final message send `STOP` to a builder that still waits, and stop every
+   background shell, Monitor and wait timer you started (TaskStop) — a leftover timer wakes you after the lead has moved on (`POMIAR` 2026-09-24, issue-898
    woke 10 minutes after its report). Then, before ANY report token, commit everything on the branch — `git status --short` must be empty, also for
    BLOCKED / ambiguous. Near your window cap (the hook's own-window message) on a Large issue: commit, report
    `partial.` with what remains.

@@ -32,7 +32,7 @@ For each category, look for the evidence named under *Use when*; skip the catego
 |---|---|---|
 | **Navigation** | a subagent spent many calls finding one fact; the same file re-read across subagents; a builder searched for an artifact that "existed" only in a report | a context pointer in the task context block, a `file:line` anchor rule, a `CLAUDE.md` navigation line in the project |
 | **Automated checks** | a reviewer or verifier caught what a lint/type/latch/probe could have caught earlier; a defect class recurred across issues | a latch test, a pre-commit gate, a `scripts/*.sh` probe — mechanical beats prose |
-| **Coding standards → reviewer** | the reviewer missed a class of defect, or a builder was told a rule the reviewer should own instead (the builder carries the context pressure; the reviewer reads a diff) | a row in `code-reviewer`'s tables or discipline overlay, not a new builder paragraph |
+| **Coding standards → project rules** | the reviewer missed a class of defect, or a builder broke a rule the project never wrote down | a latch test when the class is mechanical; otherwise a line in the project's `.claude/rules/*.md` file whose `paths:` cover the code (builders get it when they open the file, the reviewer is told to Read it) — never a rule in an agent file: the agents are goal-only since v1.6.0 |
 | **Tool economy** | one subagent cost an outlier share of the run's tokens; a full suite delegated instead of backgrounded; an agent resumed instead of respawned; a plan written for a Small issue | a threshold, a cap, a "do this inline" exception, a `run_in_background` rule — with the measured before/after |
 | **No-ops and sediment** | a rule in a skill/agent that no transcript shows changing behaviour; a paragraph restating what the environment already says (`package.json` scripts, `--help`, config); a NEVER that reads as an instruction to do the thing | delete the sentence (whole sentence, not trimmed words), or rewrite the prohibition as the positive target behaviour |
 | **Information access** | BLOCKED verdicts; a verifier without a test account/port/browser; logs the builder could not see | a `docs/VERIFICATION_ENV.md` entry, a teed log, a read-only credential |
@@ -76,5 +76,5 @@ Show the ranked list and ask which to apply. The apply step is ordinary toolkit 
 ## Integration
 
 - `task-lifecycle` hard rule 5 ("manual step spotted twice → automate it") is the in-flight version of this skill; retro is the batch version.
-- `lang-guidelines` — the pruning lens (no-ops, sediment, positive phrasing, cache-vs-environment) is the same one used when creating or updating an agent.
+- `lang-guidelines` — the same A / B / B-gap / C classification (latch, project rule, missing rule with a precedent, drop) decides where a proposed rule lands.
 - `roadmapa` § Measurement discipline — POMIAR / WNIOSEK labels are mandatory here as there.

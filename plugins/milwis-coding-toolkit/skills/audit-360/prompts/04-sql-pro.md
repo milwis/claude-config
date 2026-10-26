@@ -9,7 +9,7 @@ prompt: |
   You are auditing every SQL query in the application described in
   <INVENTORY_PATH>.
 
-  Mode: READ-ONLY (your guardrails — no UPDATE/DELETE without WHERE,
+  Mode: READ-ONLY (no UPDATE/DELETE without WHERE,
   no DROP, no TRUNCATE).
 
   Priority order: Safety → Correctness → Performance → Readability.

@@ -59,6 +59,8 @@ If ANY fails → sequential.
 
 **Same-file rule (critical):** if N tasks touch the same file, **dispatch ONE agent with all N tasks in its prompt**. Never dispatch parallel agents on the same file — they clobber each other, AND you pay N× the agent boot-up cost.
 
+**Split by context, never by layer.** One builder carries every task that shares a file, a symbol, a column or a decision with another task, in dependency order, committing at each task boundary — a migration, the service on its new column and the front-end module that calls it are ONE builder, typed by the layer that holds most of the change. A second builder is justified only for a task set that passes all four conditions above against everything else, or to take the remaining tasks when the first builder's window reaches the relay hook's warning (it starts from the plan and `git log --oneline <base>..HEAD`). Builders split by layer re-read each other's files and doubled the review and fix rounds (`task-lifecycle` E29).
+
 **Always sequential:** migrations before queries on new columns, git commits, the final review/test group.
 
 **When in doubt → sequential.**
@@ -73,13 +75,11 @@ One todo item per task (TodoWrite / the session's task tracker), labeled:
 
 Example:
 ```
-[GROUP 1|SEQ]      Task 1: Migration — add status column [AGENT: sql-pro]
-[GROUP 2|PARALLEL] Task 2: Feature A endpoint+JS [AGENT: php-pro]
-[GROUP 2|PARALLEL] Task 3: Feature B endpoint+JS [AGENT: php-pro]
-[GROUP 2|PARALLEL] Task 4: Feature C JS module [AGENT: javascript-pro]
-[GROUP 3|SEQ]      Task 5: CSS polish [DIRECT]
-[GROUP 4|SEQ]      Verify + code review [AGENT: code-reviewer]
-[GROUP 4|SEQ]      Commit [DIRECT]
+[GROUP 1|PARALLEL] Tasks 1-3: Migration (status column), then Feature A and B endpoints+JS on it — one builder, in order [AGENT: php-pro]
+[GROUP 1|PARALLEL] Task 4: Feature C JS module — shares no file, symbol or state with tasks 1-3 [AGENT: javascript-pro]
+[GROUP 2|SEQ]      Task 5: CSS polish [DIRECT]
+[GROUP 3|SEQ]      Verify + code review [AGENT: code-reviewer]
+[GROUP 3|SEQ]      Commit [DIRECT]
 ```
 
 The todo list is your memory after compaction — the labels tell future-you what to dispatch and in what order.
@@ -162,18 +162,24 @@ For tasks that modify existing files: read the file IF you need context you don'
 
 ## Agent Selection
 
-| Task Type | Agent |
+Pick the builder by the layer that holds most of the task set's change; it does the other layers of that set too.
+
+| Task set mostly in | Agent |
 |-----------|-------|
 | PHP (controllers, services, API) | `php-pro` |
-| Complex JS/TS, async patterns | `javascript-pro` |
-| SQL queries, migrations | `sql-pro` |
+| JS/TS front end | `javascript-pro` |
+| Next.js / React app | `nextjs-pro` |
+| Python | `python-pro` |
+| SQL queries, migrations (no application code) | `sql-pro` |
 | Query optimization, indexes, EXPLAIN | `database-optimizer` |
-| Bug investigation | `debugger` |
-| Security-sensitive code | `backend-security-coder` |
-| Refactoring, cleanup | `refactoring-orchestrator` |
-| Final code review | `code-reviewer` |
-| Test creation | `test-automator` |
 | PWA / mobile | `mobile-pwa-developer` |
+| Bug with an unknown cause | `debugger` |
+| Refactoring across modules | `refactoring-orchestrator` |
+| Tests only | `test-automator` |
+| Final code review, security included | `code-reviewer` |
+| Surface verification (`verify-e2e` brief) | `test-automator` |
+
+The builder agents are goal-only: they follow the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`) and the lines of the brief, and a skill named in the brief does not load inside them. A rule they must apply goes into the brief as text. Security-sensitive code is built by the layer's builder and reviewed by `code-reviewer`; `backend-security-coder` is for audits.
 
 `code-reviewer` (subject to the project's review threshold) and `test-automator` (when new tests are needed) run only in the final sequential group.
 
@@ -195,5 +201,5 @@ For tasks that modify existing files: read the file IF you need context you don'
 - `verification-before-completion` — the verification gate (runs at group boundaries, not per-task)
 - `verify-e2e` — surface-level verification in the final group (user-facing changes)
 - `systematic-debugging` — mandatory when Stop-the-Line fires
-- `test-driven-development` — for new production code written during execution
+- `test-driven-development` — for new production code written during execution; a builder gets it as brief lines (red test first, executed), not by the skill name
 - `task-lifecycle` — when this plan execution is one stage of a fully orchestrated task (adds review-fix loop + report package on top)

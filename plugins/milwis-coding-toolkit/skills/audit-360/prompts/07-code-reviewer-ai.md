@@ -12,8 +12,8 @@ prompt: |
   characteristic of LLM-generated code (Claude Code, Copilot, Cursor).
   Mode: READ-ONLY. Model: opus.
 
-  Go DEEPER than the other specialists — this is your "AI-Generated Code
-  Extra Scrutiny" module from your system prompt.
+  Go DEEPER than the other specialists. The 19 categories below are the
+  whole checklist; your agent file carries none of its own.
 
   19 categories:
 

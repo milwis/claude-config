@@ -137,7 +137,7 @@ Find timeline-breaking issues in Task 1, not Task 8.
 
 ### No implementation code in the plan
 
-**DO NOT put full implementation code in the plan.** The executing agent (`php-pro`, `sql-pro`, etc.) generates code following its own rules. Plans describe intent; agents implement.
+**DO NOT put full implementation code in the plan.** The executing agent (`php-pro`, `sql-pro`, etc.) generates code following the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`). Plans describe intent; agents implement.
 
 The only reason to include code is a very specific, non-obvious pattern — and even then, reference it by file path rather than inline.
 
@@ -176,29 +176,24 @@ Re-read the entire saved plan as a reviewer seeing it for the first time. Hunt f
 
 Write findings as a checklist. Record every real gap you find, each with the task number, file:line or command that shows it. A short list is a valid result — don't pad it.
 
-### Pass 2 — Language-specialist audits (parallel; conditional)
+### Pass 2 — Rules and security audits (parallel; conditional)
 
-**Run Pass 2 only for plans with more than 5 tasks OR touching money/VAT, auth/permissions, or regulated data — and cap it at the 2 most relevant specialists.** Auditing the TEXT of a small plan with a panel of agents costs more than the reality-check the code itself will force during execution; the review loop in `task-lifecycle` catches what a plan audit would. For plans below the threshold, skip to Pass 3 with Pass 1 findings only.
+**Run Pass 2 only for plans with more than 5 tasks OR touching money/VAT, auth/permissions, or regulated data — and cap it at 2 auditors.** Auditing the TEXT of a small plan with a panel of agents costs more than the reality-check the code itself will force during execution; the review loop in `task-lifecycle` catches what a plan audit would. For plans below the threshold, skip to Pass 3 with Pass 1 findings only.
 
-Identify which languages/technologies the plan touches. Pick up to 2 matching specialists (by risk, not by coverage) and spawn them **in parallel** (single message, multiple `Agent` calls) to audit only their relevant sections:
+The builder agents (`php-pro`, `javascript-pro`, ...) are goal-only writers and carry no checklist of their own, so they are not plan auditors. Pass 2 uses the reviewers, spawned **in parallel** (single message, multiple `Agent` calls):
 
-| Technology in plan | Agent |
-|---|---|
-| PHP (Laravel/Symfony/plain) | `php-pro` |
-| JavaScript / TypeScript / Node | `javascript-pro` |
-| Python | `python-pro` |
-| SQL / schema / queries | `sql-pro` |
-| PWA / mobile / service workers | `mobile-pwa-developer` |
-| Auth / API security / input validation | `backend-security-coder` |
-| Database performance / indexing | `database-optimizer` |
-| Tests / testability of the plan | `test-automator` |
+| Plan touches | Agent | Audits |
+|---|---|---|
+| any code (the default auditor) | `code-reviewer` | the plan's tasks against the project's rules for the paths the plan names (it Reads the `.claude/rules` files whose `paths:` match) and against the code the tasks name |
+| auth / permissions / input parsing / money / regulated data | `backend-security-coder` | the tasks on those paths: input reaching a sink, a missing permission check |
 
-**Prompt each specialist** with:
+**Prompt each auditor** with:
 - Absolute path to the plan file
 - Exact section/task numbers to audit (not the whole plan)
-- Instruction: *"Read-only review. Do not edit the plan. Return a numbered list of concrete issues: gaps, vulnerabilities, anti-patterns, missing edge cases, risky patterns specific to [language]. No generic advice — each item must reference a specific task or file in the plan."*
+- The file paths those tasks touch
+- Instruction: *"Read-only review. Do not edit the plan. Return a numbered list of concrete issues: a task that breaks a project rule (cite it), a variant path that skips the canonical one, a missing edge case or acceptance criterion, a risky step. No generic advice — each item references a specific task and a file:line or rule."*
 
-Example: PHP backend + JS frontend + MySQL schema → spawn `php-pro` (PHP tasks), `javascript-pro` (JS tasks), `sql-pro` (schema/queries) in one parallel batch.
+Example: PHP backend + JS frontend + MySQL schema touching invoices → `code-reviewer` (all tasks against the project's PHP, JS and SQL rules) and `backend-security-coder` (the tasks on the invoice endpoints) in one parallel batch.
 
 ### Pass 3 — Consolidate & fix
 
@@ -211,8 +206,8 @@ Example: PHP backend + JS frontend + MySQL schema → spawn `php-pro` (PHP tasks
 
 Only now announce the plan as ready. Include a one-paragraph audit summary:
 
-- How many issues were found across general + specialist audits
-- Which specialists were consulted
+- How many issues were found across the general and Pass 2 audits
+- Which auditors were consulted
 - Which findings were fixed vs. deliberately deferred (with reason)
 
 If no issues were found, say so and name what you checked, so the user can judge the coverage.
@@ -223,7 +218,7 @@ If no issues were found, say so and name what you checked, so the user can judge
 
 After the self-audit is complete and the plan is clean:
 
-**"Plan saved to `docs/plans/<filename>.md`. Audited by [list specialists]; [N] issues found and resolved. Ready to execute with the `executingplans` skill?"**
+**"Plan saved to `docs/plans/<filename>.md`. Audited by [list auditors]; [N] issues found and resolved. Ready to execute with the `executingplans` skill?"**
 
 ---
 

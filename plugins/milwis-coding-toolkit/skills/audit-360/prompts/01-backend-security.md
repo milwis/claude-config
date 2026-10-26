@@ -11,7 +11,7 @@ prompt: |
   Mode: READ-ONLY. Do not modify code.
   Context: read <INVENTORY_PATH> before starting.
 
-  Scope (your Three-Tier Boundary System Always/Ask/Never):
+  Scope (three tiers — Always / Ask / Never):
   1. ALWAYS: input validation, parameterized queries, password hashing
      (bcrypt / argon2id), CSRF, session regeneration on EVERY login path,
      secure headers, secrets in env vars, anonymized fixtures, permission

@@ -1,6 +1,6 @@
 # Integration-class checklists (consolidator reference)
 
-Each specialist has its own built-in checklists in its system prompt (from the marketplace). The lists below are **integration-class** checklists that the consolidator uses when mapping axis and priority. They are domain-agnostic — apply to any "this kind of integration" found in INVENTORY §5.
+The specialists carry no checklists of their own (goal-only agents since toolkit v1.6.0); each prompt in `prompts/` carries its categories. The lists below are **integration-class** checklists that the consolidator uses when mapping axis and priority. They are domain-agnostic — apply to any "this kind of integration" found in INVENTORY §5.
 
 ## Regulated external API (e-invoicing, government portals, regulators)
 
