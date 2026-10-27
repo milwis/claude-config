@@ -7,6 +7,31 @@
 > 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-27 — domknięcie zamiast rundy recenzji (v1.7.3)
+
+Pytanie właściciela: dlaczego po v1.7.x kolejka wywołuje tylu recenzentów i zostawia issue niedokończone. Analiza objęła 13 issue z 2026-10-27 i 35 recenzji. Wynik: 5 z 8 issue z kolejki skończyło jako `needs-confirm.`, a ostatnie poprawki lidera (zwykle same testy) nie miały już recenzenta, bo cap i bramka chcą recenzji dokładnie na tipie. 54% z 48 REQUIRED to przypięcie testem: jednostronny strażnik albo linia poprawki bez mutanta RED. Przyczyna w gicie: v1.7.1 podniosło „linia bez wiersza RED” z MEDIUM do REQUIRED. Decyzja właściciela: „Wprowadź zmiany” (rekomendacje 1–4).
+
+- **`roadmapa/scripts/bramka.sh`:** ścieżka domknięcia. Recenzja na przodku tipu wystarcza, gdy commity po niej spełniają wszystkie warunki:
+  - dotykają tylko globów `domkniecie:` z `## Bramka`, nigdy `docs/VERIFICATION_ENV.md`, `CLAUDE.md`, `.claude/`, `.github/`;
+  - nie usuwają ani nie zmieniają linii asercji i nie dodają skipów;
+  - recenzja ma 0 CRITICAL i linię `Domknięcie: <a> mutant, <b> docs` pokrywającą wszystkie REQUIRED.
+
+  Bramka wykonuje każdy rekord `Mutant-plik` / `Mutant-przed` / `Mutant-po` (literał, dokładnie jedno wystąpienie, plik produkcyjny tej gałęzi, PHP po `php -l`). Testy z delty mają być czerwone z mutantem i zielone bez niego. Plik jest przywracany (także po przerwaniu), a worktree sprawdzany jako czysty. Weryfikacja na przodku też przechodzi przy takiej delcie. Log: `$K/bramka-<N>-domkniecie.log`.
+- **`agents/code-reviewer.md`:** dwie zmiany (36 281 B, budżet 36 864 B):
+  - nowa linia poprawki bez wiersza RED jest REQUIRED tylko z pokazanym skutkiem dla użytkownika, danych albo pieniędzy, inaczej OPTIONAL z wykonanym mutantem;
+  - REQUIRED zamykalny samym testem dostaje rekord `Mutant-*`, a recenzja linię `Domknięcie:`.
+- **`task-lifecycle/scripts/nowe-warunki.sh`** (nowy): wypisuje dodane linie produkcyjne z warunkiem, gałęzią, strażnikiem albo logiem jako `path:line`. Zastępuje grep bez ustalonej pisowni, który był pomijany. Implementujący przypina każdą z tych linii przed kolejną rundą, a lista trafia do briefu następnego recenzenta.
+- **`roadmapa/references/cykl-lidera.md`, `roadmapa/SKILL.md`, `task-lifecycle/SKILL.md`, `references/implementacja.md`, `references/briefy.md`:**
+  - recenzja z `Domknięcie:` nie wymaga rundy k+1, tylko commitu z testami lub dokumentacją i `scal.sh`;
+  - cap liczy wyłącznie rundy recenzji;
+  - `needs-confirm.` pojawia się dopiero wtedy, gdy otwarte REQUIRED nie mają domknięcia.
+- **Projekt (KonkretnyTMS):** `domkniecie:` w `## Bramka` (testy PHP/JS z komendą, `docs/*`), scenariusze bramki w zapadce i reguły dla dwóch klas prawdziwych błędów z analizy: zapis w modalu (asynchroniczny stan) i ilości dziesiętne.
+- **Do zmierzenia po ~10 issue:**
+  - odsetek `needs-confirm.`;
+  - liczba rund na issue Standard;
+  - ile REQUIRED recenzenci oznaczają jako domykalne;
+  - czas przebiegu mutantów w bramce.
+
 ## Run: 2026-10-26 — pamięć lidera przy kompakcji i okno kolejki (v1.7.2)
 
 Pytanie właściciela: czy lider, który sam implementuje issue i kompaktuje kontekst, nie gubi szczegółów. Druga decyzja dotyczyła okna. Właściciel podał zakres 250–350k („więcej niż 350 to już nie”).

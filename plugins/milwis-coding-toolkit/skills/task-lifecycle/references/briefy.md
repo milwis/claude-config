@@ -92,11 +92,14 @@ Before the spawn, check that the brief carries each of these lines:
    part of this review.
 4. **What to report:** every finding with its severity. Never ask for only the high-severity ones: filtering
    happens on this side, by severity.
-5. **Last line of the header:** `Otwarte: <n> CRITICAL, <m> REQUIRED`, counting every CRITICAL and REQUIRED finding,
-   PLAUSIBLE ones included. The queue adds the `SHA:` and `Tier:` lines (`roadmapa/references/cykl-lidera.md`).
+5. **Header lines:** `Otwarte: <n> CRITICAL, <m> REQUIRED`, counting every CRITICAL and REQUIRED finding,
+   PLAUSIBLE ones included; then `Domknięcie: <a> mutant, <b> docs` when there is no CRITICAL and every REQUIRED
+   closes by a test (a `Mutant-plik` / `Mutant-przed` / `Mutant-po` record each) or by docs alone. The queue adds
+   the `SHA:` and `Tier:` lines (`roadmapa/references/cykl-lidera.md`).
 6. **Round 2 and later:**
    - the previous findings verbatim, and what was changed for each;
-   - the previous tip;
+   - the previous tip, and the output of `scripts/nowe-warunki.sh <worktree> <previous tip>` with the mutant row
+     or the reason for each line;
    - the instruction: "review `<previous tip>..<tip>` and whether each previous finding is closed; do not
      re-review the untouched rest unless the delta reaches it".
 7. **Small, the narrow form:**

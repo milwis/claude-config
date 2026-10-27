@@ -90,10 +90,15 @@ branch is a finding of this change.
 
 - **Every new guard, condition, branch or log line** that a fix adds to production code gets an executed mutant
   (`line | mutant <sed> | expected RED | result | command`), whether or not the finding named that line. Before
-  the next review round, list the new lines with
-  `git diff <previous tip>..HEAD -- <production paths> | grep '^+' | grep -E '<the project's guard and log spelling>'`.
-  Then check that each one has a RED row. A GREEN mutant is fixed before the review, not left to cost a review
-  round (E19).
+  the next review round, list the new lines with `scripts/nowe-warunki.sh <worktree> <previous tip>` (this
+  skill's directory: added production lines with a condition, a branch, a guard or a log, as `path:line`). Each
+  one gets a RED row, both legs of a guard and every entry point that reaches it, or a stated reason (equivalent
+  mutant, log text only, covered by row X). A GREEN mutant is fixed before the review, not left to cost a review
+  round (E19). The list goes into the next reviewer's brief.
+- **A closure (`Domknięcie:` in the review):** the REQUIRED findings it covers are closed with tests and docs only,
+  and each `Mutant-*` record is executed against the changed tests: the literal `Mutant-przed` replaced by
+  `Mutant-po` on the tracked file (copy and restore with `cat`, then `diff`), RED quoted, GREEN after restore
+  quoted. A record that stays GREEN means the test misses the property: fix the test, never the record (E30).
 - **A test-only or docs-only fix** of ≤ 40 lines that copies a neighbouring pattern: proof is one mutation probe
   for a test, or `ls` / `git grep -nF` showing a corrected reference resolves (E20).
 - **A comment-only fix up to 30 lines in any file**, where no code token changes: proof is `git diff -w --stat`

@@ -25,7 +25,8 @@ or change a rule; the rule text alone binds.
 These hold even when everything else in this file has been summarised away.
 
 - **Review rounds:** 2 for Standard and 3 for Large, never more than 3. Small gets one narrow pass and a
-  re-review only for a CRITICAL finding.
+  re-review only for a CRITICAL finding. A review with a `Domknięcie:` line is closed by a tests/docs-only commit
+  and its executed `Mutant-*` records, not by another round (Step 2).
 - **Verification rounds:** 3.
 - **One defect, three failed fixes:** stop and list the attempts. Outcome: `ambiguous. ask: <question>`.
 - **A limit reached:** stop and report what remains and why it persists. Never widen the scope to make it pass,
@@ -113,11 +114,16 @@ of fix needs. They bind this session. A `builder` gets them as lines of its brie
    - the security triggers the diff touches (Step 3);
    - the context block.
 
-   From round 2 on, it also carries the previous findings and the previous tip.
+   From round 2 on, it also carries the previous findings, the previous tip and the output of
+   `scripts/nowe-warunki.sh <worktree> <previous tip>` (this skill's directory).
 2. **Act on the findings by severity:**
    - **CRITICAL / REQUIRED:** fix them here, with the proof `references/implementacja.md` asks for each kind of
-     fix. Every new guard, branch or log line gets an executed mutant before the next round (E19). Then a fresh
-     reviewer reviews the delta.
+     fix. Every new guard, branch or log line (`scripts/nowe-warunki.sh` lists them) gets an executed mutant
+     before the next round (E19). Then a fresh reviewer reviews the delta.
+   - **A `Domknięcie:` line** (0 CRITICAL, every REQUIRED closable by a test or by docs): close them with commits
+     that touch only tests and docs, adding assertions and never editing, removing or skipping one. Run each
+     `Mutant-plik` / `Mutant-przed` / `Mutant-po` record against the tests you changed: RED with the mutant, GREEN
+     restored, both quoted in the report. No further round; the queue's gate re-runs the records (E30).
    - **PLAUSIBLE** (a link in the chain is not measured): settle it first with a two-sided measurement ("X or
      not-X, and what decides it", E8). Only a measured finding gets fixed.
    - **OPTIONAL / NIT / FYI:** fix one only when the fix is small and proven the same way. Otherwise list it in
