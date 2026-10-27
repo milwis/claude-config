@@ -68,7 +68,9 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
 - **The merge is a script.** `scal.sh` runs `bramka.sh` first: commits on the branch, a clean worktree, the lead's
   `done.`, the newest review on exactly the branch tip with 0 CRITICAL and 0 REQUIRED, the verification on the same
   tip, a review of tier M or L for a diff on the project's sensitive paths, and the project's gate tests
-  (`## Bramka` in `docs/VERIFICATION_ENV.md`). The queue's PreToolUse hook (`hook-pre-tool.sh`) blocks a raw
+  (`## Bramka` in `docs/VERIFICATION_ENV.md`). A review or verification on an ancestor still counts when the
+  commits after it touch only the project's `domkniecie:` paths (tests, docs) and the review's `Mutant-*` records
+  go red under the delta's tests (v1.7.3, a closure instead of a round). The queue's PreToolUse hook (`hook-pre-tool.sh`) blocks a raw
   `git merge`, `git pull` and `git push` in every queue process, and blocks every write to a verdict file except
   by its role (`code-reviewer` → `recenzja-*`, `test-automator` → `weryfikacja-*`), Bash writes included. A diff on
   a `powierzchnia:` path cannot pass with `Weryfikacja: n/a`.

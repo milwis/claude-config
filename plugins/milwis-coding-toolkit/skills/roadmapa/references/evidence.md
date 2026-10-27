@@ -60,3 +60,20 @@ lead runs anyway. The pointer to it after a compaction is the lead's appended sy
 `SessionStart:compact` hook: the hook's output would reach a compacting subagent too (the 2026-09-24 incident), and
 its payload still carries no `agent_id`/`agent_type`. `NIEZMIERZONE`: compactions per issue and criteria lost after
 one in the v1.7 lead — re-measure from `hook-compact.log` and `stan-*.md` after ~10 issues.
+
+**v1.7.3 (2026-10-27), closure instead of a review round.** `POMIAR` (KonkretnyTMS, 13 issues of 2026-10-27, 35
+code-reviewer runs, `recenzja-*.md`, `review-r*.md`, ledger rows 642–659): 5 of 8 queue-implemented issues ended
+`needs-confirm.` (0 in the two weeks before). In all 5 the lead had already fixed the last round's findings, mostly
+with tests only, and the cap plus "the newest review on exactly the tip" left that delta without a reviewer. Of 48
+REQUIRED findings 26 (54%) were test pinning: a one-sided guard, a fix line without a RED mutant, an entry point
+without a test. Round 1 found 13 of the 15 real bugs; later rounds were 70% test pinning on lines the fix itself
+added, and only 3 later findings were residues of an earlier one. Fresh reviewers pick different control mutants
+(#1811: three reviewers on one tip, three verdicts), so a loop that needs a new reviewer for every test commit
+rarely converges.
+
+So a finding that a test alone closes carries its proof as data — a literal mutant on a production line — and the
+gate, not a fourth reviewer, checks that the delta's tests kill it and pass without it. The delta is limited to the
+project's `domkniecie:` paths and may not remove or edit an assertion or add a skip, so it cannot weaken what the
+review saw. A verification on an ancestor stays valid across such a delta, since tests and docs change no behaviour
+a user reaches. `NIEZMIERZONE`: how many REQUIRED findings reviewers mark closable, and whether the gate's mutant
+runs stay under a minute — re-measure from `bramka-*-domkniecie.log` after ~10 issues.

@@ -262,7 +262,9 @@ everything first; the reviewer reviews the tip. The brief carries:
 - the issue number, with "read the issue yourself (`gh issue view <N> --comments`) before my notes: it is the
   spec, my summary and decisions are claims to check". Never paste your own restatement of the issue in its place;
 - the diff stat;
-- the previous round's findings and tip, from round 2 on;
+- the previous round's findings and tip, from round 2 on, with the output of
+  `"$SKRYPTY/../../task-lifecycle/scripts/nowe-warunki.sh" "$WT" <previous tip>` (the lines your fix added that
+  carry a condition, a branch or a log: the reviewer checks those first);
 - the security triggers the diff touches (`task-lifecycle` Step 3);
 - the rules files that match the diff and the changed paths that hit a `wrazliwe:` glob, both printed by
   `"$SKRYPTY/reguly.sh" "$K/config.env" <N>`; with sensitive paths, the brief says "these paths are sensitive in
@@ -273,14 +275,22 @@ everything first; the reviewer reviews the tip. The brief carries:
 ```
 Write your report to <$K>/recenzja-<N>-<k>.md. Line 1: `No issues.` or your verdict line. Then the lines
 `SHA: <output of git -C <$WT> rev-parse HEAD at your start>`, `Tier: S|M|L` and
-`Otwarte: <n> CRITICAL, <m> REQUIRED` (every CRITICAL and REQUIRED finding below, PLAUSIBLE included), then the report.
+`Otwarte: <n> CRITICAL, <m> REQUIRED` (every CRITICAL and REQUIRED finding below, PLAUSIBLE included), then
+`Domknięcie: <a> mutant, <b> docs` when 0 CRITICAL and every REQUIRED closes by a test (a, each with its
+`Mutant-plik:` / `Mutant-przed:` / `Mutant-po:` record) or by docs alone (b), then the report.
 Change no tracked file; probe copies go under <$WT>/.claude/tmp/. Your message to the lead is the first line and
 the path.
 ```
 
-CRITICAL and REQUIRED findings are yours to fix, under the `task-lifecycle` proof rules. Then round k+1 with a new
-reviewer. The cap is 2 rounds for Standard and 3 for Large. A cap reached with CRITICAL or REQUIRED still open
-gives the outcome `needs-confirm. <the open findings>`.
+CRITICAL and REQUIRED findings are yours to fix, under the `task-lifecycle` proof rules. Before you ask for
+round k+1, run `nowe-warunki.sh` on your fix: every line it prints gets a RED row in your mutant table.
+- **A review with a `Domknięcie:` line** needs no round k+1. Close its REQUIRED findings with commits that touch
+  only `domkniecie:` paths of `## Bramka` (tests, docs): add assertions, never edit or remove one, no skip. Then
+  `scal.sh`. The gate runs each `Mutant-*` record against the tests your delta changed: red with the mutant, green
+  without. A closure that needs a production line is not a closure: round k+1.
+- **Otherwise round k+1** with a new reviewer. The cap is 2 rounds for Standard and 3 for Large; a closure is not
+  a round. A cap reached with CRITICAL or REQUIRED still open, and no `Domknięcie:` covering them, gives the
+  outcome `needs-confirm. <the open findings>`.
 
 **7. Verify** — when a surface a user touches changed (`task-lifecycle` Step 4). A fresh `test-automator`,
 `name: weryfikacja-<N>-<k>`, `model: sonnet`, gets the `verify-e2e` brief. The brief carries:
@@ -290,7 +300,8 @@ gives the outcome `needs-confirm. <the open findings>`.
   `SHA: <rev-parse HEAD at your start>`.
 
 On FAIL you fix and run a new verifier. The fix is a new commit, so a new reviewer reviews the delta too: the gate
-wants both verdicts on the same tip. The cap is 3 verify rounds.
+wants both verdicts on the same tip, or on an ancestor followed only by `domkniecie:` paths (tests, docs). The cap
+is 3 verify rounds.
 
 **Your report**, `$K/raport-<N>.md`:
 - **Line 1** is the outcome: `done.`, `feature.`, `ambiguous.`, `needs-confirm.`, `too-big.`, `regressed.` or
@@ -323,7 +334,8 @@ wants both verdicts on the same tip. The cap is 3 verify rounds.
 **What `scal.sh` prints last:**
 - **`SCALONO <SHA>`:** merged.
 - **`BRAMKA`:** a gate check failed; the lines above it say which. Make up what is missing within the caps (a
-  review of the newest commits, a verification on the tip, a report line), then run `scal.sh` again. A check you
+  review of the newest commits, a verification on the tip, a report line, a test that kills the named mutant),
+  then run `scal.sh` again. The domknięcie log is `$K/bramka-<N>-domkniecie.log`. A check you
   cannot satisfy within the caps → defer with the gate lines quoted.
 - **`KONFLIKT: <paths>`:** someone committed to `$MAIN` meanwhile. The merge is already aborted. Defer with the
   paths and continue; never resolve a conflict in the main tree.
