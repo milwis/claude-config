@@ -243,8 +243,9 @@ After the last one — the validator, then fix whatever it lists (`gh issue edit
 ## 8. Report
 
 One list: `#<n> <title> — <labels>`, the umbrella first; for a queue-able split the command
-`kolejka.sh start --parasol <umbrella>` (it reads `## Porcje` in order; portions that name a plan in
-`docs/plans/` skip triage) or `kolejka.sh start --issues <a>,<b>,…` in dependency order; which portions are web-ready; which need
+`kolejka.sh start --parasol <umbrella>` (it reads `## Porcje` in order, each portion through triage; add
+`--bez-triage` only when the umbrella came from a plan in `docs/plans/` that every portion names — start refuses
+otherwise) or `kolejka.sh start --issues <a>,<b>,…` in dependency order; which portions are web-ready; which need
 `--issues` because the backlog source skips their type (§5).
 
 ## Integration

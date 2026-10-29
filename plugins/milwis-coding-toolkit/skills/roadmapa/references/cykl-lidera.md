@@ -13,8 +13,8 @@ can justify, write the uncertainty into the ledger row, and carry on.
 
 **Why this shape.**
 - **One session per issue:** the window starts clean for every issue.
-- **Triage is a separate agent:** measured below. A portion of an umbrella that names a plan has no triage: the
-  plan is its triage (step 4).
+- **Triage is a separate agent:** measured below. A portion of an umbrella the owner started with `--bez-triage`
+  (a plan series) has no triage: the plan is its triage (step 4).
 - **You implement:** planning, implementation and testing share one context. Handing them to a chain of agents
   made each one re-read what the previous one had read.
 - **Review and verification are fresh agents:** an unattended run needs a check from outside the context that
@@ -29,7 +29,8 @@ can justify, write the uncertainty into the ledger row, and carry on.
   - `$WT` the queue worktree;
   - `$ETYKIETA_ZROBIONE`, `$ETYKIETA_RECZNA`, `$MODEL_TRIAGE`;
   - `$KOLEJKA_LISTA` (empty = backlog source), `$KOLEJKA_PARASOL` (the umbrella of `kolejka.sh start --parasol`,
-    empty = none; its portions and their plans are in `$K/parasol.tsv`).
+    empty = none), `$KOLEJKA_BEZ_TRIAGE` (`1` = the owner's `--bez-triage`, a plan series: each portion and its plan
+    are in `$K/parasol.tsv`, written only then).
 
   `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-character state path dropped one `/`, wrote its flag
   into a non-existent directory, reported success, and the queue stood still.
@@ -132,7 +133,7 @@ N=$("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>"$K/pominiete.txt"); echo "N=$N RC=$?"
   not grep for it again.
 - **`N` empty:**
   - list source (`$KOLEJKA_LISTA` set) → `P=$(grep -m1 '^parasol #' "$K/pominiete.txt"); echo "${P:-lista wyczerpana}" > "$K/stop"`
-    (a deferred portion of an umbrella stops the list; its line names it), end the turn;
+    (with `--bez-triage` a deferred portion stops the list; its line names it), end the turn;
   - backlog source → `touch "$K/pusto"`, end the turn.
 
   No ledger row for an empty cycle.
@@ -245,8 +246,9 @@ Your message to the lead (SendMessage) is at most 3 lines: the token, the report
 
 `VALID.` → step 5. Any other token goes to step 8 with that token (the branch has no commits).
 
-**4p. The plan path** — a portion of the umbrella `$KOLEJKA_PARASOL` whose body names a plan that exists on
-`$MAIN` (`porcje-parasola.sh` resolved it at start). The plan is the triage: its tasks name the files, the
+**4p. The plan path** — a portion of the umbrella `$KOLEJKA_PARASOL` started with `--bez-triage`: the owner says
+the umbrella came from a plan, and `porcje-parasola.sh --plan` checked at start that every open portion names one
+on `$MAIN`. The plan is the triage: its tasks name the files, the
 acceptance criteria and the oracle, and the portion's own body asks for the measurement before the change. What
 triage would add, you do yourself:
 - **Read** the plan sections the issue names, then only this portion's tasks.
@@ -266,7 +268,9 @@ construction (the portions run in order, so a portion's work cannot be on HEAD y
 the three issues; their decisive content was the measurement before the change, which the portion's body asks
 for anyway. The one plan error a triage found (#1878: an ID rule, not the inline style, kept `overflow: visible`)
 measured `pageScroll=330` with the marker alone, so the plan's oracle goes red on it (INFERRED). An umbrella
-without a plan keeps triage: there, whether the problem exists on HEAD is a real question.
+over a class of problems keeps triage (started without `--bez-triage`): there, whether the problem exists on HEAD
+is a real question. The owner decides at start, not the wording of a portion: a portion of a class that names a
+plan for context would otherwise lose its only "before" measurement.
 
 **5. Implement — yourself, in `$WT`, with the `task-lifecycle` skill.** Load it with the Skill tool. It holds the
 quality rules for the implementer, the review loop and verification. What the queue adds:

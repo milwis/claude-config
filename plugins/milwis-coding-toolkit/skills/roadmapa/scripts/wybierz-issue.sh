@@ -5,10 +5,10 @@
 #
 # Two sources, set in the queue's config.env (written by kolejka.sh start):
 #   KOLEJKA_LISTA set    — the owner's explicit list, in the owner's order. No type filter (the owner chose);
-#                          skipped only when closed or carrying a done/deferred status label. With KOLEJKA_PARASOL
-#                          (the portions of an umbrella, kolejka.sh start --parasol) the order is strict: a portion
-#                          deferred or waiting for a merge stops the list — the portions after it build on it —
-#                          and the reason goes to stderr as "parasol #<P>: …".
+#                          skipped only when closed or carrying a done/deferred status label. With KOLEJKA_BEZ_TRIAGE
+#                          (the portions of a plan, kolejka.sh start --parasol --bez-triage) the order is strict: a
+#                          portion deferred or waiting for a merge stops the list — the portions after it build on it —
+#                          and the reason goes to stderr as "parasol #<P>: …". An umbrella with triage skips it like a list.
 #   KOLEJKA_LISTA empty  — the backlog: open, one of KOLEJKA_TYPY (bugs, missing tests) OR an owner-approved idea
 #                          (KOLEJKA_ZATWIERDZONY), none of KOLEJKA_POMIJAJ, a priority
 #                          label, P0 -> P3 (ideas ranked like bugs), oldest first; skips issues with a local agent/issue-<nr> branch
@@ -22,6 +22,7 @@ cd "${1:-.}"
 
 KOLEJKA_LISTA=""
 KOLEJKA_PARASOL=""
+KOLEJKA_BEZ_TRIAGE=""
 KOLEJKA_TYPY="typ:bug,typ:point-fix,typ:structural,typ:test,bug"
 KOLEJKA_ZATWIERDZONY="pomysl:zatwierdzony"
 KOLEJKA_POMIJAJ="enhancement,new_idea,request,typ:analysis,pomysl:do-analizy,pomysl:odlozony,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker"
@@ -40,7 +41,7 @@ if [ -n "$KOLEJKA_LISTA" ]; then
     stan=$(cut -f1 <<<"$info"); etykiety=$(cut -f2 <<<"$info"); tytul=$(cut -f3 <<<"$info")
     [ "$stan" = "OPEN" ] || continue
     zly=$(tr ',' '\n' <<<"$etykiety" | grep -xF -f <(tr ',' '\n' <<<"$STATUSY_KONCA") | head -1 || true)
-    if [ -n "$zly" ] && [ -n "$KOLEJKA_PARASOL" ] && [ "$zly" != "status:zrobione-lokalnie" ]; then
+    if [ -n "$zly" ] && [ -n "$KOLEJKA_BEZ_TRIAGE" ] && [ "$zly" != "status:zrobione-lokalnie" ]; then
       echo "parasol #$KOLEJKA_PARASOL: porcja #$n ma $zly — dalsze porcje czekają na nią (ścisła kolejność)" >&2
       exit 0
     fi
