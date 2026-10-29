@@ -13,7 +13,8 @@ can justify, write the uncertainty into the ledger row, and carry on.
 
 **Why this shape.**
 - **One session per issue:** the window starts clean for every issue.
-- **Triage is a separate agent:** measured below.
+- **Triage is a separate agent:** measured below. A portion of an umbrella that names a plan has no triage: the
+  plan is its triage (step 4).
 - **You implement:** planning, implementation and testing share one context. Handing them to a chain of agents
   made each one re-read what the previous one had read.
 - **Review and verification are fresh agents:** an unattended run needs a check from outside the context that
@@ -27,7 +28,8 @@ can justify, write the uncertainty into the ledger row, and carry on.
   - `$REPO` main tree; `$K` state directory; `$SKRYPTY`; `$MAIN`; `$LEDGER` (relative to `$REPO`);
   - `$WT` the queue worktree;
   - `$ETYKIETA_ZROBIONE`, `$ETYKIETA_RECZNA`, `$MODEL_TRIAGE`;
-  - `$KOLEJKA_LISTA` (empty = backlog source).
+  - `$KOLEJKA_LISTA` (empty = backlog source), `$KOLEJKA_PARASOL` (the umbrella of `kolejka.sh start --parasol`,
+    empty = none; its portions and their plans are in `$K/parasol.tsv`).
 
   `POMIAR` (2026-09-24, scratch run): a lead retyping a 130-character state path dropped one `/`, wrote its flag
   into a non-existent directory, reported success, and the queue stood still.
@@ -37,7 +39,7 @@ can justify, write the uncertainty into the ledger row, and carry on.
   - step 3 creates it with the line `# Pamięć lidera issue #<N> — podagent: nie dotyczy`;
   - step 5 adds `## Kryteria`: each acceptance criterion of the issue as `K1`, `K2`… with the test that proves it,
     and the regulated constraints the fix must keep (money, VAT, KSeF, permissions — from the issue and the triage
-    report);
+    report, or the plan on the plan path);
   - after each numbered step, one line: the step, the size class, the review and verification round, the criteria
     met (`K1 ✓`), and each decision that crosses files (a data shape, a name, a normalisation) with its reason.
 
@@ -60,7 +62,9 @@ can justify, write the uncertainty into the ledger row, and carry on.
   - close, label and create issues;
   - commit the ledger.
 - **`triage-<N>`:**
-  - `general-purpose`, `model: ${MODEL_TRIAGE:-opus}`.
+  - `general-purpose`; `model:` the word `echo "$MODEL_TRIAGE"` prints (the start prompt names it too), never a
+    default of your own. `POMIAR` (2026-10-29, KonkretnyTMS): with `sonnet` set, every triage of the day ran on Opus,
+    because the brief showed the shell expression instead of its value.
   - It decides whether the problem exists on HEAD and writes a compact report (step 4).
   - It changes no tracked file, commits nothing and spawns nobody.
 - **`recenzja-<N>-<k>`:**
@@ -127,7 +131,8 @@ N=$("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>"$K/pominiete.txt"); echo "N=$N RC=$?"
   Label it now (`status:odlozone` + comment "Odroczone wg <file:line>", step 8 mechanics), so the next cycle does
   not grep for it again.
 - **`N` empty:**
-  - list source (`$KOLEJKA_LISTA` set) → `echo "lista wyczerpana" > "$K/stop"`, end the turn;
+  - list source (`$KOLEJKA_LISTA` set) → `P=$(grep -m1 '^parasol #' "$K/pominiete.txt"); echo "${P:-lista wyczerpana}" > "$K/stop"`
+    (a deferred portion of an umbrella stops the list; its line names it), end the turn;
   - backlog source → `touch "$K/pusto"`, end the turn.
 
   No ledger row for an empty cycle.
@@ -169,7 +174,11 @@ git -C "$WT" checkout -b "agent/issue-$N" "$MAIN"
   - A failing check is not a stop: the file goes to triage and to the verify brief as the environment state.
   - `brak CLI` means the CLI steps are `skipped: project has no CLI`.
 
-**4. Triage.** Spawn `triage-<N>` with this brief, then wait for `$K/triage-<N>.md`:
+**4. Triage — or the plan path.**
+```bash
+. .claude/tmp/kolejka/config.env && N=$(cat "$K/w-toku") && PLAN=$(awk -F'\t' -v n="$N" '$1 == n {print $2}' "$K/parasol.tsv" 2>/dev/null); echo "PLAN=${PLAN:--}"
+```
+A path → **4p**, no triage. `-` → spawn `triage-<N>` with this brief, then wait for `$K/triage-<N>.md`:
 
 ```
 You are the triage subagent triage-<N> of the roadmapa queue. Lead: the top-level session.
@@ -236,17 +245,41 @@ Your message to the lead (SendMessage) is at most 3 lines: the token, the report
 
 `VALID.` → step 5. Any other token goes to step 8 with that token (the branch has no commits).
 
+**4p. The plan path** — a portion of the umbrella `$KOLEJKA_PARASOL` whose body names a plan that exists on
+`$MAIN` (`porcje-parasola.sh` resolved it at start). The plan is the triage: its tasks name the files, the
+acceptance criteria and the oracle, and the portion's own body asks for the measurement before the change. What
+triage would add, you do yourself:
+- **Read** the plan sections the issue names, then only this portion's tasks.
+- **Dependency.** A prerequisite the issue names that is not merged (`gh issue view <nr> --json state` is not
+  `CLOSED`, or `git -C "$REPO" log "$MAIN" --oneline --grep "#<nr>"` is empty) → `BLOCKED: czeka na #<nr>`, step 8.
+- **Before.** Measure each acceptance criterion on HEAD with the plan's oracle (its test, its measuring command).
+  Line 1 of `$K/przed-<N>.txt` is the command, re-runnable as written; below it the decisive raw lines (long
+  output to a file next to it). It is the verifier's discriminator (step 7). Every criterion already met →
+  `closed-on-head. ALREADY-FIXED`, with this file as the decisive measurement.
+- **Anchors.** Confirm each `file:line` of the tasks with `grep -n` on HEAD before you build on it; the plan's
+  numbers come from older commits.
+- **Plan vs HEAD.** A disagreement is decided by measurement and written where the plan keeps its decisions, as
+  the issue says. It is `ambiguous. ask: …` only when it changes this portion's goal or another portion's scope.
+
+`POMIAR` (2026-10-29, KonkretnyTMS, umbrella #1875, portions #1876–#1878): three triages, all `VALID.` by
+construction (the portions run in order, so a portion's work cannot be on HEAD yet), 0.6–0.9M units each, 14% of
+the three issues; their decisive content was the measurement before the change, which the portion's body asks
+for anyway. The one plan error a triage found (#1878: an ID rule, not the inline style, kept `overflow: visible`)
+measured `pageScroll=330` with the marker alone, so the plan's oracle goes red on it (INFERRED). An umbrella
+without a plan keeps triage: there, whether the problem exists on HEAD is a real question.
+
 **5. Implement — yourself, in `$WT`, with the `task-lifecycle` skill.** Load it with the Skill tool. It holds the
 quality rules for the implementer, the review loop and verification. What the queue adds:
 - **Write `## Kryteria` to `$K/stan-<N>.md`** inside your first command of this step (a heredoc appended with
-  `cat >> … <<'EOF'`), from the issue and the triage report. Mark a criterion you cannot yet state as a check with `?`, and
+  `cat >> … <<'EOF'`), from the issue and the triage report (plan path: the portion's tasks and
+  `$K/przed-<N>.txt`). Mark a criterion you cannot yet state as a check with `?`, and
   measure it before you build on it.
-- **The triage report is your task context.** Do not repeat it. Before you build on one of its anchors, re-run
+- **The triage report is your task context** (plan path: 4p). Do not repeat it. Before you build on one of its anchors, re-run
   that anchor's command once. If an anchor does not reproduce, or a measurement contradicts the report's Cause or
   Fix surface, your outcome is `ambiguous. ask: <the contradiction, both commands>`.
 - **Bugs, missing tests and approved ideas only.** If the fix turns out to need new functionality and the issue
   does not carry `pomysl:zatwierdzony`, your outcome is `feature. <why>`.
-- **Size class** per `task-lifecycle` Step 0, from the report's Sizing facts. A diff that touches a sensitive
+- **Size class** per `task-lifecycle` Step 0, from the report's Sizing facts (plan path: the tasks' file lists). A diff that touches a sensitive
   path is never Small. The sensitive paths are the `wrazliwe:` globs in the `## Bramka` section of
   `docs/VERIFICATION_ENV.md`; check them against the diff, not against the prediction. Large goes through
   `/writingplans` (with Pass 2) and `/executingplans` in this session; commit the plan.
@@ -298,7 +331,8 @@ round k+1, run `nowe-warunki.sh` on your fix: every line it prints gets a RED ro
 **7. Verify** — when a surface a user touches changed (`task-lifecycle` Step 4). A fresh `test-automator`,
 `name: weryfikacja-<N>-<k>`, `model: sonnet`, gets the `verify-e2e` brief. The brief carries:
 - `$K/doctor.json` as its `Control CLI` line;
-- the triage's repro command, as `Repro from triage` and as the discriminator;
+- the triage's repro command (plan path: line 1 of `$K/przed-<N>.txt`), as `Repro from triage` and as the
+  discriminator;
 - the output contract: `<$K>/weryfikacja-<N>-<k>.md`, line 1 `VERDICT: PASS|FAIL|BLOCKED`, line 2
   `SHA: <rev-parse HEAD at your start>`.
 
@@ -329,7 +363,7 @@ is 3 verify rounds.
 | outcome | you do |
 |---|---|
 | `done.` | `"$SKRYPTY/scal.sh" "$K/config.env" <N>`, then close (below) |
-| `closed-on-head. ALREADY-FIXED\|NOT-A-BUG` (triage) | re-run the decisive measurement quoted in the report → comment + `gh issue close --reason completed` / `"not planned"`; `git -C "$WT" checkout --detach "$MAIN"`; `git -C "$REPO" branch -D "agent/issue-$N"` |
+| `closed-on-head. ALREADY-FIXED\|NOT-A-BUG` (triage, or `$K/przed-<N>.txt` on the plan path) | re-run the decisive measurement quoted in the report → comment + `gh issue close --reason completed` / `"not planned"`; `git -C "$WT" checkout --detach "$MAIN"`; `git -C "$REPO" branch -D "agent/issue-$N"` |
 | `feature.` | defer with "to nowa funkcjonalność — kolejka naprawia tylko błędy, decyzja właściciela"; delete the branch if it has no commits |
 | `too-big.` | defer with the split (`nowe-issue` §3); the branch stays |
 | `ambiguous.` / `needs-confirm.` / `regressed.` / `BLOCKED` | defer with the question or blocker; the branch stays |
@@ -390,8 +424,8 @@ spin-offs than it closes issues grows its backlog without end.
 **9. Ledger row and rotation.**
 - **Numbers you write come from commands you ran in this session,** quoted. A number from a subagent's report is
   written `reported`.
-- **The `uwagi` start with the triage token** (`triage VALID.`, `triage closed-on-head. …`), then the size class
-  and the review rounds.
+- **The `uwagi` start with the triage token** (`triage VALID.`, `triage closed-on-head. …`; on the plan path
+  `plan #<umbrella>.`), then the size class and the review rounds.
 - **Append one row, commit ONLY the ledger** with a pathspec, then hand over:
 ```bash
 git -C "$REPO" add -- "$LEDGER" && git -C "$REPO" commit -m "docs(plans): Kolejka — #$N <token>" -- "$LEDGER"
