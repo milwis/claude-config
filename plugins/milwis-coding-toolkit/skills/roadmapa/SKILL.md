@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved one after another without the owner watching: an explicit list (`--issues 812,815`) or the backlog by priority P0→P3. The owner starts it with `scripts/kolejka.sh start`."
+description: "Use when GitHub issues must be resolved one after another without the owner watching: an explicit list (`--issues 812,815`), the portions of an umbrella (`--parasol 1875`) or the backlog by priority P0→P3. The owner starts it with `scripts/kolejka.sh start`."
 ---
 
 # Roadmapa — the issue queue
@@ -9,7 +9,8 @@ description: "Use when GitHub issues must be resolved one after another without 
 > A project that vendors a copy into `.claude/skills/` gets it overwritten by its sync — change it upstream.
 
 **Core idea.** Quality degrades before a context window fills, so the work is split by context, not by
-time: the lead lives for exactly one issue. A fresh triage subagent decides whether the problem exists, the lead
+time: the lead lives for exactly one issue. A fresh triage subagent decides whether the problem exists (a portion of an umbrella that names a
+plan has none: the plan is its triage), the lead
 implements the fix itself in the queue worktree (planning, implementation and testing share one context), a fresh
 reviewer and a fresh verifier judge the tip, and `scal.sh` merges only what `bramka.sh` lets through. After the
 issue a watcher ends that claude process (`/exit`) and starts a new one in the same tmux pane
@@ -26,6 +27,7 @@ in an interactive session) is measured — `references/evidence.md`. The first r
 |---|---|
 | one issue, owner at the keyboard, wants to talk it through | `task-lifecycle` directly |
 | a chosen set of issues, owner away | `kolejka.sh start --issues 812,815,820` — ends after the last |
+| the portions of an umbrella (`nowe-issue` §6b), owner away | `kolejka.sh start --parasol 1875` — its `## Porcje` order, strictly (a deferred portion stops the queue); a portion whose body names a plan on main skips triage, because the plan is its triage |
 | "fix bugs until there are none" | `kolejka.sh start` — backlog (bugs + approved ideas) P0→P3, waits when empty, never ends by itself |
 | new functionality | never autonomously — the owner builds it with `brainstorming` → `writingplans` → `task-lifecycle` |
 | several issues in parallel | not supported — see "Removed" below |
@@ -34,7 +36,7 @@ in an interactive session) is measured — `references/evidence.md`. The first r
 
 ```bash
 kolejka.sh lista [repo]                      # the queue in order (skips and reasons on stderr)
-kolejka.sh start [repo] [--issues 812,815] [--limit 92] [--okno 5]   # lead + watcher in tmux session "kolejka"
+kolejka.sh start [repo] [--issues 812,815 | --parasol 1875] [--limit 92] [--okno 5]   # lead + watcher in tmux session "kolejka"
 tmux attach -t kolejka                       # watch; Ctrl-b n = watcher window, Ctrl-b d = detach
 kolejka.sh status [repo]                     # current issue, flags, last ledger rows, unpushed [roadmapa] merges
 kolejka.sh stop [repo]                       # finish the current issue, then stop (hard: tmux kill-session -t kolejka)
