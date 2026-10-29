@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved one after another without the owner watching: an explicit list (`--issues 812,815`), the portions of an umbrella (`--parasol 1875`) or the backlog by priority P0→P3. The owner starts it with `scripts/kolejka.sh start`."
+description: "Use when GitHub issues must be resolved one after another without the owner watching: an explicit list (`--issues 812,815`), the portions of an umbrella (`--parasol 1875`, `--bez-triage` when it came from a plan) or the backlog by priority P0→P3. The owner starts it with `scripts/kolejka.sh start`."
 ---
 
 # Roadmapa — the issue queue
@@ -27,7 +27,8 @@ in an interactive session) is measured — `references/evidence.md`. The first r
 |---|---|
 | one issue, owner at the keyboard, wants to talk it through | `task-lifecycle` directly |
 | a chosen set of issues, owner away | `kolejka.sh start --issues 812,815,820` — ends after the last |
-| the portions of an umbrella (`nowe-issue` §6b), owner away | `kolejka.sh start --parasol 1875` — its `## Porcje` order, strictly (a deferred portion stops the queue); a portion whose body names a plan on main skips triage, because the plan is its triage |
+| the portions of an umbrella (`nowe-issue` §6b), owner away | `kolejka.sh start --parasol 1875` — its `## Porcje` order, each portion through triage (a class of problems) |
+| the portions of an umbrella that came from a plan, owner away | `kolejka.sh start --parasol 1875 --bez-triage` — start refuses unless every open portion names a plan on main; the plan is its triage, and the order is strict (a deferred portion stops the queue) |
 | "fix bugs until there are none" | `kolejka.sh start` — backlog (bugs + approved ideas) P0→P3, waits when empty, never ends by itself |
 | new functionality | never autonomously — the owner builds it with `brainstorming` → `writingplans` → `task-lifecycle` |
 | several issues in parallel | not supported — see "Removed" below |
@@ -36,7 +37,7 @@ in an interactive session) is measured — `references/evidence.md`. The first r
 
 ```bash
 kolejka.sh lista [repo]                      # the queue in order (skips and reasons on stderr)
-kolejka.sh start [repo] [--issues 812,815 | --parasol 1875] [--limit 92] [--okno 5]   # lead + watcher in tmux session "kolejka"
+kolejka.sh start [repo] [--issues 812,815 | --parasol 1875 [--bez-triage]] [--limit 92] [--okno 5]   # lead + watcher in tmux session "kolejka"
 tmux attach -t kolejka                       # watch; Ctrl-b n = watcher window, Ctrl-b d = detach
 kolejka.sh status [repo]                     # current issue, flags, last ledger rows, unpushed [roadmapa] merges
 kolejka.sh stop [repo]                       # finish the current issue, then stop (hard: tmux kill-session -t kolejka)

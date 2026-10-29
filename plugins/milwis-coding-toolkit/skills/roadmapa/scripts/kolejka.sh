@@ -1,11 +1,13 @@
 #!/bin/bash
 # The issue queue (roadmapa) — owner's control script. Rules for the lead: ../references/cykl-lidera.md
 #
-#   kolejka.sh start  [repo] [--issues 812,815 | --parasol 1875] [--limit 92] [--okno 5]
+#   kolejka.sh start  [repo] [--issues 812,815 | --parasol 1875 [--bez-triage]] [--limit 92] [--okno 5]
 #                              start the lead in tmux (a new claude session per issue) + the watcher (owner's terminal); without --issues: the bug
 #                              backlog by priority, no end; --parasol: the portions of that umbrella in its `## Porcje` order,
-#                              strictly (a deferred portion stops the queue); a portion whose body names a plan on main
-#                              skips triage (porcje-parasola.sh, cykl-lidera.md step 4); --limit: stop before a new issue at this weekly usage %
+#                              each through triage; --bez-triage: the owner says the umbrella came from a plan — every open
+#                              portion must name a plan on main (start refuses otherwise), the plan replaces triage and the
+#                              order is strict, a deferred portion stops the queue (porcje-parasola.sh, cykl-lidera.md step 4);
+#                              --limit: stop before a new issue at this weekly usage %
 #                              (default 92, 100 = off); --okno: in the last N hours before the weekly reset the limit
 #                              is lifted, and a queue stopped by the limit pauses until then (default 5, 0 = off)
 #   kolejka.sh stop   [repo]   finish the current issue, then stop
@@ -31,11 +33,12 @@ set -euo pipefail
 SKRYPTY="$(cd "$(dirname "$0")" && pwd)"
 INSTRUKCJA="$(cd "$SKRYPTY/.." && pwd)/references/cykl-lidera.md"
 CMD="${1:-}"; shift || true
-REPO_ARG="."; LISTA=""; PARASOL=""; LIMIT_ARG=""; OKNO_ARG=""
+REPO_ARG="."; LISTA=""; PARASOL=""; BEZ_TRIAGE=""; LIMIT_ARG=""; OKNO_ARG=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --issues) LISTA="$(tr -d ' #' <<<"${2:?--issues wymaga listy numerów, np. 812,815}")"; shift 2 ;;
     --parasol) PARASOL="$(tr -d ' #' <<<"${2:?--parasol wymaga numeru issue parasolowego, np. 1875}")"; shift 2 ;;
+    --bez-triage) BEZ_TRIAGE=1; shift ;;
     --limit) LIMIT_ARG="${2:?--limit wymaga procentu, np. 92}"; shift 2 ;;
     --okno) OKNO_ARG="${2:?--okno wymaga liczby godzin, np. 5}"; shift 2 ;;
     *) REPO_ARG="$1"; shift ;;
@@ -69,6 +72,7 @@ start)
   [ -z "$LISTA" ] || [[ "$LISTA" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "--issues: same numery po przecinku, np. 812,815"; exit 1; }
   [ -z "$PARASOL" ] || [[ "$PARASOL" =~ ^[0-9]+$ ]] || { echo "--parasol: jeden numer issue parasolowego, np. 1875"; exit 1; }
   [ -z "$PARASOL" ] || [ -z "$LISTA" ] || { echo "--issues albo --parasol, nie oba"; exit 1; }
+  [ -z "$BEZ_TRIAGE" ] || [ -n "$PARASOL" ] || { echo "--bez-triage tylko z --parasol (porcje parasola z planu)"; exit 1; }
   MAIN="${KOLEJKA_MAIN:-main}"
   [ "$(git -C "$REPO" branch --show-current)" = "$MAIN" ] || { echo "Drzewo główne nie stoi na $MAIN"; exit 1; }
   BRUD=$(git -C "$REPO" status --short --untracked-files=no)
@@ -85,10 +89,12 @@ start)
 
   mkdir -p "$K"
   rm -f "$K"/{rotuj,pusto,stop,zatrzymaj,tura-koniec,blad-api,pauza,start-prompt.txt,parasol.tsv}
-  # The umbrella's portions, resolved once: the list in its order and, per portion, the plan that replaces triage.
+  # The umbrella's portions, resolved once, in its order. Only --bez-triage writes $K/parasol.tsv (portion → plan),
+  # the file step 4 reads: whether a plan replaces triage is the owner's call at start, not the wording of a portion.
   if [ -n "$PARASOL" ]; then
-    "$SKRYPTY/porcje-parasola.sh" "$REPO" "$PARASOL" "$MAIN" > "$K/parasol.tsv" || { rm -f "$K/parasol.tsv"; exit 1; }
-    LISTA=$(cut -f1 "$K/parasol.tsv" | paste -sd, -)
+    PORCJE=$("$SKRYPTY/porcje-parasola.sh" "$REPO" "$PARASOL" "$MAIN" ${BEZ_TRIAGE:+--plan}) || exit 1
+    LISTA=$(cut -f1 <<<"$PORCJE" | paste -sd, -)
+    [ -z "$BEZ_TRIAGE" ] || echo "$PORCJE" > "$K/parasol.tsv"
   fi
   cat > "$K/config.env" <<EOF
 REPO="$REPO"
@@ -112,7 +118,8 @@ LIMIT_TYG="$LIMIT_TYG"
 OKNO_H="$OKNO_H"
 KOLEJKA_LISTA="$LISTA"
 KOLEJKA_PARASOL="$PARASOL"
-KOLEJKA_TYPY=""${KOLEJKA_TYPY:-typ:bug,typ:point-fix,typ:structural,typ:test,bug}"
+KOLEJKA_BEZ_TRIAGE="$BEZ_TRIAGE"
+KOLEJKA_TYPY="${KOLEJKA_TYPY:-typ:bug,typ:point-fix,typ:structural,typ:test,bug}"
 KOLEJKA_ZATWIERDZONY="${KOLEJKA_ZATWIERDZONY:-pomysl:zatwierdzony}"
 KOLEJKA_POMIJAJ="${KOLEJKA_POMIJAJ:-enhancement,new_idea,request,typ:analysis,pomysl:do-analizy,pomysl:odlozony,status:odlozone,status:do-scalenia,status:zrobione-lokalnie,tor:remediacja-danych,security-audit-tracker}"
 KOLEJKA_ODROCZENIA="${KOLEJKA_ODROCZENIA:-docs/plans docs/runbook}"
@@ -133,7 +140,8 @@ EOF
     StopFailure: [{hooks: [{type: "command", command: $sf}]}]}}' > "$K/settings.json"
   # The owner's authorisation. lider.sh passes it verbatim as the first message of every lead session;
   # the lead quotes it in ledger row 0. One line.
-  if [ -n "$PARASOL" ]; then ZRODLO="weź następną porcję parasola #$PARASOL z listy $LISTA (ściśle w tej kolejności; porcja z planem w \$K/parasol.tsv idzie ścieżką planu, bez triage)"
+  if [ -n "$BEZ_TRIAGE" ]; then ZRODLO="weź następną porcję parasola #$PARASOL z listy $LISTA (ściśle w tej kolejności; każda otwarta porcja ma plan w \$K/parasol.tsv i idzie ścieżką planu, bez triage)"
+  elif [ -n "$PARASOL" ]; then ZRODLO="weź następną porcję parasola #$PARASOL z listy $LISTA (w tej kolejności, każda przez triage)"
   elif [ -n "$LISTA" ]; then ZRODLO="weź następne issue z listy $LISTA (w tej kolejności)"
   else ZRODLO="weź jedno issue z backlogu wg priorytetu P0→P3: bugi, braki testów i pomysły zatwierdzone przez właściciela (pomysl:zatwierdzony); pomysły bez tej etykiety pomijasz"; fi
   echo "Kolejka roadmapa: $ZRODLO, rozwiąż je sam w worktree kolejki (triage, recenzja i weryfikacja to świeże podagenty), scal lokalnie do $MAIN przez scal.sh (bramka, --no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Model triage: ${KOLEJKA_MODEL_TRIAGE:-opus}. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
@@ -144,8 +152,9 @@ EOF
   tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
     "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env'; echo 'watcher zakończony — Enter zamyka okno'; read"
   echo "Kolejka ruszyła. Podgląd: tmux attach -t $SESJA  (Ctrl-b d = odłącz, Ctrl-b n = okno watchera)"
-  [ -z "$PARASOL" ] || awk -F'\t' -v p="$PARASOL" 'NR == 1 {print "Porcje parasola #" p ":"}
-    {print "  #" $1 " — " ($2 == "-" ? "triage (porcja nie wskazuje planu na main)" : "plan " $2 ", bez triage")}' "$K/parasol.tsv"
+  if [ -n "$BEZ_TRIAGE" ]; then awk -F'\t' -v p="$PARASOL" 'NR == 1 {print "Porcje parasola #" p ", plan zamiast triage:"}
+    {print "  #" $1 " — " ($2 == "-" ? "zamknięta, bez planu" : $2)}' "$K/parasol.tsv"
+  elif [ -n "$PARASOL" ]; then echo "Porcje parasola #$PARASOL, każda przez triage: $LISTA"; fi
   echo "Pierwsze issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || true)"
   echo "$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG" "$OKNO_H") — po przekroczeniu kolejka czeka na okno $OKNO_H h przed resetem"
   ;;
@@ -178,8 +187,8 @@ stop)
   ;;
 status)
   tmux has-session -t "$SESJA" 2>/dev/null && echo "sesja: działa ($SESJA)" || echo "sesja: nie działa"
-  L=$(cfg KOLEJKA_LISTA ""); P=$(cfg KOLEJKA_PARASOL "")
-  if [ -n "$P" ]; then echo "źródło: parasol #$P, porcje $L"; elif [ -n "$L" ]; then echo "źródło: lista $L"; else echo "źródło: backlog bugów P0→P3"; fi
+  L=$(cfg KOLEJKA_LISTA ""); P=$(cfg KOLEJKA_PARASOL ""); B=$(cfg KOLEJKA_BEZ_TRIAGE "")
+  if [ -n "$P" ]; then echo "źródło: parasol #$P ($([ -n "$B" ] && echo 'plan, bez triage' || echo 'z triage')), porcje $L"; elif [ -n "$L" ]; then echo "źródło: lista $L"; else echo "źródło: backlog bugów P0→P3"; fi
   [ -f "$K/w-toku" ] && echo "w toku: #$(cat "$K/w-toku")" || echo "w toku: -"
   echo "$("$SKRYPTY/limit-tygodniowy.sh" "$(cfg LIMIT_TYG 92)" "$(cfg OKNO_H 5)")"
   echo "issue statusu (dashboard): $(numer_statusu)"
