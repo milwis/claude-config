@@ -264,7 +264,10 @@ everything first; the reviewer reviews the tip. The brief carries:
 - the diff stat;
 - the previous round's findings and tip, from round 2 on, with the output of
   `"$SKRYPTY/../../task-lifecycle/scripts/nowe-warunki.sh" "$WT" <previous tip>` (the lines your fix added that
-  carry a condition, a branch or a log: the reviewer checks those first);
+  carry a condition, a branch or a log: the reviewer checks those first), `git diff --stat <previous tip>..HEAD`
+  (the delta, next to the branch stat), and the scope line "review
+  `<previous tip>..HEAD` only: close each previous finding by its number, size your tier from this delta; the
+  sensitive-path floor below still holds" (`task-lifecycle` E31);
 - the security triggers the diff touches (`task-lifecycle` Step 3);
 - the rules files that match the diff and the changed paths that hit a `wrazliwe:` glob, both printed by
   `"$SKRYPTY/reguly.sh" "$K/config.env" <N>`; with sensitive paths, the brief says "these paths are sensitive in

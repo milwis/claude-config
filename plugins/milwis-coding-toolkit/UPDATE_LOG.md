@@ -7,6 +7,22 @@
 > 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-29 — punkty recenzji w planie i runda poprawek tylko na delcie (v1.7.4)
+
+Pytanie właściciela: jak poprawić jakość kodu w stosunku do zużycia tokenów. Analiza objęła transkrypty z 28–29.10 (~$1580 po cenniku API, code-reviewer 37%) oraz 296 recenzji od 10-20. Plan z 11 zadań dostał 11 recenzji seryjnie, po jednej na commit zadania (bramka pre-commit projektu): ≈ $113, a 26 REQUIRED poprawiono bez ponownej recenzji. Decyzje właściciela: grupy SQL / PHP / JS per moduł, pętla do 0 CRITICAL i 0 REQUIRED, runda poprawek u świeżego recenzenta tylko na delcie, reguła „nigdy nie wznawiaj” i hook `agent-no-resume.sh` zostają (E27 odtworzone 10-29: część o builderach stoi, liczba „~25M” dla recenzenta się nie odtwarza). Dowody: `task-lifecycle/references/evidence.md` E31.
+
+- **`writingplans/SKILL.md`:** sekcja „Review checkpoints”:
+  - punkt recenzji po zakończonej sekcji pracy (moduł albo spójna funkcja), migracja z osobnym punktem zaraz po niej;
+  - w punkcie grupy według warstwy (`sql`, `backend`, `frontend`), każda z plikami kontraktu tylko do odczytu, recenzenci równolegle;
+  - grupa ≤ 400 linii produkcyjnych i ≤ 10 plików; rollout mechaniczny to jedna grupa;
+  - `R-final` na całej gałęzi tylko dla tego, co przecina grupy;
+  - sekcja reguł planu wskazuje, nie kopiuje `CLAUDE.md` ani reguł ładowanych automatycznie; punkt wymienia reguły, a recenzent odpowiada jedną linią na regułę.
+- **`executingplans/SKILL.md`:** Step 4 „Review checkpoints” (commit przed recenzją, punkt pokrywa commity od poprzedniego, runda k+1 świeży recenzent na delcie, limit 3 rund na grupę, potem pytanie do właściciela), lista todo z `[REVIEW R<k>]`, plan bez punktów dostaje je przed zadaniem 1.
+- **`task-lifecycle/SKILL.md`, `references/briefy.md`:** runda 2+ zamyka znaleziska po numerze (`F<n>: closed | open`) i dobiera tier z diffu delty; Large po punktach planu: Step 2 = `R-final`; brief grupy (pkt 9).
+- **`agents/code-reviewer.md`** (36 578 B, budżet 36 864 B): zakres re-review `<poprzedni tip>..HEAD` z tierem z delty, linia na znalezisko; linia na każdą regułę z briefu.
+- **`roadmapa/references/cykl-lidera.md`:** krok 6, linia zakresu rundy k+1.
+- **Do zmierzenia po pierwszym planie i ~10 issue:** koszt recenzji na plan, liczba rund na grupę, REQUIRED znalezione w `R-final`, koszt rundy 2+ (cel: blisko $2–3).
+
 ## Run: 2026-10-27 — domknięcie zamiast rundy recenzji (v1.7.3)
 
 Pytanie właściciela: dlaczego po v1.7.x kolejka wywołuje tylu recenzentów i zostawia issue niedokończone. Analiza objęła 13 issue z 2026-10-27 i 35 recenzji. Wynik: 5 z 8 issue z kolejki skończyło jako `needs-confirm.`, a ostatnie poprawki lidera (zwykle same testy) nie miały już recenzenta, bo cap i bramka chcą recenzji dokładnie na tipie. 54% z 48 REQUIRED to przypięcie testem: jednostronny strażnik albo linia poprawki bez mutanta RED. Przyczyna w gicie: v1.7.1 podniosło „linia bez wiersza RED” z MEDIUM do REQUIRED. Decyzja właściciela: „Wprowadź zmiany” (rekomendacje 1–4).

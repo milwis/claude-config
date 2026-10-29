@@ -63,6 +63,8 @@ Why mandatory: a variant path (correction, delete, batch, offline, import, a rep
 **Canon:** [the existing implementation new code must call/mirror — `file:line`, or "none, created in Task 1" — from Step 0.5]
 **Variants:** [every sibling path; for each: changed by this plan? if not, why skipping is safe — from Step 0.5]
 
+**Rules for this plan:** [only what this plan decides (lock order, the owner's choices, the service to call) and pointers to project docs that do not load by themselves — never a copy of CLAUDE.md or an auto-loaded rule (§The plan's rules section)]
+
 **Out of scope:** [what this plan deliberately does NOT touch — deferred findings, sibling features]
 
 ---
@@ -98,6 +100,65 @@ Find timeline-breaking issues in Task 1, not Task 8.
 | Large | >5 | >150 | **split further** |
 
 **Max 5 files per task. Max 3 acceptance criteria per task.**
+
+### Review checkpoints — mandatory
+
+The plan says when the code is reviewed and in which groups. Without it, the executor reviews every task commit
+one after another and its fixes go unreviewed (`task-lifecycle/references/evidence.md` E31). Tasks stay vertical
+slices; a checkpoint reviews a finished section, split by layer.
+
+**When — after a finished section of work.** A section is a module or one coherent feature: the tasks after which
+that part works as a whole. Put a `### Review checkpoint R<k>` block right after the section's last task. Two
+fixed points:
+- **A migration first.** A task that adds or changes a schema migration gets its own checkpoint right after it,
+  before any task builds on the new columns. A migration is the hardest change to reverse once deployed, and a
+  defect found in it later is fixed again in every layer built on top.
+- **The whole branch last:** `R-final` closes the plan (below).
+
+**Who — one fresh reviewer per layer of the section, all in parallel:**
+
+| Group | Paths (adapt to the project) | Also given, read-only, as the contract |
+|---|---|---|
+| `sql` | schema migrations, seed and permission migrations | — |
+| `backend` | the module's request path: repository, service, controller, routes, cron, with their tests | the section's migration |
+| `frontend` | the module's JS, views and CSS, with their tests | the controller and routes the front end calls (fields, error codes, permissions) |
+
+A layer the section does not touch gets no group. By layer inside one module, because the rules a reviewer loads
+differ per layer and a whole module overflows one reviewer: per-task reviews of 400–550 production lines (plus
+tests) already ended at 230–262k context, at the compaction line (E31). Not one reviewer per language across
+modules, because each module's invariants need their own domain context.
+
+**Size of a group:** ≤ 400 changed production lines and ≤ 10 production files; tests come on top. A bigger group
+splits along the module's own seams (read path vs write path, one aggregate vs another), never between a guard
+and its test.
+
+**A mechanical rollout** (one pattern applied across many modules: a CSS class, a marker, a renamed call) is ONE
+group for the whole pattern, whatever the modules: the reviewer checks that it is applied the same way everywhere.
+The size cap still holds: above it, split the rollout into batches of modules with the same pattern brief.
+
+**`R-final` — the whole branch, cross-group only.** One fresh reviewer on `<base>..<tip>`, with every group report
+marked "already reviewed, do not repeat". Its scope is what no group could see: the contract between groups (a
+field the PHP returns and the JS reads, an error code, a permission name), migration vs code, logic duplicated
+across groups, docs.
+
+```markdown
+### Review checkpoint R<k>: <section> (after Task <n>)
+- **Covers:** Tasks <a>–<n>; diff `<base>..HEAD`, base = the previous checkpoint's tip or the branch base.
+- **Groups:**
+  - `backend`: `php/services/X/**`, `php/controllers/XController.php`, `php/routes/x.php` + tests — contract: `sql/migrations/<file>`
+  - `frontend`: `js/modules/x/**`, `views/x.php` + tests — contract: `php/controllers/XController.php`, `php/routes/x.php`
+- **Rules to check, one report line each:** the plan's own decisions this section implements (`§0 rule 3`, `D2`) and
+  project docs a reviewer would not load by itself (outside `CLAUDE.md` and the auto-loaded rules files).
+- **Done when:** every group is closed: 0 CRITICAL and 0 REQUIRED, or a `Domknięcie:` closed by its executed mutants and docs commits (`executingplans` Step 4).
+```
+
+### The plan's rules section — point, do not copy
+
+The plan's rules section carries only what this plan decides (lock order, the owner's choices, the canonical
+service to call) and pointers to project docs that do not load by themselves. A rule already in `CLAUDE.md` or in
+an auto-loaded rules file (`.claude/rules` with `paths:`) is not copied: the executor and every reviewer have it in
+context already, and a copy drifts from its source. Each checkpoint lists the rules its groups check, and the
+reviewer answers one line per rule, so a rule the plan points to is verified, not assumed.
 
 ### Per-Task Template
 
@@ -155,6 +216,11 @@ Token efficiency: inline code means paying to generate the same code twice (in t
 - Plan contains full implementation code blocks → rewrite to describe intent
 - Plan adds a variant of an existing operation without naming the canon and the reuse point → back to Step 0.5
 - Plan introduces a second implementation of a quantity that already has one → the task must call the canon, or the plan must first consolidate it
+- No review checkpoints, or one checkpoint per task → regroup by section
+- A migration without its own checkpoint before the tasks that use it → add one
+- A checkpoint group mixing two modules (other than a mechanical rollout), or above 400 production lines → split it
+- No `R-final` → add it as the last checkpoint
+- The rules section copies `CLAUDE.md` or an auto-loaded rule → keep only what the plan decides, point to the rest
 
 ---
 
@@ -171,6 +237,7 @@ Re-read the entire saved plan as a reviewer seeing it for the first time. Hunt f
 - **Correctness risks:** race conditions, N+1 queries, missing indexes, broken invariants, silent failures, error paths without handling
 - **Acceptance criteria quality:** vague/non-testable criteria, missing negative cases, missing edge cases (empty, null, large, concurrent)
 - **Ordering / scoping:** risky task placed late, vertical slicing violated, task exceeds 5 files, dependencies between tasks not reflected in order
+- **Review checkpoints:** every task covered by exactly one checkpoint, groups within size, each group with its contract files, `R-final` last
 - **Operational:** logging, migrations reversible, feature flags, backward compatibility, data migration for existing rows
 - **DRY/YAGNI:** duplicated work across tasks, speculative features, premature abstractions
 

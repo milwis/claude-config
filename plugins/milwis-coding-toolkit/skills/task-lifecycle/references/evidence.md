@@ -116,6 +116,8 @@ MEASURED (2026-09-13, batch of 5 issues, 32 subagents, 503M cache-read tokens): 
 
 v1.7.0: the warm builder is removed, so the rule binds every subagent without exception. The session that implements is not a resumed agent: it is the context the fixes need.
 
+2026-10-29, re-measured from the 09-13 transcripts: the five reviewers resumed that day paid 0.9–5.0M tokens ($2.1–5.2) per resumption; the ~25M reviewer figure above is not reproduced, and the ~3M was an estimate. The builder half stands (build-707: 274 turns, 52M, $45; build-733 on 09-14: 195 turns, $35, two compactions). The rule keeps binding reviewers by the owner's decision of 2026-10-29: a fresh reviewer scoped to the delta costs as little (E31) and keeps its independence.
+
 ## E28 — Hard rule 7 — SendMessage by name
 
 MEASURED (same batch): task-notifications of subagents spawned by a nested orchestrator landed with the top-level session, not the spawner — every builder report had to be relayed by hand, doubling the reading and stalling one issue for 3 h.
@@ -138,3 +140,12 @@ Owner decision (2026-10-26): one builder per issue, the builder writes the docs,
 MEASURED (2026-10-27, KonkretnyTMS: 13 issues, 35 code-reviewer runs, queue `recenzja-*.md` and task-lifecycle `review-r*.md`): 48 REQUIRED findings, 26 of them test pinning (a one-sided guard, a fix-added line without a RED mutant, an untested entry point), 15 real bugs, 13 of which round 1 found. Later rounds were 70% test pinning on lines the fix added. The cause in git: `code-reviewer.md` called "a line without a RED row" MEDIUM from 2026-09-24 to 2026-10-26; v1.7.1 restored it as REQUIRED, and Standard issues closing in one round fell from 75% (10-01…10-25) to 28%. Confounded: the day's issues were UI/state work of one epic.
 
 Rule: the reviewer raises a fix-added line without a RED row to REQUIRED only with a shown user, data or money consequence. A REQUIRED that a test alone closes carries a `Mutant-*` record, and the implementer closes it with tests and docs and executes the record instead of buying a round. The grep the previous rule asked for had no fixed spelling and was skipped; `scripts/nowe-warunki.sh` prints the lines (`path:line`), and both the implementer and the next reviewer start from that list.
+
+## E31 — Step 2.2 delta-only re-review, `writingplans` / `executingplans` review checkpoints
+
+MEASURED (2026-10-29, KonkretnyTMS transcripts 10-20…10-29, 296 code-reviewer runs; costs at API list prices):
+- An 11-task plan executed with one review per task commit (the project's pre-commit gate): 11 reviews in series, ≈ $113 against ≈ $69 for the implementing session, ~154 min of the session waiting on them; 26 REQUIRED fixed with no re-review and no review of the whole branch. A plan of similar size (8.5k lines) reviewed in three groups plus two delta rounds: ≈ $38.
+- Per-task reviews of 400–550 production lines (plus 600–1000 test lines) ended at 230–262k context; tasks of 45–260 lines at 116–150k. Hence the group cap of 400 production lines.
+- Re-review rounds: 39 fresh round-2+ reviewers, median 41 turns, $6.37. Most briefs already said "review the delta", yet reviewers sized their tier from the whole branch stat (tier L in many). Those scoped and sized by the delta: $1.88–2.72 (#1862 r3, #1860 r3, #1851 r3).
+
+Rule: tasks stay vertical slices, review happens at checkpoints after a finished section, one reviewer per layer group in parallel, a migration first, `R-final` for what crosses groups; round k+1 is a fresh reviewer that closes the previous findings by number and reviews the delta, sized by it. Owner's decision (2026-10-29): the group order "SQL, PHP, JS per module", the loop until 0 CRITICAL / 0 REQUIRED, and a fresh delta reviewer instead of resuming the previous one.

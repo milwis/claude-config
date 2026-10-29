@@ -1,6 +1,6 @@
 ---
 name: executingplans
-description: Use when you have a written implementation plan to execute. Drives task-by-task execution with parallel groups, scope discipline, and verification at group boundaries.
+description: Use when you have a written implementation plan to execute. Drives task-by-task execution with parallel groups, scope discipline, verification at group boundaries and the plan's review checkpoints.
 ---
 
 # Executing Plans
@@ -16,8 +16,11 @@ description: Use when you have a written implementation plan to execute. Drives 
 1. Read the plan file
 2. For each task, decide: **DIRECT** (this session writes it) or **AGENT: {name}**?
 3. Map dependencies → assign **Group numbers**
-4. Create the todo list with labeled items (format below)
-5. Concerns → raise before starting. Otherwise proceed.
+4. Create the todo list with labeled items (format below), one `[REVIEW R<k>]` item per review checkpoint of the plan
+5. **A plan without review checkpoints** (written before they existed): derive them now with the `writingplans`
+   rules (§Review checkpoints: a migration first, then one checkpoint per finished section, groups by layer,
+   `R-final` last) and write them into the todo list before Task 1.
+6. Concerns → raise before starting. Otherwise proceed.
 
 ### Dispatch mode — DIRECT vs AGENT
 
@@ -76,11 +79,14 @@ One todo item per task (TodoWrite / the session's task tracker), labeled:
 
 Example:
 ```
-[GROUP 1|PARALLEL] Tasks 1-3: Migration (status column), then Feature A and B endpoints+JS on it — in order [DIRECT]
-[GROUP 1|PARALLEL] Task 4: Feature C JS module, ~300 lines — shares no file, symbol or state with tasks 1-3 [AGENT: builder]
-[GROUP 2|SEQ]      Task 5: CSS polish [DIRECT]
-[GROUP 3|SEQ]      Verify + code review [AGENT: code-reviewer]
-[GROUP 3|SEQ]      Commit [DIRECT]
+[GROUP 1|SEQ]      Task 1: Migration (status column) [DIRECT]
+[REVIEW R1]        sql: Task 1 [AGENT: code-reviewer]
+[GROUP 2|PARALLEL] Tasks 2-3: Feature A and B endpoints+JS on the new column — in order [DIRECT]
+[GROUP 2|PARALLEL] Task 4: Feature C JS module, ~300 lines — shares no file, symbol or state with tasks 2-3 [AGENT: builder]
+[REVIEW R2]        backend + frontend: Tasks 2-4, one reviewer per group, in parallel [AGENT: code-reviewer x2]
+[GROUP 3|SEQ]      Task 5: CSS polish [DIRECT]
+[GROUP 4|SEQ]      Full suite + R-final + verify-e2e [AGENT: code-reviewer, test-automator]
+[GROUP 4|SEQ]      Commit [DIRECT]
 ```
 
 The todo list is your memory after compaction — the labels tell future-you what to dispatch and in what order.
@@ -129,13 +135,61 @@ For each group G:
 
 **Before marking any todo item `completed`** — the verification for its group must have run in this session. This is the `verification-before-completion` gate applied at group granularity, not per-task.
 
-**Final group** is always sequential and always contains (when this execution is the build stage of `task-lifecycle`, review and verification follow its Steps 2–4 instead of the two middle items):
+**Final group** is always sequential and always contains (when this execution is the build stage of `task-lifecycle`, review and verification follow its Steps 2–4 instead of the two middle items; its Step 2 is then the `R-final` scope):
 - Comprehensive test pass — the single FULL-suite run of this execution (dispatch `test-automator` if new tests are needed)
-- Code review (dispatch `code-reviewer`). If the project defines a review threshold (e.g. CLAUDE.md), it wins: a diff it exempts gets the project's self-audit checklist instead.
+- Commit everything, then `R-final`: the whole-branch review of Step 4, cross-group scope, with the same loop. If the project defines a review threshold (e.g. CLAUDE.md), it wins: a branch it exempts gets the project's self-audit checklist instead.
 - **Surface verification** for user-facing changes: run the `verify-e2e` skill in a FRESH subagent (GUI → browser + screenshots, API → real request). Tests passing ≠ the surface working.
-- Commit
+- Commit the fixes from verification (the `R-final` loop commits its own)
 
 The final test pass IS the comprehensive test coverage — don't add a separate "final testing task". Per-group verification + final pass is enough.
+
+---
+
+## Step 4: Review checkpoints
+
+At each `Review checkpoint R<k>` of the plan, after the group verification (Step 3):
+
+1. **Commit everything first:** reviewers review commits, never a dirty tree. The checkpoint reviews every commit
+   since the previous one. A project rule that asks for a review before every commit (a pre-commit gate in
+   CLAUDE.md) still decides: when the project states that plan checkpoints carry that review, the commits between
+   checkpoints get their targeted tests, the syntax check and the self-audit; when it does not, follow its rule
+   and tell the user the plan's checkpoints duplicate it.
+2. **Round 1: one fresh `code-reviewer` (`model: opus`) per group, all in ONE message**, `name:
+   rev-<plan>-R<k>-<group>-1`. Brief per `task-lifecycle/references/briefy.md` §Review, plus:
+   - the plan path and the checkpoint block: "read them yourself, they are the spec";
+   - `git diff --stat <checkpoint base>..HEAD -- <group paths>` and "review only these paths";
+   - the contract files: "read-only, judge the group against them, do not review them";
+   - the checkpoint's rules: "one line per rule in your report: `<rule>: kept | broken path:line`";
+   - the report file, `.claude/tmp/<plan>/R<k>-<group>-1.md`.
+
+   Wait for every group. Do not start the next section while a checkpoint is open: a finding can change what the
+   next section builds on.
+3. **Fix one group at a time** and commit its fixes as one contiguous range of commits, so the range is that
+   group's delta whatever paths it touches. Fix CRITICAL and REQUIRED here, with the proof
+   `task-lifecycle/references/implementacja.md` asks: a RED
+   test, a mutant for every line `task-lifecycle/scripts/nowe-warunki.sh` prints. PLAUSIBLE → a two-sided
+   measurement first, only a measured finding gets fixed. OPTIONAL / NIT → fixed when small and proven, otherwise
+   listed in the final report. A report with a `Domknięcie:` line closes with tests/docs-only commits and its
+   executed `Mutant-*` records, without another round.
+4. **Round k+1: a NEW reviewer on the delta only**, never the previous one resumed (`task-lifecycle` hard rule 2).
+   Its brief (briefy.md §Review 6):
+   - the previous findings verbatim and numbered, with what was changed for each;
+   - the group's fix range `<from>..<to>` (step 3): `git diff --stat <from> <to>` and the
+     `nowe-warunki.sh <worktree> <from> <to>` output. A file outside the group's paths that its fixes touched is
+     in this delta, so no fix goes unreviewed;
+   - "close each previous finding by its number, review every line of the delta for new defects, size your tier
+     from this delta; the rest of the group was reviewed in round <k> and is out of scope unless the delta
+     reaches it".
+
+   A delta-only reviewer cost $1.9–2.7, a full re-review $6.4 in the median (`task-lifecycle/references/evidence.md` E31).
+5. **Loop until** each group is closed: its latest report has 0 CRITICAL and 0 REQUIRED, or has a `Domknięcie:`
+   line whose REQUIRED findings are closed by tests/docs-only commits with every `Mutant-*` record executed (RED
+   with the mutant, GREEN restored, both quoted). Cap: 3 review rounds per group; a closure is not a round. A cap
+   reached with findings open → stop and ask the user, quoting the open findings; never build the next section
+   over them.
+
+`R-final` runs the same loop (steps 1–5, the same cap) on `<base>..<tip>` with every group report attached as
+"already reviewed": the contract between groups, migration vs code, duplication across groups, docs.
 
 ---
 
@@ -170,12 +224,12 @@ For tasks that modify existing files: read the file IF you need context you don'
 | Bug with an unknown cause | `debugger` |
 | Refactoring across modules, as its own task | `refactoring-orchestrator` |
 | Tests only | `test-automator` |
-| Final code review, security included | `code-reviewer` |
+| Checkpoint and `R-final` review, security included | `code-reviewer` |
 | Surface verification (`verify-e2e` brief) | `test-automator` |
 
 The agents are goal-only: they follow the project's own rules (CLAUDE.md, `.claude/rules`, `docs/standards`) and the lines of the brief, and a skill named in the brief does not load inside them. A rule they must apply goes into the brief as text. `backend-security-coder` is for audits; security in a build is reviewed by `code-reviewer`.
 
-`code-reviewer` (subject to the project's review threshold) and `test-automator` (when new tests are needed) run only in the final sequential group.
+`code-reviewer` runs at the plan's review checkpoints and in `R-final` (Step 4), subject to the project's review threshold; `test-automator` (when new tests are needed) runs in the final sequential group.
 
 ---
 

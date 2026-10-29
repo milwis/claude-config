@@ -24,7 +24,8 @@ or change a rule; the rule text alone binds.
 
 These hold even when everything else in this file has been summarised away.
 
-- **Review rounds:** 2 for Standard and 3 for Large, never more than 3. Small gets one narrow pass and a
+- **Review rounds:** 2 for Standard and 3 for Large, never more than 3 (in a plan: per checkpoint group and for
+  `R-final`, `executingplans` Step 4). Small gets one narrow pass and a
   re-review only for a CRITICAL finding. A review with a `Domknięcie:` line is closed by a tests/docs-only commit
   and its executed `Mutant-*` records, not by another round (Step 2).
 - **Verification rounds:** 3.
@@ -49,7 +50,8 @@ sensitive paths (the queue's `## Bramka` section), those count too.
 
 Large goes through `brainstorming`, then `writingplans`, then `executingplans` in this session. Only tasks that
 are sizeable and share no file, symbol or decision with the rest go to a `builder`. This skill then owns Steps 2–5
-on the combined result.
+on the combined result. When the plan's review checkpoints ran (`executingplans` Step 4), Step 2 here is the
+plan's `R-final`: the whole branch, cross-group scope, with every group report attached.
 
 ## Hard rules
 
@@ -119,7 +121,9 @@ of fix needs. They bind this session. A `builder` gets them as lines of its brie
 2. **Act on the findings by severity:**
    - **CRITICAL / REQUIRED:** fix them here, with the proof `references/implementacja.md` asks for each kind of
      fix. Every new guard, branch or log line (`scripts/nowe-warunki.sh` lists them) gets an executed mutant
-     before the next round (E19). Then a fresh reviewer reviews the delta.
+     before the next round (E19). Then a fresh reviewer reviews the delta only: it closes each previous finding
+     by its number and reviews every line of `<previous tip>..HEAD`, sized by that delta (`references/briefy.md`
+     §Review 6, E31).
    - **A `Domknięcie:` line** (0 CRITICAL, every REQUIRED closable by a test or by docs): close them with commits
      that touch only tests and docs, adding assertions and never editing, removing or skipping one. Run each
      `Mutant-plik` / `Mutant-przed` / `Mutant-po` record against the tests you changed: RED with the mutant, GREEN

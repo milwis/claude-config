@@ -96,12 +96,14 @@ Before the spawn, check that the brief carries each of these lines:
    PLAUSIBLE ones included; then `Domknięcie: <a> mutant, <b> docs` when there is no CRITICAL and every REQUIRED
    closes by a test (a `Mutant-plik` / `Mutant-przed` / `Mutant-po` record each) or by docs alone. The queue adds
    the `SHA:` and `Tier:` lines (`roadmapa/references/cykl-lidera.md`).
-6. **Round 2 and later:**
-   - the previous findings verbatim, and what was changed for each;
-   - the previous tip, and the output of `scripts/nowe-warunki.sh <worktree> <previous tip>` with the mutant row
-     or the reason for each line;
-   - the instruction: "review `<previous tip>..<tip>` and whether each previous finding is closed; do not
-     re-review the untouched rest unless the delta reaches it".
+6. **Round 2 and later — the delta only (E31):**
+   - the previous findings verbatim and numbered, and what was changed for each;
+   - `git diff --stat <previous tip>..<tip>`, the previous tip, and the output of
+     `scripts/nowe-warunki.sh <worktree> <previous tip>` with the mutant row or the reason for each line;
+   - the instruction: "review `<previous tip>..<tip>`; close each previous finding by its number, one line each
+     (`F<n>: closed | open — <path:line or command>`); size your tier from this delta's stat (a sensitive path
+     still lifts it); do not re-review the untouched rest unless the delta reaches it". In a plan checkpoint the
+     range is the group's fix range `<from>..<to>` (`executingplans` Step 4), not `..HEAD`.
 7. **Small, the narrow form:**
    - the diff stat plus 3–4 two-sided questions specific to the change;
    - tier S, about 15 calls (E3).
@@ -113,6 +115,11 @@ Before the spawn, check that the brief carries each of these lines:
    - it works on its own copy, never on the tracked file, and reports each as `mutant: RED|GREEN` with the
      command;
    - this report replaces Step 4.
+9. **A plan checkpoint group (`executingplans` Step 4):**
+   - the group's paths, with "review only these";
+   - the contract files, with "read-only: judge the group against them";
+   - the checkpoint's rules, with "one line per rule: `<rule>: kept | broken path:line`";
+   - for `R-final`, every group report, with "already reviewed: do not repeat; look for what crosses groups".
 
 ## Verification (fresh `test-automator`, `sonnet`, `verify-e2e` brief)
 
