@@ -1,13 +1,12 @@
 ---
 name: new-project
 description: "Universal project foundation skill. Creates professional, scalable, secure base for any new project. Covers: marketplace plugins, architecture, logging, security, exceptions, testing, resilience, CI/CD, docs. Run ONCE at project start."
+disable-model-invocation: true
 ---
 
 # New Project Foundation
 
 **Core:** Create a complete foundation BEFORE any business logic. Technology-agnostic in structure, adapts to chosen stack.
-
-**Announce:** "I'm using the new-project skill to set up the project foundation."
 
 ---
 
@@ -22,7 +21,7 @@ Gather answers:
 6. Existing plan/spec doc?
 7. Domain-specific safety rules? (financial, medical, PII)
 
-**If user has a plan doc — READ IT FIRST.** Extract: stack, architecture, modules, phases.
+**If the user has a plan doc, read it first.** Extract: stack, architecture, modules, phases.
 
 ---
 
@@ -58,14 +57,14 @@ If NOT from marketplace:
 - `logs/` → TRACK if Claude needs remote log access; IGNORE rotation backups only
 - `.claude/settings.local.json` → IGNORE (machine-specific)
 - `.claude/settings.json` → TRACK (shared config)
-- `.env` → ALWAYS IGNORE; `.env.example` → ALWAYS TRACK
+- `.env` → ignore; `.env.example` → track
 
 ---
 
 ## Phase 2: Claude Code Configuration
 
 ### Deliverables
-- [ ] `.claude/settings.json` with enabled plugins
+- [ ] `.claude/settings.json` with enabled plugins and the deny rules for secrets (§Rules that must always hold)
 - [ ] `.claude/settings.local.json` with permissions (Bash, WebSearch, WebFetch, Skills)
 - [ ] `.claude/README.md` — index of agents, skills, rules
 - [ ] Project-specific agents if needed
@@ -76,55 +75,56 @@ If NOT from marketplace:
 
 | Agent | When needed |
 |---|---|
-| `code-reviewer` | ALWAYS — fresh review of every non-trivial diff, security included |
-| `test-automator` | ALWAYS — tests as their own task, and surface verification (`verify-e2e`) |
-| `debugger` | ALWAYS — a failure with an unknown cause |
-| `builder` | ALWAYS — an independent sizeable task beside the main session |
-| `refactoring-orchestrator` | ALWAYS — a behaviour-preserving refactor as its own task |
+| `code-reviewer` | Every project — fresh review of every non-trivial diff, security included |
+| `test-automator` | Every project — tests as their own task, and surface verification (`verify-e2e`) |
+| `debugger` | Every project — a failure with an unknown cause |
+| `builder` | Every project — an independent sizeable task beside the main session |
+| `refactoring-orchestrator` | Every project — a behaviour-preserving refactor as its own task |
 | `backend-security-coder` | When project has API/auth/user data — security audits only |
 | `database-optimizer` | When project has database |
 
 Language rules live in `.claude/rules/<language>-rules.md` with `paths:` (`/lang-guidelines`), not in agents.
 
-### MANDATORY: Agent Routing Table in CLAUDE.md
+### CLAUDE.md
 
-The session that holds the task writes the code: it has read the spec and the code, and a subagent would read them again. The routing table names the jobs that need a context of their own — a fresh review, a fresh verification, an investigation, an independent task — so they are not done in the context that wrote the change. The rules every writer follows are the project's own (`CLAUDE.md`, the stack rules files).
-
-Generate based on stack from Step 0:
+`CLAUDE.md` loads into every session, so it holds only what Claude cannot learn by reading the repo, in under 60 lines:
 
 ```markdown
-## Agent routing (marketplace: milwis-coding-toolkit)
+# <Project>
+<1–2 sentences: what it does and for whom>
 
-| Context | Agent | Invocation |
-|---|---|---|
-| Review of a diff, security included | `code-reviewer` | **MANDATORY** before every commit (a fresh agent each round) |
-| User-facing change | `test-automator` with a `verify-e2e` brief | Fresh, adversarial, with evidence |
-| Bugs, errors, failures | `debugger` | Start from logs, then code |
-| DB performance | `database-optimizer` | For slow queries, indexing |
-| Refactoring as its own task | `refactoring-orchestrator` | Behaviour-preserving, equivalence proof |
-| Independent sizeable task | `builder` | Shares no file, symbol or decision with the main work |
-| Security audit | `backend-security-coder` | Audits only; diffs are reviewed by `code-reviewer` |
+## Commands
+- install: `make dev`
+- one test file: `<test command> path/to/test`
+- all tests: `make test` · lint: `make lint` · types: `make type-check`
 
-**Workflow:** `/brainstorming → /writingplans → /executingplans → code-reviewer → commit` (one task end to end: `/task-lifecycle`)
+## Conventions
+- <only where the code misleads or two approaches are reasonable, e.g. "errors: the hierarchy in src/common/exceptions.py, never raw strings">
+
+## Gotchas
+- <what has already bitten someone; empty at the start>
+
+## Workflow (milwis-coding-toolkit)
+- One task end to end: `/task-lifecycle`. A new module or a cross-module feature: `/brainstorming` → `/writingplans` → `/executingplans`.
+- A diff is reviewed by a fresh `code-reviewer`, and a user-facing change is verified by `test-automator` with a `verify-e2e` brief; neither runs in the context that wrote the change.
+
+Details: `docs/architecture.md`, `docs/logging-system.md`.
 ```
 
-Rules for generating the table:
-1. No DB → remove the `database-optimizer` row
-2. No API/auth/user data → remove the `backend-security-coder` row
+Left out on purpose: the directory layout and the architecture (Claude reads the repo; the detail lives in `docs/architecture.md`), language rules (`.claude/rules/<language>-rules.md` with `paths:`, `/lang-guidelines`), and a routing table that repeats the agents' own descriptions.
 
-### Non-negotiable rules (add to CLAUDE.md alongside routing table)
+### Rules that must always hold
 
-```markdown
-## Non-negotiable rules
+A rule with no exceptions is enforced by a tool, not written as a capitalised line in `CLAUDE.md`: prose is guidance the model weighs, and piled-on emphasis makes it over-apply the rule, while a tool applies it every time.
 
-- Code is written under this project's rules (`CLAUDE.md`, `.claude/rules/*.md`); review and verification run in a fresh agent, never in the context that wrote the change
-- Run `code-reviewer` before every commit
-- Debugging starts with `debugger`: logs first, then code
-- Use `Decimal` for money — NEVER float
-- Secrets in `.env` only — NEVER in code or logs
-- Parameterized SQL only — NEVER string formatting
-- Type hints on EVERY function
-```
+| Rule | Where it is enforced |
+|---|---|
+| Secrets stay out of the repo and the session | `.gitignore`; deny rules in `.claude/settings.json`: `Read(./.env)`, `Read(./.env.*)`, `Read(./secrets/**)`; the secret-scan pre-commit hook (Phase 8) |
+| Types on every function; no `print()` / `console.log` | type checker and linter config at the strictness the project chose; CI fails on them (Phase 11) |
+| Parameterized SQL; money as `Decimal`, never float | the stack rules file with `paths:`; a linter rule (`bandit`, `semgrep`, ESLint) where the stack has one |
+| Review before merge | the project's gate (a CI check or a pre-commit hook) when the owner wants it on every change; otherwise the Workflow line above |
+
+A rule that is only a preference stays in the rules file or under Conventions, not in a hook.
 
 ---
 
@@ -169,17 +169,7 @@ project/
 
 **Type safety from day 1:** type hints everywhere, enums for domain states, value objects for primitives (Money as Decimal, not float), Pydantic/dataclass models.
 
-### CLAUDE.md — keep it LEAN (< 60 lines)
-
-Contents:
-- 1-2 sentence project description
-- Table of links to detailed docs (`docs/architecture.md`, `docs/logging-system.md`)
-- Quick commands (`make dev`, `make test`)
-- Non-negotiable rules (5-8 bullets max)
-- Agent routing table
-- Workflow line
-
-**CLAUDE.md is loaded into every conversation — keep it tight.** Detailed content goes in `docs/`.
+The architecture goes into `docs/architecture.md`, not into `CLAUDE.md` (Phase 2, §CLAUDE.md).
 
 ---
 
@@ -212,8 +202,8 @@ Always: env vars from `.env`, named volumes, health checks, memory limits.
 ### Deliverables
 - [ ] Centralized config module (pydantic-settings, dotenv, etc.)
 - [ ] `.env.example` with ALL variables documented
-- [ ] Startup validation — app REFUSES to start with missing/invalid credentials
-- [ ] Secrets NEVER in code, logs, or error messages
+- [ ] Startup validation — the app refuses to start with missing/invalid credentials
+- [ ] Secrets absent from code, logs and error messages
 - [ ] Config files validated by typed schema at load time
 
 ### Rules
@@ -288,7 +278,7 @@ The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)
 - [ ] Rate limiting (strict on login, reasonable on API)
 - [ ] Security headers on every response
 - [ ] Health check endpoint
-- [ ] Exception handlers that NEVER leak internals
+- [ ] Exception handlers that keep internals out of client responses
 - [ ] Pre-commit hook for secret detection (`gitleaks`, `trufflehog`, or `detect-secrets`)
 - [ ] Automated dependency updates enabled (`Dependabot` or `Renovate`) with lockfiles committed (`poetry.lock`, `package-lock.json`, `go.sum`) — no unpinned/floating versions in prod deps
 - [ ] SBOM (Software Bill of Materials) generated on build in CycloneDX or SPDX format — increasingly required for compliance (EU Cyber Resilience Act, US EO 14028) and needed to correlate dependencies against live CVEs
@@ -296,8 +286,8 @@ The key principle: enables `logger.error("Failed", **exc.context, exc_info=True)
 
 ### Non-negotiable rules
 
-1. Secrets in `.env` ONLY
-2. Parameterized queries ONLY
+1. Secrets in `.env` only
+2. Parameterized queries only
 3. Input validation at boundaries
 4. Output encoding for context
 5. Startup validates credentials BEFORE work
@@ -410,7 +400,9 @@ services:
 
 | Content | Where | Why |
 |---|---|---|
-| Quick ref, routing, rules | `CLAUDE.md` | Loaded every conversation — keep lean |
+| Commands, conventions, gotchas, workflow | `CLAUDE.md` | Loaded every conversation — only what the repo does not show |
+| Rules with no exceptions | Linter, type checker, hooks, deny rules, CI | Applied every time, not read (Phase 2) |
+| Language and domain rules | `.claude/rules/*.md` with `paths:` | Loaded when a matching file is opened |
 | Architecture details | `docs/architecture.md` | Read on demand |
 | Logging system | `docs/logging-system.md` | Read when debugging |
 | Plans | `docs/plans/` | Historical record |
@@ -420,7 +412,7 @@ services:
 
 ## Phase 13: Foundation Verification Audit
 
-MANDATORY before declaring "foundation complete." Read **`references/verification-audit.md`** for the full checklist (code quality, structure, security, logging, resilience, documentation, agent routing, optional domain safety). Run every checkbox; if any fails, return to that phase before adding business logic.
+Run it before declaring "foundation complete." Read **`references/verification-audit.md`** for the full checklist (code quality, structure, security, logging, resilience, documentation, CLAUDE.md and enforcement, optional domain safety). Run every checkbox; if any fails, return to that phase before adding business logic.
 
 The five red lines that always block:
 
@@ -430,7 +422,7 @@ make lint && make type-check && make test    # all green
 - [ ] `.env` in `.gitignore`, `.env.example` complete
 - [ ] Auth + rate limiting active; startup rejects default credentials
 - [ ] Logging + correlation context active; no raw `print` / `console.log`
-- [ ] `CLAUDE.md` has the agent routing table with names matching the marketplace
+- [ ] `CLAUDE.md` has Commands and Workflow, every command in it runs, and each rule of the Phase 2 enforcement table is enforced by the tool its row names
 
 **All checks pass?** → "Foundation complete. Ready to write business logic."
 **Any fail?** → Return to that phase. Don't write business logic on a broken foundation.
@@ -474,5 +466,5 @@ Total: ~3-4 hours for a complete foundation.
 11. Skipping domain safety → general security isn't enough for financial/medical
 12. Skipping SBOM/dependency scanning → unpinned deps and unknown CVEs ship to production; increasingly a compliance requirement, not optional
 
-<!-- Updated: 2026-09-24 (v1.5.25: prompt audit — historia zmian w UPDATE_LOG.md) -->
-Last updated: 2026-09-24
+<!-- Updated: 2026-10-30 (v1.7.7: CLAUDE.md tylko z tym, czego nie widać w repo; reguły bez wyjątków egzekwowane narzędziem — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-10-30

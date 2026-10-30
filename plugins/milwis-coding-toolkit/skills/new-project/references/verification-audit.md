@@ -1,6 +1,6 @@
 # Foundation verification audit — full checklist
 
-Used by `new-project` Phase 13. MANDATORY before declaring "foundation complete." Run every checkbox; if any is unchecked, return to that phase before adding business logic.
+Used by `new-project` Phase 13, before declaring "foundation complete." Run every checkbox; if any is unchecked, return to that phase before adding business logic.
 
 ## Code quality
 
@@ -54,14 +54,14 @@ make test          # all pass
 - [ ] `.env.example` documents every variable's purpose + format
 - [ ] `docs/plans/` directory exists for future implementation plans
 
-## Agent routing (CRITICAL — without this, review and verification happen in the context that wrote the change)
+## CLAUDE.md and enforcement
 
-- [ ] `CLAUDE.md` has a `## Agent routing` section with a table
-- [ ] `code-reviewer` row marked **MANDATORY** before commit
-- [ ] `debugger` row mentions "start from logs"
-- [ ] Non-negotiable rules section present (5–8 bullets)
-- [ ] Workflow line: `brainstorming → writingplans → executingplans → code-reviewer → commit`
-- [ ] Agent names match the marketplace (no typos like `code_reviewer`)
+- [ ] `CLAUDE.md` has Commands, Conventions, Gotchas and Workflow, and no directory layout or architecture description
+- [ ] Every command in `CLAUDE.md` runs as written (output pasted)
+- [ ] The Workflow section names `code-reviewer` and `verify-e2e` as fresh agents, so review and verification do not happen in the context that wrote the change; agent names match the marketplace (no typos like `code_reviewer`)
+- [ ] `.claude/settings.json` denies reading `.env`, `.env.*` and `secrets/**`
+- [ ] Each rule of the `new-project` Phase 2 enforcement table is enforced by the tool its row names (lint or type-check config, hook, CI step), checked by breaking it once on a scratch file
+- [ ] Stack rules files exist in `.claude/rules/` with `paths:`
 
 ## Domain safety (skip if N/A)
 

@@ -7,6 +7,28 @@
 > 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-10-30 — prompty skilli według „Prompt library” i „Best practices” Claude Code (v1.7.7)
+
+Pytanie właściciela: czy prompty skilli i agentów da się ulepszyć na podstawie https://code.claude.com/docs/en/prompt-library i strony best-practices, do której odsyła. Ścieżka kolejki (`task-lifecycle`, `cykl-lidera.md`, `briefy.md`, agenci piszący) już spełnia te zasady: cel i „done when”, pomiar, świeży recenzent, twarde zakazy w hooku. Zmiany dotyczą starszych skilli. Decyzje właściciela: punkty 2–5 „tak”, punkt 1 (recenzent bez stylu) wstrzymany pytaniem, czy nie ucierpi utrzymywalność kodu.
+
+- **`code-reviewer` bez zmian.** Propozycja „skip style” wycofana po pomiarze. `POMIAR` (KonkretnyTMS, 68 plików `.claude/tmp/kolejka/recenzja-*.md`): 64 znaleziska OPTIONAL/NIT (`grep -cE '^(🔵|⚪)'`) wobec 49 CRITICAL/REQUIRED (`grep -cE '^(🔴|🟡)'`). Wśród OPTIONAL/NIT: 15 `comment-only`, 23 to linia bez testu albo mutant GREEN, 10 LATENT/PLAUSIBLE (kategorie mogą się nakładać). Styl albo nazwa: 2 (`$unitPriceNet` niesie cenę brutto; dwie bezczynne deklaracje CSS), czyli też utrzymywalność. Pierwsza liczba z rozmowy (111) liczyła każdą linię z etykietą, nie znaleziska.
+- **`test-driven-development`:** cel i warunek końca zamiast „Iron Law”. „Delete it. Start over.” zastąpione dowodem: test napisany po kodzie liczy się dopiero wtedy, gdy był czerwony na kodzie bez zmiany (rewert na kopii albo mutant). Wyjątki to klasy rozmiaru `task-lifecycle` i `CLAUDE.md` projektu, a nie „zgoda użytkownika” (to było sprzeczne z klasą Trivial). W cyklu testy celowane, pełny zestaw raz na końcu (wcześniej sprzeczne z `implementacja.md` §Test economy i z `executingplans`). Krok Green: kod w idiomie modułu, precedens `file:line` w raporcie, a brak precedensu zgłoszony zamiast trzeciego stylu (uwaga właściciela o spójności modułów). Usunięte przykłady JS, checklista i „Final Rule”: wiedza ogólna i powtórzenie warunku końca.
+- **`systematic-debugging`:** cel zamiast „Iron Law”. Krok 0 zaczyna od tego, co system zapisał (wynik testu, logi, monitoring), zamiast „ALWAYS logs”. „~95%” bez źródła zastąpione kontrolą przed ogłoszeniem braku przyczyny. Usunięte „Toolbox” (wiedza ogólna) i „Never Rationalize” (zostało `git stash` jako pomiar).
+- **`verification-before-completion`:** cel zamiast „Iron Law” i „No exceptions”; bramka i tabela dowodów bez zmian.
+- **`brainstorming`:** bez MUST/NEVER; linia briefu Explore każe pisać `not found` zamiast „Report ONLY… Do not infer”.
+- **Ogłoszenie „I'm using the X skill”** usunięte z czterech powyższych skilli i z `new-project`. W pozostałych zostaje do decyzji właściciela.
+- **`new-project`:** generowany `CLAUDE.md` ma sekcje Commands / Conventions / Gotchas / Workflow, < 60 linii. Bez tabeli routingu (powtarzała opisy agentów), bez opisu architektury i bez „Non-negotiable rules” pisanych CAPS. Nowa tabela „Rules that must always hold”:
+  - sekrety: deny rules `Read(./.env)`, `Read(./.env.*)`, `Read(./secrets/**)` i hook pre-commit;
+  - typy i `print`: linter albo type checker w CI;
+  - SQL i `Decimal`: plik reguł z `paths:` plus linter;
+  - recenzja przed merge: bramka projektu albo linia Workflow.
+
+  `references/verification-audit.md` sprawdza to zamiast tabeli routingu.
+- **`disable-model-invocation: true`:** `new-project` i `audit-360`. Uruchamia je tylko właściciel (`/new-project`, `/audit-360`), model sam ich nie wywoła.
+- **`audit-360`:** `prompts/11-debugger-repro.md` bez „Operate under systematic-debugging” i „Iron Law”. Skill nie ładuje się w podagencie (polityka, pkt 3), więc reguły są liniami promptu. `SKILL.md` §10 bez „Iron Law”.
+- **`lang-guidelines/references/research-prompts.md`:** akapit o datach bez CRITICAL/MUST/NEVER.
+- **Do zmierzenia po ~10 issue kolejki:** czy recenzje częściej zgłaszają CRITICAL „tests written after”, i czy raporty lidera cytują precedens `file:line` przy nowym kodzie.
+
 ## Run: 2026-10-29 — triage parasola to decyzja właściciela przy starcie (v1.7.6)
 
 Uwaga właściciela do v1.7.5: parasol może obejmować klasę błędów, nie plan, i wtedy triage jest potrzebny. W v1.7.5 o pominięciu triage decydowało to, czy treść porcji wskazuje plan istniejący na `main`. Na dotychczasowych parasolach to się nie pomyliło (#1263: 0/6 porcji bez triage, #1590: 0/10, #1777: 0/29, tylko `-design.md`; #1875: 11/11). Wystarczyłaby jednak porcja z klasy błędów, która wskazuje plan „dla kontekstu”, żeby straciła jedyny pomiar „przed”. Decyzja właściciela: „tak” dla flagi przy starcie. Zastrzeżenie nazwy „parasol” w `nowe-issue` odrzucone, bo parasole klas błędów już tak się nazywają (#1263, #1288, #1590), a konwencji nikt nie sprawdza.

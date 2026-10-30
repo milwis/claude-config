@@ -2,10 +2,7 @@
 
 Use these as WebSearch queries during each research phase. Replace `{lang}` with the actual language/technology name.
 
-**CRITICAL: Dynamic Dates** — All queries below use `{CURRENT_YEAR}` and `{PREVIOUS_YEAR}` as placeholders.
-You MUST replace them with the actual current year and previous year based on today's date (provided by the system context).
-For example, if today is 2026-04-11: `{CURRENT_YEAR}` = 2026, `{PREVIOUS_YEAR}` = 2025.
-NEVER hardcode specific years. Always use the current date to determine the year.
+**Dates.** `{CURRENT_YEAR}` and `{PREVIOUS_YEAR}` are filled from today's date in the system context (today 2026-04-11 → 2026 and 2025), so the queries stay current without editing this file.
 
 ## Phase 1: AI Code Generation Errors
 

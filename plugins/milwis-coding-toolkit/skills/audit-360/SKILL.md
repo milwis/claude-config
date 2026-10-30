@@ -1,6 +1,7 @@
 ---
 name: audit-360
 description: "Use when the user asks for a 360° or full code audit, a security review of a whole project, a pre-deploy or post-vibe-coding audit, or a review of AI-generated code across the codebase."
+disable-model-invocation: true
 ---
 
 # Audit 360° (universal multi-stack code audit)
@@ -386,7 +387,7 @@ Modeled on CVSS v3.1/v4.0 + OWASP Risk Rating + production heuristic. The 5-axis
 - **Slopsquatting check** can false-positive on private packages (Packagist Private, npm scoped `@company/`) — keep an allowlist in `audit/.allowlist`.
 - **`composer audit`** sometimes reports CVEs in transitive dependencies that don't affect the used code path — `code-reviewer` (STEP 4) checks `composer why` before listing.
 - **Long-context degradation** — the AI-scrutiny `code-reviewer` itself can suffer. If an audited file is >2000 lines, the code-reviewer chunks the review and consolidates in a second pass.
-- **`debugger` Iron Law**: 3+ failed reproduction attempts ⇒ de-escalate to P1, NOT ignore.
+- **`debugger` reproduction limit**: 3+ failed reproduction attempts ⇒ de-escalate to P1 with a note; the finding stays in the report.
 
 ## 11. Quick start — single-command flow
 

@@ -5,9 +5,7 @@ description: "Use when encountering any bug, test failure, or unexpected behavio
 
 # Systematic Debugging
 
-**Core:** Find the root cause *before* attempting any fix. Symptom fixes are failure, even if they make the test green. Evidence comes from logs first, code second.
-
-**Announce at start:** "I'm using the systematic-debugging skill."
+**Goal.** The fix sits at a root cause you measured, and a test that was red on the bug is green after the fix. A fix that makes the symptom go away without a known cause is not a fix, even when the test turns green. Evidence comes from what the system recorded first, code second.
 
 **Entry:** a bug, failing test, or unexpected behavior whose cause is not evidence-backed yet.
 **Stop:** the root cause is named with MEASURED evidence (command / `file:line`), its disproof was run and survived, and the regression test is red-then-green — or, after 3 failed fixes, the architectural question has been raised with the user.
@@ -25,19 +23,15 @@ Dispatch the `debugger` agent for focused execution of a complex multi-step inve
 
 ---
 
-## The Iron Law
+## Order
 
-```
-NO FIXES WITHOUT ROOT-CAUSE INVESTIGATION FIRST
-```
-
-If you have not completed Phase 1, you cannot propose a fix. No exceptions — not even "obviously it's X".
+A fix is proposed after Phase 1, not before. A cause that looks obvious is a hypothesis until the Phase 1 loop confirms it.
 
 ---
 
-## Step 0: Logs First (before ANY code analysis)
+## Step 0: What the system recorded
 
-**ALWAYS start from logs and observability — never from reading code.**
+Start from what the system recorded (the failing test's output, logs, monitoring) before reading code: it shows what ran, while code shows what might have run.
 
 **Redact before you show anything.** Every command, log line, or captured artifact quoted in this session — from the first `grep` in this step through the final report — gets secrets replaced with `<REDACTED>` first: API keys, tokens, passwords, connection strings, PII. Build feedback loops against env vars so the credential stays in the environment rather than in what gets shown. If the redacted output isn't enough to diagnose the bug, say so and ask the user for a scoped/redacted artifact instead of pasting the raw one.
 
@@ -111,7 +105,7 @@ Only after reading the logs → Phase 1.
 
 ### Phase 4 — Fix, Guard, Verify
 
-1. **Write a failing regression test** (see `test-driven-development`) from the minimised repro, **at a seam that exercises the real bug pattern** — the call chain that triggered it, not a shallower unit that cannot. It MUST fail without the fix, pass with it, and describe the scenario that caused the bug. **No correct seam exists → that is itself a finding:** the architecture prevents locking the bug down; record it in the report and the troubleshooting doc instead of writing a test that gives false confidence.
+1. **Write a failing regression test** (see `test-driven-development`) from the minimised repro, **at a seam that exercises the real bug pattern** — the call chain that triggered it, not a shallower unit that cannot. It fails without the fix, passes with it, and describe the scenario that caused the bug. **No correct seam exists → that is itself a finding:** the architecture prevents locking the bug down; record it in the report and the troubleshooting doc instead of writing a test that gives false confidence.
    - Every temporary debug log carries one unique tag, e.g. `[DEBUG-a4f2]`; cleanup at the end is `grep -rn 'DEBUG-a4f2'` — untagged logs survive into commits.
 2. **Implement ONE fix at the root cause.** No bundled refactoring, no "while I'm here" improvements.
 
@@ -125,7 +119,7 @@ Only after reading the logs → Phase 1.
 3. **Verify end-to-end:** new test passes → run the affected suites with the project's test commands (`phpunit`, `pytest`, `vitest`/`npm test`) → syntax/lint check modified files (`php -l`, `node --check`, `python -m py_compile`) → **re-run the Phase 1 loop on the original, un-minimised scenario** → `grep` the debug tag returns nothing → the confirmed hypothesis is stated in the commit message so the next debugger learns.
 4. **If the fix doesn't work:**
    - `< 3` attempts → return to Phase 1 with the new evidence
-   - `≥ 3` attempts → STOP. Architectural problem (below).
+   - `≥ 3` attempts → stop: an architectural problem (below).
 
 ---
 
@@ -136,15 +130,13 @@ Pattern indicating an architectural, not local, bug:
 - Fixes require "massive refactoring" to implement
 - Each fix creates new symptoms somewhere else — whack-a-mole across the codebase
 
-**STOP and raise with the user before attempting fix #4.** Ask: is this pattern fundamentally sound? Should we refactor instead of patching? Pushing through fix #4 without this conversation is how multi-day debug sessions happen.
+**Raise it with the user before fix #4.** Ask: is this pattern fundamentally sound? Should we refactor instead of patching? Pushing through fix #4 without this conversation is how multi-day debug sessions happen.
 
 ---
 
-## Never Rationalize
+## Dismissals are measured
 
-- "That's probably unrelated" → prove it: `git stash` — does the bug disappear?
-- "I'll fix it later" → you won't. Fix it now.
-- "It's an edge case, nobody will hit it" → the log says otherwise.
+"Probably unrelated" is a claim like any other: `git stash` the suspect change and re-run the loop. An "edge case nobody will hit" gets checked against the logs before it is dismissed.
 
 ---
 
@@ -157,7 +149,7 @@ Occasionally the issue is truly environmental / timing-dependent / external:
 3. Add logging so next time you *can* investigate
 4. Tell the user: "no deterministic root cause, here's the mitigation"
 
-**~95% of "no root cause" conclusions are incomplete investigation.** Don't bail out early.
+Most "no root cause" conclusions are an investigation stopped early. Before you declare one, check that the Phase 1 loop exists and that Phase 3 had ranked hypotheses with their disproofs run.
 
 ---
 
@@ -176,23 +168,6 @@ Recurring bug classes that transcend any single project. Check the matching clas
 | Pipeline green, behavior broken | Fail-handler exits 0 (`die("msg")`, swallowed exception, missing `set -e`) — failures never reach the exit code | Make every failure path produce a non-zero exit / thrown exception |
 
 For project-specific instances of these classes, check the project's troubleshooting doc (Step 0.4).
-
----
-
-## Toolbox
-
-```bash
-php -l file.php / node --check file.js / python -m py_compile file.py   # syntax
-phpunit --filter test_name / pytest -k name / vitest run -t 'name'      # one test, fast
-git blame <file>                              # who touched it last
-git log --oneline <last-good-tag>..HEAD       # what changed since it worked
-```
-```sql
-EXPLAIN SELECT ...;  SHOW INDEX FROM <table>;  SHOW PROCESSLIST;
-```
-```javascript
-debugger;  console.table(rows);  console.time('op'); /*...*/ console.timeEnd('op');
-```
 
 ---
 
@@ -238,11 +213,6 @@ update the project's troubleshooting doc (e.g. `docs/troubleshooting.md`) with s
 
 ---
 
-## Final Rule
+## When it is fixed
 
-```
-Symptom gone, cause unknown  → NOT fixed
-Cause known, symptom gone    → fixed
-```
-
-If you can't explain *why* the fix worked in one sentence, you didn't find the root cause.
+Fixed means the cause is known and the symptom is gone. A symptom gone with the cause unknown is not fixed. If you cannot say in one sentence why the fix works, the root cause is still missing.
