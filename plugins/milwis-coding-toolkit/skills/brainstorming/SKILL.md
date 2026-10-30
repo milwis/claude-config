@@ -7,8 +7,6 @@ description: "Use before new features, modules, or changes touching 3+ modules. 
 
 Turn an idea into a validated design through collaborative dialogue. Effort scales with complexity — never more process than the change deserves.
 
-**Announce at start:** "I'm using the brainstorming skill."
-
 ---
 
 ## Step 0: Pick the Complexity Tier
@@ -23,17 +21,17 @@ Turn an idea into a validated design through collaborative dialogue. Effort scal
 
 ---
 
-## Two Mandatory Gates (LIGHT and FULL, before any direction is chosen)
+## Two gates (LIGHT and FULL, before any direction is chosen)
 
 ### Gate A — Variant Question
 
 Ask early: **"Is this a variant of an operation that already exists?"** — correction, reversal, batch, offline, delete/cancel, import-update, second document type, single-vs-bulk, analytics/reporting consumer, mobile/PWA twin.
 
-If yes: the Explore dispatch MUST return the main path's implementation and its guards BEFORE any design choice. The default design is **reuse the canon**; every divergence gets a stated reason in the one-pager. A variant rebuilt from scratch — missing the guards/formulas the main path already has — is the most expensive regression class in this codebase.
+If yes: the Explore dispatch returns the main path's implementation and its guards, and the design choice comes after it. The default design is **reuse the canon**; every divergence gets a stated reason in the one-pager. A variant rebuilt from scratch — missing the guards/formulas the main path already has — is the most expensive regression class in this codebase.
 
 ### Gate B — Regulated-Domain Gate (tax, financial reporting, legal thresholds, compliance documents)
 
-If the feature touches a regulated computation or a compliance document, exploration MUST produce a fact-pack first:
+If the feature touches a regulated computation or a compliance document, exploration produces a fact-pack first:
 
 - Extract governing rules from official sources vendored in the repo (schemas, standards, spec documents, regulator examples) — **never from memory**. Record each rule as: ID, source (file + section/line), threshold values, edge cases.
 - List every rule you could NOT source — these become questions for the user, never defaults to guess. Regulation-from-memory is a top source of domain defects: `>=` vs `>` thresholds, wrong rounding anchor, wrong document classification, a period split on the wrong event.
@@ -46,7 +44,7 @@ If the feature touches a regulated computation or a compliance document, explora
 Dispatch an Explore agent with a prompt that:
 - Lists specific facts to find ("list all order statuses defined in code", not "explore the invoice flow")
 - Requires `file:line` for every fact reported
-- Ends with: **"Report ONLY what you found in code. Do not infer, assume, or add probable values."**
+- Ends with: **"Report what you found in code, each fact with its `file:line`. A fact you could not locate is written `not found`, never as a probable value."**
 
 ---
 
@@ -121,7 +119,7 @@ One-pager contents:
 - **Multiple choice preferred** — easier to answer
 - **YAGNI ruthlessly** — especially in the MVP
 - **"Not Doing" list mandatory for FULL**
-- **Verify before asserting** — NEVER present codebase facts (statuses, enums, schemas, workflows) without grep/read first. Guessing = confabulation.
+- **Verify before asserting** — codebase facts (statuses, enums, schemas, workflows) come from a grep or read in this session, with `file:line`.
 - **Existing pattern first** — grep before inventing
 - **Incremental validation** — sections, not the whole design at once
 

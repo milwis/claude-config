@@ -1,6 +1,6 @@
 # Prompt for `debugger` — PoC reproduction for each P0
 
-Run ONCE PER P0 from `audit/REPORT.md`. The 4-phase `systematic-debugging` Iron Law applies — no fix without Phase 1 done.
+Run once per P0 from `audit/REPORT.md`. The agent reproduces and names the cause; it does not fix. Skills do not load inside a subagent, so the rules it needs are lines of the prompt below.
 
 Paste the body below as the `prompt` parameter. Replace `<NNN>` with the P0 number and `<INVENTORY_PATH>` with the path to `audit/INVENTORY.md`.
 
@@ -9,12 +9,8 @@ subagent_type: debugger
 description: Reproduce P0-<NNN> — <short title>
 prompt: |
   You are reproducing **P0-<NNN>** from audit/REPORT.md for the application
-  in <INVENTORY_PATH>. Operate under `systematic-debugging` (4 phases:
-  investigate → compare → hypothesize → fix). Iron Law: no fix without
-  Phase 1 done.
-
-  IMPORTANT: you do NOT fix. You reproduce — to confirm the P0 is real,
-  not theoretical.
+  in <INVENTORY_PATH>. You do not fix and you change no tracked file: you
+  reproduce, to confirm the P0 is real, not theoretical.
 
   PROCESS (your 6-step root cause analysis):
 
@@ -31,8 +27,8 @@ prompt: |
      - logic bug: input → expected vs actual
      Save reproducer to audit/repro/P0-<NNN>.md.
 
-  4. FIX (HYPOTHESIS) — do NOT fix. Describe in 1-2 sentences why the bug
-     occurs (root cause, not symptom).
+  4. CAUSE — describe in 1-2 sentences why the bug occurs (root cause,
+     not symptom), with the file:line it sits at.
 
   5. VERIFY — if you can run the reproducer in a sandbox, run it. Show
      output. Otherwise, describe exactly what to run.
@@ -41,11 +37,12 @@ prompt: |
      CI. Save to audit/repro/P0-<NNN>-test.md.
 
   RULES:
-  - systematic-debugging Iron Law: do not skip Phase 1.
+  - A cause is named only after a reproducer you ran (step 3); until
+    then it is labelled INFERRED.
   - 3+ failed reproductions = mark as "theoretical, not reproduced" and
     de-escalate to P1 with note in the report.
-  - verification-before-completion: do not finalize the repro report
-    without evidence (command output, request/response).
+  - The repro report carries its evidence (command output,
+    request/response); a status without it is THEORETICAL.
 
   Output: audit/repro/P0-<NNN>.md with:
     - status: REPRODUCED / NOT_REPRODUCED / THEORETICAL

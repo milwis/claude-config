@@ -5,38 +5,22 @@ description: "Use before claiming any work is done, fixed, passing, or ready —
 
 # Verification Before Completion
 
-**Core:** Evidence before claims. Always. No exceptions.
-
-**Announce at start:** "I'm using the verification-before-completion skill."
+**Goal.** Every claim that something is done, fixed, passing or true of the codebase rests on output you produced
+and read in this message. Earlier runs, "should work now" and a subagent's success report are not that output.
 
 **Entry:** about to state that anything is done / fixed / passing, mark a todo completed, commit, push, or open a PR.
-**Stop:** the proving command ran in THIS message, its full output was read, and the claim matches it — with pass AND skip counts, or an exact BLOCKED/unavailable statement instead of a claim.
+**Done when:** the proving command ran in THIS message, its full output was read, and the claim matches it — with pass AND skip counts, or an exact BLOCKED/unavailable statement instead of a claim.
 
----
-
-## The Iron Law
-
-```
-NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
-```
-
-If you have not run the verification command **in this very message**, you cannot claim it passes. Previous runs don't count. "Should work now" doesn't count. Agent success reports don't count.
-
----
-
-## The Gate
+## The gate
 
 Before any statement implying success:
+1. **Identify** the command that proves the claim.
+2. **Run** it in full, now.
+3. **Read** the whole output: exit code, failure and skip counts.
+4. **Compare** the output with the claim.
+5. **Claim** only what the output shows, with the evidence inline.
 
-1. **IDENTIFY** — what command proves this claim?
-2. **RUN** — execute the full command, fresh, now
-3. **READ** — full output, exit code, count failures
-4. **VERIFY** — does the output match the claim?
-5. **THEN CLAIM** — with evidence inline
-
----
-
-## What Counts as a Claim
+## What counts as a claim
 
 - "Done", "Finished", "Complete", "Ready"
 - "It works", "Tests pass", "Build green"
@@ -46,11 +30,10 @@ Before any statement implying success:
 - Polish: "gotowe", "działa", "naprawione", "przechodzi", "powinno działać"
 - Emojis that imply done (✅)
 - Factual assertions about codebase: "system has statuses X, Y", "workflow is A → B → C", "table has columns..."
-- Paraphrases count. Synonyms count. Spirit over letter.
 
----
+Paraphrases and synonyms count the same.
 
-## Common Claim → Required Evidence
+## Claim → required evidence
 
 | Claim | Required evidence |
 |---|---|
@@ -64,9 +47,7 @@ Before any statement implying success:
 | Codebase fact stated | Grep/Read output confirming the fact exists |
 | User-facing change works | `verify-e2e` PASS from a fresh subagent, with evidence artifacts |
 
----
-
-## When to Apply
+## When to apply
 
 - Any phrasing of success / completion / satisfaction
 - Committing, pushing, opening a PR
@@ -75,20 +56,13 @@ Before any statement implying success:
 - Telling the user "done"
 - Returning results as a subagent
 
-**Applied at group boundaries during plan execution — not per task.** Per-task gating was over-invoking this skill; per-group is where mistakes actually surface without letting bugs propagate.
-
----
+**Applied at group boundaries during plan execution, not per task.** Per-task gating was over-invoking this skill;
+per-group is where mistakes actually surface without letting bugs propagate.
 
 ## Integration
 
 - `executingplans` — runs this gate at each group boundary
-- `test-driven-development` — Verify RED and Verify GREEN are this gate
+- `test-driven-development` — the red and green runs are this gate
 - `systematic-debugging` — Phase 4 "Verify Fix" is this gate
 - `code-reviewer` — before reporting "addressed" (it measures its own findings; this skill reaches it only through its brief)
 - `verify-e2e` — the OUTER gate: this skill proves commands/tests pass, verify-e2e proves the user surface works. User-facing change = both gates.
-
----
-
-## Bottom Line
-
-Run the command. Read the output. **Then** claim the result.

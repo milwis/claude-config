@@ -1,96 +1,56 @@
 ---
 name: test-driven-development
-description: "Use when implementing any new feature, bugfix, refactor, or behavior change. Enforces red-green-refactor: failing test first, watch it fail, minimal code to pass, refactor."
+description: "Use when implementing any new feature, bugfix, refactor, or behavior change: a test seen failing first, the minimum code to pass it, refactor while green."
 ---
 
 # Test-Driven Development
 
-**Core:** Write the test first. Watch it fail. Write the minimum code to make it pass. Refactor. Repeat.
+**Goal.** Every behaviour you add or change has a test that failed for the expected reason before the code existed
+and passes after it. That test is the proof of the behaviour; code without one is unproven, however right it looks.
 
-**Announce at start:** "I'm using the test-driven-development skill."
+**Entry:** about to write or change production behaviour (feature, bugfix, behaviour change, refactor of untested
+code).
+**Done when:** each new or changed behaviour has its test, each test was seen failing for the expected reason, the
+targeted tests pass with clean output, and nothing was added without its own failing test.
 
-**Entry:** about to write or change production code (feature, bugfix, refactor, behavior change).
-**Stop:** the new test failed for the expected reason, now passes, the full suite is green with pristine output, and no behavior was added without its own failing test first.
+**No test first** for copy, CSS, config, docs, generated code, throwaway prototypes and one-off scripts, and for
+whatever the project's size classes exempt (`task-lifecycle`, the project's `CLAUDE.md`). A refactor of tested code
+keeps its tests green; untested code gets characterization tests before the refactor.
 
----
+**Code written before its test.** A test written afterwards proves nothing until it has been seen failing: take the
+production change out (revert it on a copy, or a mutant that removes it), watch the test go red for the expected
+reason, then restore. A test that was never red does not count. Tests shaped after the implementation (mirroring its
+structure, mocking the subject, asserting nothing about behaviour) are what a reviewer flags as CRITICAL.
 
-## The Iron Law
+## The cycle
 
-```
-NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
-```
+### Red
 
-Wrote implementation before the test? **Delete it. Start over.** No "keep as reference", no "adapt what I wrote". Implement fresh from the tests.
+One behaviour per test, named by the behaviour (a name with "and" is two tests). The expected value is a literal, a
+worked example or a spec value. Run it and read the failure: it fails, with the message you expected, because the
+behaviour is missing, not from a typo, a missing import or a broken fixture. A test that passes at once tests
+behaviour that already exists; change the test.
 
-**Exceptions (require explicit user permission):** throwaway prototypes, generated code, pure config files, one-off migration scripts.
+### Green
 
----
+The simplest code that passes; nothing the test does not ask for. Write it in the idiom the module already uses: its
+error handling, naming, layer, and the canonical service for the concept (a calculator, the service that owns a
+table, a validator). When you follow a precedent, cite its `file:line` in the report. When the code you need has no
+precedent, or two conflict, say so in the report instead of inventing a third style.
 
-## When to Use
+Run the new test plus the targeted set (`task-lifecycle` `references/implementacja.md`, test economy). The full
+suite runs once, at the end of the task. The output is clean: no warnings, no unhandled rejections. A new test that
+fails means the code is wrong, not the test.
 
-**Always** for: new features, bugfixes, refactoring, behavior changes, new endpoints/functions/classes.
+### Refactor
 
-**Skip only** with explicit user approval.
+Only while green: duplication, names, helpers, moving toward the conventions of the surrounding module. No new
+behaviour, which needs its own failing test. Re-run the targeted set after each step.
 
----
+**Vertical, not horizontal.** One test, then its code, then the next test. All tests first and all code after tests
+the shape you imagined, not the behaviour; each cycle's test responds to what the previous cycle taught you.
 
-## Red → Green → Refactor
-
-### RED — Write a Failing Test
-
-One behavior per test. Clear name. Prefer real code over mocks.
-
-```javascript
-// Good
-test('retries failed operation 3 times before giving up', async () => {
-  let attempts = 0;
-  const op = () => {
-    attempts++;
-    if (attempts < 3) throw new Error('fail');
-    return 'success';
-  };
-  const result = await retryOperation(op);
-  expect(result).toBe('success');
-  expect(attempts).toBe(3);
-});
-```
-
-Requirements:
-- One behavior per test (name has "and" → split it)
-- Name describes behavior, not "test1"
-- Test demonstrates the wished-for API
-
-### Verify RED — Watch It Fail
-
-**Mandatory.** Run the test. Confirm:
-1. It fails (not errors out from typo/missing import)
-2. Failure message is what you expected
-3. It fails because the feature is missing, not because the test is broken
-
-Test passes immediately → you're testing existing behavior; fix the test.
-Test errors out → fix the error, re-run until it fails correctly.
-
-### GREEN — Minimal Code
-
-Simplest code that makes the test pass. No premature options, no adjacent refactoring, no "while I'm here".
-
-### Verify GREEN — Watch It Pass
-
-Run new test + full suite. Confirm:
-- New test passes
-- Other tests still pass
-- Output is pristine (no warnings, no unhandled rejections)
-
-New test fails → fix the code, not the test.
-Other tests fail → fix them now.
-
-### REFACTOR — Clean Up (only after green)
-
-With the test still green: remove duplication, improve names, extract helpers. **No new behavior** — that requires a new failing test. Re-run full suite; stay green.
-
----
-
-## Good Tests
+## Good tests
 
 | Quality | Good | Bad |
 |---|---|---|
@@ -100,71 +60,16 @@ With the test still green: remove duplication, improve names, extract helpers. *
 | Intent | Shows desired API | Obscures what code should do |
 | Independent | Expected value is a known literal / worked example / spec value | **Tautological:** expected value recomputed the way the code computes it (`expect(total(items)).toBe(items.reduce(...))`, a snapshot derived by hand the same way, a constant asserted equal to itself) — passes by construction, stays GREEN under every mutant |
 
-**Vertical, not horizontal.** One test → one implementation → repeat. Writing all tests first and all code after tests the *shape* you imagined, not the behaviour; each cycle's test responds to what the last cycle taught you.
-
----
-
-## Bugfix Example
-
-**Bug:** Empty email is accepted by the form.
-
-**RED:**
-```javascript
-test('rejects empty email with "Email required"', async () => {
-  const result = await submitForm({ email: '' });
-  expect(result.error).toBe('Email required');
-});
-```
-
-**Verify RED** → `FAIL expected 'Email required', got undefined`
-
-**GREEN:**
-```javascript
-function submitForm(data) {
-  if (!data.email?.trim()) return { error: 'Email required' };
-  // ...
-}
-```
-
-**Verify GREEN** → `PASS 57/57`
-
----
-
-## When Stuck
+## When stuck
 
 | Problem | Solution |
 |---|---|
-| Don't know how to test | Write the wished-for API first, or the assertion first. Ask user. |
+| Don't know how to test | Write the wished-for API first, or the assertion first. Ask the user. |
 | Test is too complicated | Design is too complicated. Simplify the interface. |
 | Have to mock everything | Too coupled. Use dependency injection. |
 | Test setup is huge | Extract helpers. Still huge? Design is wrong. |
 
----
+## Bugs
 
-## Bug Discipline
-
-Bug found? Write a failing test that reproduces it **before** fixing. The test proves the fix works AND prevents regression. Never fix a bug without a test.
-
-See `systematic-debugging` for root-cause investigation that comes *before* the failing test.
-
----
-
-## Checklist
-
-- [ ] Every new function has a test
-- [ ] Each test failed before implementing
-- [ ] Each test failed for the expected reason
-- [ ] Minimal code to pass each test
-- [ ] All tests pass (full suite)
-- [ ] Output pristine (no warnings, no unhandled rejections)
-- [ ] Tests use real code (mocks only when unavoidable)
-- [ ] Edge cases and error paths covered
-
----
-
-## Final Rule
-
-```
-Production code → a test exists for it AND that test failed first
-Otherwise      → it is not TDD
-```
+A bug gets a test that reproduces it, seen failing, before the fix, at the seam where the bug happens.
+`systematic-debugging` finds the cause that comes before that test.
