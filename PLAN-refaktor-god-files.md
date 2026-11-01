@@ -58,6 +58,45 @@ Plik `docs/plans/refaktor-god-files/KARTA.md` w KonkretnyTMS. Właściciel zatwi
 - co wolno: tylko przeniesienia + 4 dozwolone zmiany z planu 2026-07-10 (verbatim). Wszystko inne = osobne issue `typ:bug`;
 - zgoda, że testy czytające źródło mogą mieć zmienioną **wyłącznie ścieżkę/nazwę symbolu**.
 
+## 1a. Standard docelowy — kod „jak od profesjonalisty”, raz i na stałe
+
+Wymóg właściciela (2026-11-01): po refaktorze moduł ma być w **formie docelowej**, a każda kolejna zmiana ma trzymać styl, który powstanie w trakcie refaktoru. Bez wracania do tematu.
+
+**Definicje.** LOC (SLOC) = linie z kodem, bez komentarzy i pustych (definicja `cloc` i SonarQube). Linie fizyczne = wszystkie linie.
+
+Stan wyjściowy (pomiar 2026-11-01): GutschriftDocumentController ma 3849 linii fizycznych, z czego 2245 to komentarze i puste linie (58%). Kod to ok. 1600 linii w 59 metodach, bez bezpośredniego SQL. Najdłuższe metody mają 151–261 linii (`performAccept`, `applyReread`, `rereadDocument`, `resolveCompareResponse`, `acceptDiscrepancy`).
+
+**Cztery fazy na plik.** Rozszerzenie §4.1. Dowód 1:1 obowiązuje we wszystkich fazach, bo porównuje zachowanie, a nie tekst kodu.
+
+1. **Projekt docelowy modułu.** Podział na role:
+   - kontroler: wejście HTTP → walidacja → wywołanie przypadku użycia → odpowiedź;
+   - serwisy per przypadek użycia;
+   - repozytoria (tylko SQL);
+   - obiekty wartości / DTO;
+   - renderer PDF i mapper odpowiedzi osobno.
+
+   Projekt zawiera tabelę „klasa → odpowiedzialność → metody ze starego pliku” oraz listę „co się NIE zmienia”. Przy pilocie zatwierdza go właściciel; dla kolejnych plików projekt musi być zgodny ze wzorcem z pilota, a sprawdza to recenzent.
+2. **Podział strukturalny verbatim.** Ciała metod przenoszone bez zmian. Kontrola AST z §3 + porównanie 1:1.
+3. **Doprowadzenie do standardu.** Wydzielanie metod, nazwy, typy, guard clauses, komentarze. Kontrola AST verbatim tu nie obowiązuje. Obowiązują porównanie 1:1, pokrycie i sondy mutacyjne oraz bramki jakości z listy niżej.
+4. **Zapisanie stylu.** Moduł trafia na listę modułów ze standardem; reguły i zapadki działają od tej chwili przy każdej zmianie (kolejka, sesje, CI).
+
+**Standard (wartości do potwierdzenia na pilocie), egzekwowany maszynowo w CI.** Czerwony test = brak deploya, więc tego nie da się obejść:
+
+- klasa ≤ 300 LOC i ≤ 800 linii fizycznych; metoda ≤ 40 LOC; złożoność cyklomatyczna metody ≤ 10; ≤ 5 parametrów; zagnieżdżenie ≤ 3;
+- warstwy: kontroler nie woła PDO ani repozytoriów zapisu bezpośrednio, repozytorium nie woła serwisów, serwis nie czyta `$_GET/$_POST` ani nie robi `echo`. Zapadka na `nikic/php-parser`, wzorzec: istniejące zapadki w `tests/Static/`;
+- PHPStan na maksymalnym poziomie dla katalogów modułu ze standardem (osobna sekcja `paths` lub drugi config); reszta repo zostaje na level 5;
+- `declare(strict_types=1)`, typy wszędzie, `final` domyślnie, zależności przez konstruktor, `readonly` tam, gdzie się da;
+- komentarze: docblock mówi **dlaczego**, nie **co** i nie **historię**. Historia incydentów idzie do `docs/claude-reference/incydenty/` z jednolinijkowym odsyłaczem w kodzie, a regresji pilnuje test, nie komentarz. **Decyzja właściciela** — patrz Otwarte pytania;
+- testy nowych klas sprawdzają zachowanie przez publiczne API, nie tekst źródła (słabość wskazana w przeglądzie jakości z 2026-11-01).
+
+**Utrzymanie stylu po refaktorze:**
+- `docs/architektura/modul-<nazwa>.md`: mapa klas modułu i odpowiedzialności, wzorzec dla nowych funkcji („nowy przypadek użycia = nowa klasa w `.../UseCase/`, nie metoda w kontrolerze”);
+- sekcja „Moduły ze standardem” w `.claude/rules/php-rules.md` (reguła ścieżkowa, dociera do podagentów jako `nested_memory` — zmierzone 2026-10-26) z odsyłaczem do dokumentu modułu;
+- `code-reviewer` sprawdza diff na tych modułach względem dokumentu modułu;
+- zapadki z listy wyżej obejmują katalogi modułu na zawsze. Dodanie modułu do listy jest jednokierunkowe.
+
+**Odbiór jakości.** Poza zapadkami: ślepa ocena przez 2 świeżych recenzentów według rubryki z przeglądu jakości z 2026-11-01 (6 wymiarów po 1–5). Próg: ≥ 4 w każdym wymiarze i ≥ 27/30. Poniżej progu wraca faza 3.
+
 ## 2. Stanowisko różnicowe (KonkretnyTMS, `tests/rownowaznosc/`)
 
 Budowane raz, przez sesję interaktywną (nie autonomicznie), na bazie `compare-api.php` (przenieść `sendRequest`/`compareJson`, resztę napisać).
@@ -157,6 +196,10 @@ Raport domknięcia w parasolu i na dashboardzie kolejki. Właściciel podejmuje 
 6. **Bieg autonomiczny** na kolejnych plikach z karty.
 
 ## Otwarte pytania do pilota
+
+- **Komentarze (decyzja właściciela):** czy historia incydentów może wyjść z kodu do `docs/claude-reference/incydenty/` z odsyłaczem w kodzie. Dziś stanowi większość linii (Gutschrift 58% to komentarze i puste linie).
+- Wartości progów standardu (§1a) — sprawdzić na Gutschrift, czy nie wymuszają sztucznego cięcia.
+- Pilot obejmuje teraz cztery fazy. Prawdopodobnie nie zmieści się w jednej sesji: wtorek = stanowisko + projekt docelowy + faza 2, a faza 3–4 na następnej sesji.
 
 - Czas trwania przebiegu na pełnej kopii bazy (reset per bieg, nie per scenariusz — czy wystarczy).
 - Czy maska radzi sobie z `NOW()` w SQL, czy potrzebny libfaketime + `SET timestamp`.
