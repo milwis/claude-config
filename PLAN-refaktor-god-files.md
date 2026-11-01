@@ -37,7 +37,7 @@ Spisany 2026-11-01. Właściciel chce rozbić największe pliki KonkretnyTMS tak
 Nowy skill toolkitu, wywoływany tylko ręcznie (`disable-model-invocation: true`):
 
 ```
-/refaktor php/controllers/RepairOrderController.php
+/refaktor php/controllers/GutschriftDocumentController.php
 ```
 
 Robi tylko przygotowanie formalne, sam nie refaktoruje:
@@ -52,9 +52,9 @@ Kolejne pliki: to samo wywołanie z inną ścieżką. Kilka plików naraz: kilka
 
 Plik `docs/plans/refaktor-god-files/KARTA.md` w KonkretnyTMS. Właściciel zatwierdza raz, potem kolejka działa sama:
 
-- lista plików w zakresie i ich kolejność (propozycja: RepairOrderController → PurchaseService → InvoiceService → GutschriftDocumentController → CorrectionController → drivers.js → invoices-editor.js; KSeF poza);
+- lista plików w zakresie i ich kolejność (propozycja: GutschriftDocumentController (pilot) → PurchaseService → InvoiceService → CorrectionController → drivers.js → invoices-editor.js; RepairOrderController dopiero, gdy moduł warsztatu będzie miał dane produkcyjne; KSeF poza);
 - próg pokrycia z przebiegu różnicowego (propozycja: 95% linii pliku; reszta z uzasadnieniem w raporcie, np. martwy kod → issue);
-- docelowy limit rozmiaru po refaktorze (propozycja: ≤ 800 linii na plik wynikowy) — staje się zapadką;
+- docelowy limit rozmiaru po refaktorze (propozycja: cel ≤ 500 linii na klasę, twardy limit 800 jako zapadka; metoda ≤ 60 linii) — staje się zapadką;
 - co wolno: tylko przeniesienia + 4 dozwolone zmiany z planu 2026-07-10 (verbatim). Wszystko inne = osobne issue `typ:bug`;
 - zgoda, że testy czytające źródło mogą mieć zmienioną **wyłącznie ścieżkę/nazwę symbolu**.
 
@@ -152,7 +152,7 @@ Raport domknięcia w parasolu i na dashboardzie kolejki. Właściciel podejmuje 
 1. **Setup (zgoda właściciela na brew):** pcov, Mailpit; libfaketime tylko jeśli pilot pokaże potrzebę.
 2. **Stanowisko** `tests/rownowaznosc/` (§2) + testy samego stanowiska: mutant w kopii starego kodu musi dać `RÓŻNICA`; stary kontra stary musi dać 0 po masce.
 3. **`sprawdz-przeniesienia.php`** (§3) + test na znanym przypadku #1058 (zawężony typ → czerwono).
-4. **Pilot interaktywny na RepairOrderController** — przygotowanie + jedna porcja w sesji z właścicielem (pierwszy bieg obserwowany). Kalibracja progów i maski.
+4. **Pilot interaktywny na GutschriftDocumentController** (zmiana 2026-11-01: moduł warsztatu nie ma jeszcze danych produkcyjnych, a porównanie 1:1 potrzebuje realnych przypadków; Gutschrift: 134 dokumenty, 81 z ostatnich 60 dni, 0 odwołań do KSeF, 11 tras w `php/routes/orders.php`) — przygotowanie + jedna porcja w sesji z właścicielem (pierwszy bieg obserwowany). Kalibracja progów i maski.
 5. **Toolkit v1.8.0** (claude-config): `roadmapa/references/cykl-refaktoru.md`, rozszerzenie bramki i hooka, etykieta, zapadki, sync do KonkretnyTMS. Push i PR tylko na polecenie właściciela.
 6. **Bieg autonomiczny** na kolejnych plikach z karty.
 
