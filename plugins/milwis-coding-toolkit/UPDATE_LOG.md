@@ -7,6 +7,18 @@
 > 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-11-01 — po audycie miesięcznym (v1.7.8)
+
+Źródło: mail rutyny z 2026-11-01 (audyt v1.7.7: 7/7 PASS, bez napraw).
+
+- **`roadmapa`: opis skrócony z 299 do 229 znaków** (konwencja ≤ 250 dla skilli bez `disable-model-invocation`). Opis nadal wymienia trzy tryby startu i `kolejka.sh start`; szczegóły flag zostają w treści skilla.
+- **PR #12 (przebieg 2026-10-01) zamknięty bez scalenia.** Jego wpis do UPDATE_LOG wymieniał agentów usuniętych w v1.6/v1.7, a reguła w `lang-guidelines` dotyczyła „generowanych agentów językowych”, których skill już nie tworzy (od v1.6.0 daje reguły ścieżkowe i sam bada błędy danego języka, w tym nieistniejące pakiety).
+- **Propozycje A1–A5 z audytu: bez zmian.**
+  - A4 `agent_type` przy `--agent`: `hook-pre-tool.sh` rozpoznaje lidera po braku `agent_id`, zanim sprawdzi `agent_type` (`wolno_pisac`), a `lider.sh` nie używa `--agent`.
+  - A1/A3 frontmatter `skills:`: od v1.7.0 implementuje lider w głównej sesji, gdzie skille działają; podgląd pełnej treści skilla w każdym podagencie kosztuje kontekst przy każdym uruchomieniu. Ewentualny pilotaż `verification-before-completion` w `test-automator` dopiero z pomiarem kosztu.
+  - `--append-subagent-system-prompt` (dostępne od 2.1.205, lokalnie 2.1.316): bez konkretnej reguły powielanej w briefach nie ma czego tam przenieść.
+  - A5 (skille po kompakcji): niezweryfikowane, nic na tym nie opieramy.
+
 ## Run: 2026-10-30 — prompty skilli według „Prompt library” i „Best practices” Claude Code (v1.7.7)
 
 Pytanie właściciela: czy prompty skilli i agentów da się ulepszyć na podstawie https://code.claude.com/docs/en/prompt-library i strony best-practices, do której odsyła. Ścieżka kolejki (`task-lifecycle`, `cykl-lidera.md`, `briefy.md`, agenci piszący) już spełnia te zasady: cel i „done when”, pomiar, świeży recenzent, twarde zakazy w hooku. Zmiany dotyczą starszych skilli. Decyzje właściciela: punkty 2–5 „tak”, punkt 1 (recenzent bez stylu) wstrzymany pytaniem, czy nie ucierpi utrzymywalność kodu.

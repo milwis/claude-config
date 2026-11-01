@@ -1,6 +1,6 @@
 ---
 name: roadmapa
-description: "Use when GitHub issues must be resolved one after another without the owner watching: an explicit list (`--issues 812,815`), the portions of an umbrella (`--parasol 1875`, `--bez-triage` when it came from a plan) or the backlog by priority P0→P3. The owner starts it with `scripts/kolejka.sh start`."
+description: "Use when GitHub issues must be resolved one after another without the owner watching: a list (`--issues`), umbrella portions (`--parasol`, `--bez-triage` from a plan) or the backlog P0→P3. Started with `scripts/kolejka.sh start`."
 ---
 
 # Roadmapa — the issue queue
