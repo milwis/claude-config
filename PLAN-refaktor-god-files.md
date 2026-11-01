@@ -86,7 +86,7 @@ Stan wyjściowy (pomiar 2026-11-01): GutschriftDocumentController ma 3849 linii 
 - warstwy: kontroler nie woła PDO ani repozytoriów zapisu bezpośrednio, repozytorium nie woła serwisów, serwis nie czyta `$_GET/$_POST` ani nie robi `echo`. Zapadka na `nikic/php-parser`, wzorzec: istniejące zapadki w `tests/Static/`;
 - PHPStan na maksymalnym poziomie dla katalogów modułu ze standardem (osobna sekcja `paths` lub drugi config); reszta repo zostaje na level 5;
 - `declare(strict_types=1)`, typy wszędzie, `final` domyślnie, zależności przez konstruktor, `readonly` tam, gdzie się da;
-- komentarze: docblock mówi **dlaczego**, nie **co** i nie **historię**. Historia incydentów idzie do `docs/claude-reference/incydenty/` z jednolinijkowym odsyłaczem w kodzie, a regresji pilnuje test, nie komentarz. **Decyzja właściciela** — patrz Otwarte pytania;
+- komentarze: docblock mówi **dlaczego**, nie **co** i nie **historię**. Historia incydentów idzie do `docs/claude-reference/incydenty/` z jednolinijkowym odsyłaczem w kodzie (np. `// Dlaczego: incydenty/gutschrift.md#reread-podwojny`), a regresji pilnuje test, nie komentarz. **Zatwierdzone przez właściciela 2026-11-01.** Przed usunięciem komentarza trzeba sprawdzić zapadki czytające źródło: jeśli któraś szuka tekstu komentarza, zmienia się ją na sprawdzenie zachowania albo wskazuje nowe miejsce. Treść incydentu nie może zginąć — recenzent porównuje usunięte komentarze z dopisanym dokumentem;
 - testy nowych klas sprawdzają zachowanie przez publiczne API, nie tekst źródła (słabość wskazana w przeglądzie jakości z 2026-11-01).
 
 **Utrzymanie stylu po refaktorze:**
@@ -197,7 +197,6 @@ Raport domknięcia w parasolu i na dashboardzie kolejki. Właściciel podejmuje 
 
 ## Otwarte pytania do pilota
 
-- **Komentarze (decyzja właściciela):** czy historia incydentów może wyjść z kodu do `docs/claude-reference/incydenty/` z odsyłaczem w kodzie. Dziś stanowi większość linii (Gutschrift 58% to komentarze i puste linie).
 - Wartości progów standardu (§1a) — sprawdzić na Gutschrift, czy nie wymuszają sztucznego cięcia.
 - Pilot obejmuje teraz cztery fazy. Prawdopodobnie nie zmieści się w jednej sesji: wtorek = stanowisko + projekt docelowy + faza 2, a faza 3–4 na następnej sesji.
 
