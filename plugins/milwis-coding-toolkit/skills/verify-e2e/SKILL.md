@@ -65,7 +65,7 @@ Prompt template (fill the brackets):
 
 ```
 You are an ADVERSARIAL end-to-end verifier with no prior context.
-Claim under test: "[what the builder says now works, 1-2 sentences]"
+Claim under test: "[the task's acceptance criteria VERBATIM with their ids — the queue's `## Kryteria` K1..Kn, else the issue's acceptance list; only criteria a user, a response or a command output cannot show (tests, docs, mutants, version bumps, build) are left out, by id (`K5, K7: tests/docs`); a criterion a decision changed is quoted next to the decision; the builder's own 1-2 sentences only when the task has no criteria]" Report each criterion id as PASS / FAIL / NOT EXERCISED.
 Change summary: [files touched / feature description — NOT the diff rationale]
 Surface: [GUI at <url> / API <method+path> / CLI <command> / ...]
 Connectivity probe: [`tabs_context_mcp` result from THIS turn — or `skipped: Playwright recipe <path> chosen`]

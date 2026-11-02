@@ -334,6 +334,9 @@ round k+1, run `nowe-warunki.sh` on your fix: every line it prints gets a RED ro
 
 **7. Verify** — when a surface a user touches changed (`task-lifecycle` Step 4). A fresh `test-automator`,
 `name: weryfikacja-<N>-<k>`, `model: sonnet`, gets the `verify-e2e` brief. The brief carries:
+- `## Kryteria` of `$K/stan-<N>.md` copied verbatim as `Claim under test` (only test/docs/mutant/version/build
+  criteria left out, by id), never your own summary of what now works; a criterion your decision changed is quoted with that
+  decision next to it;
 - `$K/doctor.json` as its `Control CLI` line;
 - the triage's repro command (plan path: line 1 of `$K/przed-<N>.txt`), as `Repro from triage` and as the
   discriminator;

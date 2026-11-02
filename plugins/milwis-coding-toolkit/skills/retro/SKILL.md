@@ -21,6 +21,7 @@ Read, in this order, and keep every number with the command that produced it:
 2. **Subagent transcripts** for that run: `~/.claude/projects/<project-slug>/*.jsonl`, filtered by the run's date range. Per subagent, extract with a script (never by reading the JSONL in context): model, turn count, max context (`.message.usage` cache-read + input), tool-call histogram (`Read`/`Grep`/`Bash`/`Agent`), re-reads of the same file, first and last user-facing message. Write the table to `.claude/tmp/retro-<date>.tsv` and read only the table.
 3. **The diff of the run**: `git log --oneline <base>..<tip>` per branch, `git diff --stat`, review iterations per issue (count reviewer spawns), verify verdicts.
 4. **The toolkit as it was**: the plugin version in `UPDATE_LOG.md` that the run used — a rule that already exists in a newer version is not a proposal.
+5. **Escapes**: bug issues opened after the run whose text or `git blame` of the fixed lines points at one of the run's merges (spin-offs "found by the queue" are pre-existing, not escapes). Each one names the layer that should have caught it: triage | review | verification | gate. `POMIAR` (2026-11-02, 197 issues after 2026-10-21 vs 169 queue merges): 0 unaccepted escapes, so no script yet.
 
 ---
 
