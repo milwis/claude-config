@@ -195,11 +195,33 @@ Raport domknięcia w parasolu i na dashboardzie kolejki. Właściciel podejmuje 
 5. **Toolkit v1.8.0** (claude-config): `roadmapa/references/cykl-refaktoru.md`, rozszerzenie bramki i hooka, etykieta, zapadki, sync do KonkretnyTMS. Push i PR tylko na polecenie właściciela.
 6. **Bieg autonomiczny** na kolejnych plikach z karty.
 
-## Otwarte pytania do pilota
+## Wynik pilota (2026-11-03, issue #20)
 
-- Wartości progów standardu (§1a) — sprawdzić na Gutschrift, czy nie wymuszają sztucznego cięcia.
-- Pilot obejmuje teraz cztery fazy. Prawdopodobnie nie zmieści się w jednej sesji: wtorek = stanowisko + projekt docelowy + faza 2, a faza 3–4 na następnej sesji.
+Gałąź `refaktor/gutschrift-pilot` w KonkretnyTMS (worktree `.claude/worktrees/refaktor-gutschrift`, bez pusha), stary kod `28e909055`. Ledger: `docs/plans/2026-11-03-pilot-rownowaznosc-gutschrift.md` (fazy A–C).
 
-- Czas trwania przebiegu na pełnej kopii bazy (reset per bieg, nie per scenariusz — czy wystarczy).
-- Czy maska radzi sobie z `NOW()` w SQL, czy potrzebny libfaketime + `SET timestamp`.
-- Czy `auto_prepend_file` + pcov działa z `php -S` dla wszystkich wejść (`api.php`, `index.php`, crony z CLI).
+**Pomiary:**
+- 167 scenariuszy w 8 trasach, 7 aktorów; przebieg 142–144 s, całość ~166 s (odtworzenie dwóch baz z wzorca 370 MB ~16 s); stary↔stary 167/167 IDENTYCZNY.
+- maska: 7 wpisów; cały szum pochodzi spoza kontrolera (request_id, rate_limits, SchemaGuardCache, sekundy cooldownu);
+- pokrycie: 86,68% surowo, 92,86% efektywnie (69 linii martwych po `exit` wykrywa AST), 0 niepokrytych zakresów bez kategorii;
+- samotest: 4/4 mutanty RÓŻNICA, każdy we własnym kanale (odpowiedź, sam SQL, sam log, cooldown pod maską);
+- kontrola AST: `tests/rownowaznosc/sprawdz-przeniesienia.php`, test 14 przypadków (#1058, #1045, `self::class`, ciało, duplikat, brak, sygnatura fasady, `get_called_class`, nowa metoda, stała, kolaborator, widoczność);
+- wydzielenie 1: `RereadRules` (6 metod statycznych, 89 SLOC); AST ZIELONO, stary↔nowy 167/167 IDENTYCZNY.
+
+**Decyzje (odpowiedzi na pytania pilota):**
+- próg pokrycia = **efektywne ≥ 90% + 100% niepokrytych zakresów z kategorią** (surowe bez progu, bo martwe po `exit` zaniżają je o ~6 pp). Kategorie: obrona-trasy-405, wyjatek-infrastruktury, niezmiennik-bazy, wyscig, niezmiennik-kodu, json-niemozliwy, tylko-phpunit, odlozone, martwy-kod;
+- limit pliku 300 SLOC / 800 fiz. **bez zmian**: pilot go nie podważył;
+- `NOW()` / libfaketime: **niepotrzebne**. Wystarczy normalizacja `@TERAZ`/`@PRZEBIEG`, jedna podmiana regexem i bramka sekundy po zapisach;
+- `auto_prepend_file` + pcov: działa dla wszystkich wejść HTTP przez `php -S` (jeden router). CLI do sprawdzenia na pierwszym pliku z wejściem cron/CLI (`php -d auto_prepend_file=`);
+- reset bazy per bieg (nie per scenariusz) wystarcza. Scenariusze są uporządkowane, a stan przechodzi między nimi celowo (serie zbioru, cooldown).
+
+**Projekt docelowy zatwierdzony przez właściciela (2026-11-03):** faza 2 verbatim przenosi tylko metody zamknięte na wywołania i bez `$this->error()`/metod BaseController (RereadRules, AcceptancePolicy, AcceptanceSnapshot, DocumentPresenter). `perform*`/`resolve*` przechodzą do UseCase/Query dopiero w fazie 3, z wyjątkiem `GutschriftActionRejected` zamiast `exit`. Wniosek dla kolejnych plików: projekt fazy 1 zaczyna się od **grafu wywołań** (kto woła `error()`/BaseController = faza 3).
+
+**Do toolkitu v1.8.0 (`cykl-refaktoru.md`) — miny pilota:**
+1. Porcja przepina testy spoza stanowiska: `ReflectionMethod` na starej klasie, zapadki z markerem sygnatury w tekście źródła, allowlisty `plik::metoda`. Krok porcji: grep nazw przenoszonych metod w `tests/`.
+2. Nowa klasa w `php/services/` wpada pod zapadki usług (bezpośredni czas, pisarz znacznika, inwentarze 09a/09b), którymi kontroler nie był objęty. To przewidywalne, nie regresja.
+3. Zapadki skanują `git ls-files`, więc nowy plik trzeba dodać do indeksu przed testami.
+4. `--przed` kontroli AST = commit tuż przed wydzieleniem (gałąź pilota zmienia też `scripts/`).
+5. Stany testowe muszą przejść CHECK-i bazy (`chk_*_type`, `json_valid`). Gałąź za CHECK-iem = niezmiennik-bazy.
+6. Przebieg ujawnia utajone błędy (tu: `UserRepository::findById()` bez `full_name`, przez co nazwisko akceptującego nigdy się nie pokazuje). Refaktor zachowuje je 1:1, a poprawka idzie osobnym issue.
+
+**Zostało:** toolkit v1.8.0 (§5 pkt 5), fazy 2–4 dla reszty Gutschrift (następne sesje), push/deploy gałęzi pilota — decyzja właściciela.
