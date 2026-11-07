@@ -24,11 +24,15 @@
 # Written on every state change and at least every 5 min (KOLEJKA_STATUS_CO_S), pauses included; a gh error
 # (no network) never stops the watcher and is logged only when ok/error flips. With DEPLOY_WORKFLOW set, the json
 # also carries `deploy`: the commit time of the last successful deploy run, so the dashboard can count issues fixed since.
+# GitHub sync (WYPYCHAJ in config.env, empty = off): before every new issue and before stopping, synchronizuj.sh merges
+# hotfixes and work from the cloud or the laptop into $MAIN and pushes it. No network never stops the queue (retried
+# every KOLEJKA_WYPYCHAJ_CO_S, push only); a merge conflict does, since the next issue would start without that work.
 #   watcher.sh <config.env> [--bez-cyklu]   --bez-cyklu: attach to a running lead without sending a new cycle
 # Flag names must differ in more than case — macOS file systems are case-insensitive (`STOP` = `stop`).
 set -uo pipefail
 # shellcheck disable=SC1090
 . "$1"
+KONFIG="$1"
 cd "$K" || exit 1
 
 log() { echo "$(date '+%F %T') $*" >> "$K/watcher.log"; }
@@ -66,6 +70,28 @@ STATUS_CO_S="${KOLEJKA_STATUS_CO_S:-300}"
 WERSJA=$(jq -r '.version // empty' "$SKRYPTY/../../../.claude-plugin/plugin.json" 2>/dev/null)
 ST_STAN=pracuje; ST_POWOD=""; ST_PAUZA_DO=""; ST_ISSUE=""; ST_ZAPIS=0; ST_WYNIK=""; ST_OD=$(date +%s)
 nr_w_toku() { tr -dc 0-9 2>/dev/null < w-toku; }
+WYPYCHAJ="${WYPYCHAJ:-}"; WYP_CO_S="${KOLEJKA_WYPYCHAJ_CO_S:-300}"; WYP_WYNIK=""; WYP_PROBA=0; WYP_OSTATNI=""
+# synchronizuj [--tylko-push]: non-zero only for a conflict or a wrong configuration, which the caller stops on.
+synchronizuj() {
+  [ -n "$WYPYCHAJ" ] || return 0
+  local wy kod
+  wy=$("$SKRYPTY/synchronizuj.sh" "$KONFIG" "$@" 2>&1); kod=$?
+  wy=$(tail -1 <<<"$wy")
+  WYP_PROBA=$(date +%s)
+  [ "$wy" = "$WYP_OSTATNI" ] || log "synchronizacja: $wy"
+  WYP_OSTATNI="$wy"
+  if [ "$kod" = 0 ]; then WYP_WYNIK=ok; return 0; fi
+  [ "$WYP_WYNIK" = blad ] || powiadom "Kolejka: GitHub nieaktualny — $wy"
+  WYP_WYNIK=blad
+  case "$kod" in 2|3) return "$kod" ;; esac
+  return 0
+}
+wypchnij_puls() {
+  [ -n "$WYPYCHAJ" ] && [ "$WYP_WYNIK" = blad ] || return 0
+  [ $(( $(date +%s) - WYP_PROBA )) -ge "$WYP_CO_S" ] || return 0
+  synchronizuj --tylko-push
+  return 0
+}
 DEPLOY_WORKFLOW="${DEPLOY_WORKFLOW:-}"; ST_DEPLOY=""
 # Last deploy = the head commit of the newest successful DEPLOY_WORKFLOW run (push to main -> Tests -> Deploy): an
 # issue closed after that commit's time is fixed locally, not on the server yet. The commit time, not the run's
@@ -94,6 +120,7 @@ status_github() {
     zatrzymana) zdanie="Kolejka zatrzymana: $ST_POWOD" ;;
     *) zdanie="Kolejka wstrzymana do $do_kiedy — $ST_POWOD" ;;
   esac
+  [ "$WYP_WYNIK" != blad ] || zdanie="$zdanie GitHub nieaktualny: $WYP_OSTATNI"
   {
     echo "$zdanie"; echo
     echo "Issue techniczne dashboardu kolejki roadmapa: treść nadpisuje watcher (\`scripts/watcher.sh\`) co ≤ 5 min. Nie edytuj, nie otwieraj, nie etykietuj. Zapis: $(date -r "$ST_ZAPIS" '+%d.%m %H:%M:%S')."
@@ -131,12 +158,14 @@ czekaj_do() {
     [ -f zatrzymaj ] || [ -f "$HOME/.claude/relay-state/STOP-roadmapa" ] && zakoncz "Kolejka zatrzymana przez właściciela w trakcie pauzy (kolejka.sh stop)."
     sleep 60
     status_puls
+    wypchnij_puls
   done
   rm -f pauza
 }
 # The only place a new issue starts: every path to nowy_cykl goes through here.
 nastepny_cykl() {
   local powod reset start
+  synchronizuj || zakoncz "Kolejka zatrzymana przed nowym issue: $WYP_OSTATNI"
   while powod=$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG" "$OKNO_H"); do
     reset=$(odczyt resets_at)
     start=$(( ${reset:-0} - OKNO_H * 3600 ))
@@ -146,6 +175,7 @@ nastepny_cykl() {
       status_github pauza-okno "$powod" "$start"
       czekaj_do "$start" "okno przed resetem limitu tygodniowego"
       log "pauza: koniec, okno przed resetem otwarte"
+      synchronizuj || zakoncz "Kolejka zatrzymana przed nowym issue: $WYP_OSTATNI"
       continue
     fi
     zakoncz "Kolejka zatrzymana: $powod. Bieżące issue dokończone. Start mimo limitu: kolejka.sh start --limit 100"
@@ -189,6 +219,7 @@ KONT_MIN="${KOLEJKA_KONT_MIN:-2}"
 while sleep 20; do
   tmux has-session -t "$SESJA" 2>/dev/null || { log "sesja tmux zniknęła"; status_github zatrzymana "sesja tmux zniknęła"; exit 1; }
   status_puls
+  wypchnij_puls
 
   if martwy && [ ! -f tura-koniec ]; then
     # claude exited on its own (crash, owner's /exit): no Stop hook ran, so treat it as a turn without a flag.
@@ -205,9 +236,13 @@ while sleep 20; do
     continue
   fi
 
-  if [ -f stop ]; then zakoncz "Lider zatrzymał kolejkę: $(cat stop)"; fi
+  # The push alone: a stop condition may mean a dirty main tree, and nothing should merge into it.
+  if [ -f stop ]; then synchronizuj --tylko-push; zakoncz "Lider zatrzymał kolejkę: $(cat stop)"; fi
   if [ -f zatrzymaj ] || [ -f "$HOME/.claude/relay-state/STOP-roadmapa" ]; then
-    [ -f rotuj ] || [ -f pusto ] && zakoncz "Kolejka zatrzymana przez właściciela (kolejka.sh stop)."
+    if [ -f rotuj ] || [ -f pusto ]; then
+      synchronizuj
+      zakoncz "Kolejka zatrzymana przez właściciela (kolejka.sh stop).${WYPYCHAJ:+ GitHub: $WYP_OSTATNI}"
+    fi
   fi
 
   if [ "$(cat blad-api 2>/dev/null)" = rate_limit ]; then

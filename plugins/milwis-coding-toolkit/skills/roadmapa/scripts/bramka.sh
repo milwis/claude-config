@@ -170,6 +170,10 @@ SEKCJA=$(awk '/^## Bramka/{f=1;next} /^## /{f=0} f' "$REPO/docs/VERIFICATION_ENV
 WRAZLIWE=$(trafione "$(sed -n 's/^wrazliwe: *//p' <<<"$SEKCJA")")
 POWIERZCHNIA=$(trafione "$(sed -n 's/^powierzchnia: *//p' <<<"$SEKCJA")")
 DOMK=$(sed -n 's/^domkniecie: *//p' <<<"$SEKCJA")
+# Paths only the owner changes: with a work branch as the repo's default, GitHub reads `workflow_run` workflows from it,
+# so such a file acts on production as soon as the watcher pushes it, before any release. Silent when none is touched.
+TYLKO_WLASCICIEL=$(trafione "$(sed -n 's/^tylko-wlasciciel: *//p' <<<"$SEKCJA")")
+[ -z "$TYLKO_WLASCICIEL" ] || brak "pliki tylko dla właściciela:$TYLKO_WLASCICIEL — kolejka ich nie scala, odłóż issue"
 LOGD="$K/bramka-$N-domkniecie.log"; : > "$LOGD"
 
 R="$K/raport-$N.md"

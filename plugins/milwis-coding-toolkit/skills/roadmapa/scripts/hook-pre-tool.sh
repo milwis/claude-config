@@ -2,7 +2,8 @@
 # PreToolUse hook of the queue, registered only through the --settings file kolejka.sh generates, so it runs in the
 # lead and in every subagent of a queue session and nowhere else. Exit 2 blocks the call; stderr is the reason.
 # - `git merge`, `git pull` and `git push` as a git subcommand, also through a path to the binary (/usr/bin/git): the
-#   merge goes only through scal.sh (bramka.sh first), and the queue never pushes.
+#   merge goes only through scal.sh (bramka.sh first), and no queue session pushes (with KOLEJKA_WYPYCHAJ the watcher
+#   does, between issues, through synchronizuj.sh).
 # - Verdict files ($K/recenzja-*, $K/weryfikacja-*): the gate reads them as evidence from a fresh context, so only the
 #   agent of that role writes them. The lead (no agent_id) is blocked on Write/Edit and on a Bash command that writes,
 #   moves or removes one. A subagent whose agent_type is another role is blocked too. A subagent without agent_type
@@ -36,7 +37,7 @@ Bash)
   # subcommand.
   OPCJE='([[:space:]]+(-[Cc][[:space:]]+("[^"]*"|'"'"'[^'"'"']*'"'"'|[^[:space:]]+)|--[a-z-]+(=[^[:space:]]+)?))*'
   if grep -qE "(^|[^[:alnum:]_.-])([^[:space:]\"';|&()]*/)?git$OPCJE[[:space:]]+(merge|pull|push)([[:space:]]|\$)" <<<"$CMD"; then
-    echo "Kolejka: surowy git merge/pull/push jest zablokowany. Scalanie tylko przez \"\$SKRYPTY/scal.sh\" \"\$K/config.env\" <N> (najpierw bramka.sh); push robi właściciel." >&2
+    echo "Kolejka: surowy git merge/pull/push jest zablokowany. Scalanie tylko przez \"\$SKRYPTY/scal.sh\" \"\$K/config.env\" <N> (najpierw bramka.sh); push robi watcher przez synchronizuj.sh (KOLEJKA_WYPYCHAJ) albo właściciel." >&2
     exit 2
   fi
   # A Bash write to a verdict file: a redirect or tee into it, or a command that copies, moves, edits in place,

@@ -25,7 +25,8 @@ can justify, write the uncertainty into the ledger row, and carry on.
 
 - **Every Bash call starts with `. .claude/tmp/kolejka/config.env &&`.** Your working directory is the main tree.
   Use the variables:
-  - `$REPO` main tree; `$K` state directory; `$SKRYPTY`; `$MAIN`; `$LEDGER` (relative to `$REPO`);
+  - `$REPO` main tree; `$K` state directory; `$SKRYPTY`; `$MAIN`; `$WYPYCHAJ` (non-empty = the watcher pushes `$MAIN`
+    between issues; you still never push); `$LEDGER` (relative to `$REPO`);
   - `$WT` the queue worktree;
   - `$ETYKIETA_ZROBIONE`, `$ETYKIETA_RECZNA`, `$MODEL_TRIAGE`;
   - `$KOLEJKA_LISTA` (empty = backlog source), `$KOLEJKA_PARASOL` (the umbrella of `kolejka.sh start --parasol`,
@@ -398,9 +399,9 @@ printf '%s\n' "<comment>" > "$K/issue-$N-zamkniecie.md" \
   && gh issue close "$N" --reason completed \
   && gh issue edit "$N" --add-label "$ETYKIETA_ZROBIONE"
 ```
-- **The comment says:** merged locally into `main` at `<SHA>`, **not pushed and not deployed**, the branch tip,
-  the verification evidence and the review rounds. An issue closed without "not pushed and not deployed" reads as
-  "in production".
+- **The comment says:** merged locally into `$MAIN` at `<SHA>`, **not deployed**, and **not pushed** (with `$WYPYCHAJ`
+  set: "the watcher pushes `$MAIN` to GitHub after this issue"), then the branch tip, the verification evidence and the
+  review rounds. An issue closed without "not deployed" reads as "in production".
 - **A verification that ended BLOCKED** goes to the owner as a manual check:
 ```bash
 . .claude/tmp/kolejka/config.env && L=$(grep -m1 -E '^(#+ +)?[*]*Weryfikacja:[*]* *BLOCKED' "$K/raport-$N.md"); if [ -n "$L" ]; then gh label create "$ETYKIETA_RECZNA" --color FBCA04 --description "Scalone przez kolejkę, weryfikacja powierzchni BLOCKED — sprawdź ręcznie" 2>/dev/null; printf '%s\n' "Do ręcznego sprawdzenia: ${L#Weryfikacja: BLOCKED — }" > "$K/issue-$N-reczna.md" && gh issue comment "$N" --body-file "$K/issue-$N-reczna.md" && gh issue edit "$N" --add-label "$ETYKIETA_RECZNA"; fi

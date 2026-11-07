@@ -45,13 +45,15 @@ kolejka.sh watcher [repo] [--limit N] [--okno H]   # replace the watcher of a ru
 ```
 `kolejka.sh` = `scripts/kolejka.sh` of this skill; settings via environment (header of the script).
 
-**Before start:** `tmux`, `jq`, `gh` (logged in); the main tree on `main` with no uncommitted tracked changes
+**Before start:** `tmux`, `jq`, `gh` (logged in); the main tree on `$MAIN` (`KOLEJKA_MAIN`, default `main`) with no uncommitted tracked changes
 (the lead merges there); **no other lead working in the repo** — two leads in one tree collide on the index
 lock and one commit sweeps up the other's uncommitted edit. The machine stays awake (`caffeinate -ims` is built in; the display still sleeps).
 
-**Afterwards:** `kolejka.sh status`, full suite + the project's CI-parity gate on `main`, push when satisfied.
-The push rule treats unpushed `[roadmapa]` merges (`git log origin/main..main --merges --grep '\[roadmapa\]'`)
-as "ask before pushing" — the marker is what makes the queue's work distinguishable from the owner's.
+**Afterwards:** `kolejka.sh status`, full suite + the project's CI-parity gate on `$MAIN`, push when satisfied.
+The push rule treats `[roadmapa]` merges that have not reached the deploying branch
+(`git log origin/main..$MAIN --merges --grep '\[roadmapa\]'`) as "ask before pushing" — the marker is what makes the
+queue's work distinguishable from the owner's. With `KOLEJKA_WYPYCHAJ=1` the push of `$MAIN` itself is automatic
+(invariant "GitHub sync"), and that question moves to the release, the push to the deploying branch.
 Issues the queue could not finish carry `status:odlozone` and the question in a comment. Merged issues whose
 surface verification ended BLOCKED carry `weryfikacja:reczna` (`KOLEJKA_ETYKIETA_RECZNA`) and a comment saying what
 to click; `kolejka.sh status` lists them — remove the label after checking.
@@ -62,11 +64,12 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
 
 - **Authorisation.** The start prompt (written by `kolejka.sh start`, passed by `lider.sh` as the first message of every lead session,
   quoted in ledger row 0) is the owner's instruction to merge locally and close issues. It never covers
-  `git push`, deploy, `npm run build`, production, KSeF.
+  `git push`, deploy, `npm run build`, production, KSeF. The watcher's push under `KOLEJKA_WYPYCHAJ` is the owner's
+  own setting at start, not something the lead may do.
 - **Only an interactive session merges.** The lead runs as a normal `claude` in tmux, never `claude --bg`:
   `POMIAR` (waves E and G, 2026-09-08) — `git merge` from a background session bounces off the auto-mode
   classifier; the same merge in an interactive session passed (batch 2.3, 2026-09-15; scratch run 2026-09-24).
-- **One writer.** Only the lead merges into `main`, writes to the tracker and commits the ledger. Its subagents
+- **One writer.** Only the lead merges into `$MAIN`, writes to the tracker and commits the ledger. Its subagents
   (triage, reviewer, verifier, an occasional builder) never merge, push, close or create issues.
 - **The merge is a script.** `scal.sh` runs `bramka.sh` first: commits on the branch, a clean worktree, the lead's
   `done.`, the newest review on exactly the branch tip with 0 CRITICAL and 0 REQUIRED, the verification on the same
@@ -77,7 +80,7 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   `git merge`, `git pull` and `git push` in every queue process, and blocks every write to a verdict file except
   by its role (`code-reviewer` → `recenzja-*`, `test-automator` → `weryfikacja-*`), Bash writes included. A diff on
   a `powierzchnia:` path cannot pass with `Weryfikacja: n/a`.
-- **One issue at a time**, each branch from the `main` that already contains the previous merge — so no
+- **One issue at a time**, each branch from the `$MAIN` that already contains the previous merge — so no
   two branches ever race for the same base.
 - **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41; ideas = `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).
   The error is asymmetric: an unapproved idea taken = functionality nobody ordered, built overnight; a fix skipped =
@@ -109,8 +112,18 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   `DEPLOY_WORKFLOW`, default `deploy.yml` when the repo has it) on every state change and at least every 5 min;
   the owner's claude.ai dashboard reads it through a read-only GitHub connector. Closed = outside the queue and the
   label audit; a body edit sends no notification. A `gh` error never stops the watcher.
+- **GitHub sync (`KOLEJKA_WYPYCHAJ=1`, off by default)** — for a repo where a work branch (`KOLEJKA_MAIN`, e.g.
+  `main_dev`) triggers nothing and only `KOLEJKA_GALAZ_PROD` (default `main`) deploys. So another computer or a cloud
+  session can pick up the current code. `scripts/synchronizuj.sh` runs from the watcher before every new issue and
+  before a stop, and from `kolejka.sh start`: fetch, merge `origin/$GALAZ_PROD` (hotfixes) and `origin/$MAIN` (work from
+  elsewhere) with `--no-ff` and `[roadmapa]`, push `$MAIN`. The watcher, not `scal.sh`: the ledger is committed after the
+  merge, and the watcher never bounces off the classifier or the lead's hook. It refuses `$MAIN` = `$GALAZ_PROD` and
+  never forces. No network = logged, notified, retried every `KOLEJKA_WYPYCHAJ_CO_S` (300), the queue goes on, and the
+  status sentence says GitHub is stale. A merge conflict stops the queue, the merge aborted. A work branch set as the
+  repo's default makes GitHub read `workflow_run` workflows from it, so such files go under `tylko-wlasciciel:` in
+  `## Bramka`: the gate refuses a branch that touches them, and the issue is deferred.
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
-  committed on `main` (read with `git cat-file -e main:…`, so it is visible from any branch or worktree).
+  committed on `$MAIN` (read with `git cat-file -e "$MAIN":…`, so it is visible from any branch or worktree).
 
 The lead's procedure, the triage brief, the review and verification contracts, the outcomes and the stop conditions →
 `references/cykl-lidera.md`. The lead reads it together with `task-lifecycle`. The `SessionStart` hook points to it
@@ -132,6 +145,7 @@ v1.7.2); the owner's interactive sessions keep their own window.
 | `scripts/reguly.sh` | the project's rules files whose `paths:` match the branch diff, for the review brief |
 | `scripts/wybierz-issue.sh` | the picker: list source or backlog source |
 | `scripts/limit-tygodniowy.sh` | weekly-limit gate asked by the watcher before every new issue and by `start` |
+| `scripts/synchronizuj.sh` | GitHub sync of `$MAIN` between issues (`KOLEJKA_WYPYCHAJ`), run by the watcher and `kolejka.sh start` only |
 | `scripts/hook-session-start.sh`, `scripts/hook-stop.sh`, `scripts/hook-stop-failure.sh`, `scripts/hook-pre-tool.sh` | hooks of the queue session only (passed with `--settings`); StopFailure marks a turn ended by an API error (`blad-api`); PreToolUse blocks raw merge/push and the lead's writes to verdict files |
 
 State: `<repo>/.claude/tmp/kolejka/` (config, flags, `stan-<N>.md`, triage, review, verification and lead reports, `watcher.log`, `status-github.md` = last status body). Ledger:
