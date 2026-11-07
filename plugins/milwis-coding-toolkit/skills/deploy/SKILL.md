@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: "Owner-only: build and deploy the desktop app to production (KonkretnyTMS / FakturyKonkret) — manual production steps plan (GATE 0) with one-command-at-a-time operator guidance, pre-deploy gates, full local test run plus analysis of the last 10 failed CI runs before push, changelog approval, Version::APP bump, npm run build, USE_BUNDLE=true amend, ci-preflight on the final SHA, push, post-deploy status, restore USE_BUNDLE=false, worktree cleanup. Invoked only by the owner typing /deploy."
+description: "Owner-only: build and deploy the desktop app to production (KonkretnyTMS / FakturyKonkret) — manual production steps plan (GATE 0) with one-command-at-a-time operator guidance, pre-deploy gates, full local test run plus analysis of the last 10 failed CI runs before push, changelog approval, Version::APP bump, npm run build, dist/ amend, ci-preflight on the final SHA, push, post-deploy status, worktree cleanup. Invoked only by the owner typing /deploy."
 disable-model-invocation: true
 ---
 
@@ -63,7 +63,7 @@ Kroki na serwerze (RDP, PowerShell jako administrator, phpMyAdmin, panele zewnę
 
 ## 1b. Bramka przed pushem — wszystkie testy lokalnie + lekcja z ostatnich 10 porażek CI
 
-Cel: push `main` ma przejść `Tests` **za pierwszym razem**. Przy wielu commitach naraz typowe było zielone CI dopiero przy trzeciej lub czwartej próbie. Ten krok wykonujesz w GATE 4, na FINALNYM SHA (po commicie `dist/` + `USE_BUNDLE=true`), PRZED `scripts/ci-preflight.sh`. Każda poprawka po nim daje nowy SHA i powtórkę kroków 1 i 3.
+Cel: push `main` ma przejść `Tests` **za pierwszym razem**. Przy wielu commitach naraz typowe było zielone CI dopiero przy trzeciej lub czwartej próbie. Ten krok wykonujesz w GATE 4, na FINALNYM SHA (po commicie `dist/`), PRZED `scripts/ci-preflight.sh`. Każda poprawka po nim daje nowy SHA i powtórkę kroków 1 i 3.
 
 1. **Wszystkie testy lokalnie, nie celowane:**
    - pełna suita PHPUnit przez slot (`.claude/tmp/phpunit-slot.sh`, jeśli istnieje; inaczej jak w `deploy-workflow.md`) → `scripts/ci-parity-check.sh <plik .names>` = exit 0;
@@ -91,9 +91,9 @@ Punkt zatrzymania: tabela z punktu 2 i wyniki z punktu 3 idą do właściciela p
 - **Bramką jest CI, nie „tło”.** Zbiór nazw czerwonych testów porównany z porannym przebiegiem odpowiada na pytanie „czy moja praca coś zepsuła”, a nie „czy CI przejdzie”. Lokalnie decyduje `scripts/ci-parity-check.sh` na FINALNYM SHA, a ostatecznie `scripts/ci-preflight.sh`. Ostrzeżenia PHP przy `failOnWarning` dają exit 1 mimo „OK, but there were issues” — liczy się **kod wyjścia**.
 - **Poza PHPUnit CI ma jeszcze inne joby.** Chodzi o `composer audit --no-dev --abandoned=fail` oraz WSZYSTKIE kroki jobu `migrations` z `.github/workflows/tests.yml` (idempotencja, `schema-collation`, `purchase-dup-key`), a nie tylko jeden. Zmiana SQL → `scripts/ci-local/run.sh` (job `php`) **oraz** replika jobu `migrations` z §1b — `ci-local` jobu `migrations` nie wykonuje.
 - **Każda zmiana po preflighcie to nowy SHA.** Dotyczy to merge'a `origin/main`, amenda i poprawki po czerwieni. Po merge'u z konfliktem w pliku czytanym przez zapadkę (`.claude/skills/**`, `docs/**`, `CLAUDE.md`) uruchom minimum `vendor/bin/phpunit tests/Config tests/Static tests/Hooks`, a potem nowy preflight.
-- **`git commit -- index.php` bierze plik z drzewa roboczego, nie z indeksu.** Commit `USE_BUNDLE = true` rób bez pathspecu. Zaraz po nim sprawdź `git show HEAD:index.php | grep USE_BUNDLE`. Przywrócenie `false` po pushu zostaje NIEZACOMMITOWANE.
+- **`USE_BUNDLE` nie jest commitowane ani przywracane (od 2026-11-07).** `index.php` ma stałą linię opartą o zmienną procesu `KTMS_DEV_SOURCES` (brak = bundle); deploy commituje wyłącznie `dist/` + `Version::APP`. Jeśli widzisz literał `define('USE_BUNDLE', true|false)` w `index.php`, to stara gałąź — zrebase'uj na `main_dev`.
 - **Bump `Version::APP` wymaga aktualizacji snapshotu w `tests/Config/VersionTest.php`** w tym samym commicie buildu.
-- **`index.php` z flagą skip-worktree.** `git ls-files -v index.php` → `S` (albo `h`) znaczy, że ktoś lokalnie ukrył `USE_BUNDLE=false`; `git add index.php` odbija się wtedy komunikatem o sparse-checkout i łańcuch `&&` z amendem przerywa się. Przed commitem buildu `git update-index --no-skip-worktree index.php`; po pushu przywróć `false` i flagę (`--skip-worktree`).
+- **`index.php` z flagą skip-worktree (`git ls-files -v index.php` → `S`/`h`) to pozostałość po starej procedurze** — zdejmij ją (`git update-index --no-skip-worktree index.php`) i usuń lokalną różnicę (`git checkout -- index.php`, po sprawdzeniu `git diff index.php`); inaczej `scal.sh` kolejki i `git add index.php` gubią się na tym pliku.
 - **`node_modules` rozjechane z lockiem → `dist/` inne niż w CI.** Przed `npm run build` wykonaj `npm ci` (node@22) — POMIAR 2026-10-25: lokalny vite 8.3.0 przy locku 8.3.5.
 - **Czerwień pełnej suity dev boxa spoza listy znanych ≠ automatycznie czerwień CI.** Rozstrzygnij dwustronnie: ta sama klasa zielona na świeżym schemacie (`ci-local`) i przyczyna w stanie bazy dev (zasób lub tabela z niescalonej gałęzi — `git grep` w `sql/migrations` na HEAD jej nie znajduje) → środowisko; czerwona także w `ci-local` → realna. Listy `known-local-reds.txt` w trakcie deployu nie ruszasz.
 - **Czerwień wyłącznie w replice** (np. test zależny od wersji gita w kontenerze): porównaj wersję narzędzia z runnerem oraz datę ostatniej zmiany testu i skryptu (`git log -1 -- <test> <skrypt>`) z ostatnim zielonym `Tests`. Zmiana starsza niż zielony run → artefakt repliki; inaczej realna.
@@ -109,7 +109,7 @@ Wersja: vX.Y.Z (poprzednia: vA.B.C)       SHA: <finalny>
 Lokalnie: PHPUnit/parity, Vitest, ESLint, PHPStan, audit, [migrations], [dist] → exit 0
 Porażki CI (10 ostatnich): <top klasy z liczbą> → sprawdzone na tym SHA: <tak/ryzyko>
 Preflight: <run URL> → success            Tests/Deploy na main: <wynik>, status webhooka: ok|superseded|failed
-Changelog: <liczba wpisów>                USE_BUNDLE w drzewie: false (niezacommitowane)
+Changelog: <liczba wpisów>                USE_BUNDLE: ze zmiennej procesu (bez commita)
 Kroki ręczne: A <n>/<n> ✓, B <n>/<n> ✓, C do zrobienia <data>: <lista>, D: <lista>, zaległe bez odpowiedzi: <lista>
 Przypomnienia w kalendarzu: <data — tytuł, …> | brak narzędzia kalendarza
 Koszt CI: <ścieżka> ≈ <min> (pozostało wg właściciela: <min>)
