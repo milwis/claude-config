@@ -1,0 +1,71 @@
+diff --git a/.claude/hooks/bash-guard.sh b/.claude/hooks/bash-guard.sh
+index bb6d02ba3..f4a441fea 100755
+--- a/.claude/hooks/bash-guard.sh
++++ b/.claude/hooks/bash-guard.sh
+@@ -3,10 +3,14 @@
+ # CLAUDE.md i byly lamane (a) push main z nieprzejrzanymi scaleniami kolejki /roadmapa,
+ # (b) `cd <worktree> && <komenda>` przestawiajace cwd sesji, (c) `npm run build` z podagenta.
+ #
+-#   (a) `git push` mogacy zaktualizowac `main` na origin (jawne main / HEAD:main / +main /
+-#       refs/heads/main / --all / --mirror, albo push bez refspeca przy biezacej galezi main;
+-#       takze `git -C <sciezka> push ...`) -> ASK, gdy `git log origin/main..main --merges
+-#       --grep '\[roadmapa\]'` jest niepusty (CLAUDE.md §2). Push innej galezi przechodzi,
++#   (a) `git push` mogacy zaktualizowac `main` na origin (jawne main / HEAD:main / main_dev:main /
++#       <sha>:main / +main / refs/heads/main / --all / --mirror, albo push bez refspeca przy
++#       biezacej galezi main; takze `git -C <sciezka> push ...`) -> ASK, gdy `git log
++#       origin/main..<zrodlo> --merges --grep '\[roadmapa\]'` jest niepusty (CLAUDE.md §2).
++#       Zrodlo = lewa strona refspeca, bo praca kolejki lezy na `main_dev`, a lokalny `main` stoi na
++#       origin/main: sprawdzanie `origin/main..main` przepusciloby release bez pytania. Bez jawnego
++#       zrodla (--all, usuniecie, wzorzec): `main_dev`, gdy istnieje, inaczej `main`. Push innej galezi
++#       (w tym `main_dev`) przechodzi,
+ #       tak samo `--dry-run`/`-n` oraz `--tags` bez refspeca (tagi nie ruszaja main).
+ #   (b) `cd` do katalogu pod `.claude/worktrees/` (z dalsza komenda albo samo) -> DENY, ale
+ #       WYLACZNIE w sesji glownej (puste `.agent_id`; lustro reguly (c)) i tylko gdy cel lezy w
+@@ -342,33 +346,40 @@ while IFS= read -r SEG; do
+       ktms_top "$repo" >/dev/null || continue
+       curbr=$(git -C "$repo" symbolic-ref --short -q HEAD 2>/dev/null)
+       hit=0
++      src=""
+       if [ "$all" = 1 ]; then
+         hit=1
+       elif [ "${#pos[@]}" -le 1 ]; then
+         # `git push --tags` bez refspeca wysyla same tagi, nie galaz.
+-        [ "$curbr" = main ] && [ "$tags" = 0 ] && hit=1
++        [ "$curbr" = main ] && [ "$tags" = 0 ] && hit=1 && src=main
+       else
+         for rs in "${pos[@]:1}"; do
+           r="${rs#+}"
+           case "$r" in
+-            *:*) dst="${r#*:}" ;;
+-            HEAD) dst="$curbr" ;;
+-            *) dst="$r" ;;
++            *:*) dst="${r#*:}"; zr="${r%%:*}" ;;
++            HEAD) dst="$curbr"; zr=HEAD ;;
++            *) dst="$r"; zr="$r" ;;
+           esac
+           dst="${dst#refs/heads/}"
+           case "$dst" in
+-            main|*'*'*) hit=1 ;;
++            main|*'*'*)
++              hit=1
++              case "$zr" in ''|*'*'*) ;; *) src="$zr" ;; esac
++              ;;
+           esac
+         done
+       fi
+       [ "$hit" = 1 ] || continue
+ 
+-      LIST=$(git -C "$repo" log origin/main..main --merges --grep '\[roadmapa\]' --oneline 2>/dev/null)
++      if [ -z "$src" ]; then
++        if git -C "$repo" rev-parse --verify -q refs/heads/main_dev >/dev/null 2>&1; then src=main_dev; else src=main; fi
++      fi
++      LIST=$(git -C "$repo" log "origin/main..$src" --merges --grep '\[roadmapa\]' --oneline 2>/dev/null)
+       [ -n "$LIST" ] || continue
+       COUNT=$(printf '%s\n' "$LIST" | wc -l | tr -d ' ')
+       FIRST=$(printf '%s\n' "$LIST" | head -5)
+       if [ -z "$ASK_REASON" ]; then
+-        ASK_REASON="Push mogący zaktualizować main: w lokalnym main siedzi ${COUNT} scaleń z kolejki /roadmapa (git log origin/main..main --merges --grep '[roadmapa]'), nieprzejrzanych przez Ciebie:
++        ASK_REASON="Push mogący zaktualizować main: ${src} wnosi ${COUNT} scaleń z kolejki /roadmapa (git log origin/main..${src} --merges --grep '[roadmapa]'), nieprzejrzanych przez Ciebie:
+ ${FIRST}
+ CLAUDE.md §2: zgoda z góry na push NIE obejmuje takiej pracy, a push do main uruchamia Tests -> Deploy -> webhook serwera. Zatwierdź tylko, jeśli właściciel przejrzał te scalenia; w przeciwnym razie zapytaj go albo wypchnij osobną gałąź (np. agent/<slug>)."
+       fi

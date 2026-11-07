@@ -77,3 +77,18 @@ project's `domkniecie:` paths and may not remove or edit an assertion or add a s
 review saw. A verification on an ancestor stays valid across such a delta, since tests and docs change no behaviour
 a user reaches. `NIEZMIERZONE`: how many REQUIRED findings reviewers mark closable, and whether the gate's mutant
 runs stay under a minute — re-measure from `bramka-*-domkniecie.log` after ~10 issues.
+
+## GitHub sync (`synchronizuj.sh`, v1.8.0), measured 2026-11-07
+
+No workflow triggers on a push outside `main` and `ci/reuse-rehearsal/**`, so a push of the working branch costs 0 CI
+minutes (read from the `on.push` blocks of all nine workflows in KonkretnyTMS). A full `Tests` run is about 66 job-minutes
+against a budget of 2000 a month, at 14–21 merges a day, which is why the push had to leave the deploy branch.
+
+Rehearsal on a clone with a bare origin, the real scripts and a stand-in lead, on a separate tmux server: 54 checks,
+0 failures. Covered: the push at rotation (18 s), no network (the queue goes on, `PONOW` logged, the pulse pushes 18 s
+after the network returns), a hotfix on `main` and a laptop commit on `main_dev` both merged before the next issue, a
+conflict (watcher stops, merge aborted, tree clean, nothing pushed, the next start refuses), `kolejka.sh stop`, and the
+lead's `stop` flag with a dirty tree (push only). `origin/main` never moved. Not exercised: a real lead, real GitHub.
+
+Each new scenario test went red on its mutant (7 of 7), control green: no production refusal, no `merge --abort`, no hotfix
+merge, `--tylko-push` ignored, gate without `tylko-wlasciciel`, release guard reading `main`, cleanup targeting `origin/main`.

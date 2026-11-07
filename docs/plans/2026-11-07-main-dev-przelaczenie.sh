@@ -15,6 +15,7 @@ GALAZ_ZMIAN="agent/main-dev"
 GALAZ_TOOLKITU="claude/main-dev-wypychanie"
 SESJA="${KOLEJKA_SESJA:-kolejka}"
 KLON_MARKETU="$HOME/.claude/plugins/marketplaces/milwis-marketplace/plugins/milwis-coding-toolkit"
+LATKA_HOOKA="$(cd "$(dirname "$0")" && pwd)/2026-11-07-bash-guard.patch"
 PROBA="${PROBA:-}"
 
 g() { git -C "$REPO" "$@"; }
@@ -33,6 +34,7 @@ g rev-parse --verify -q "refs/heads/$GALAZ_ZMIAN" >/dev/null || blad "brak gał�
 # `git branch -f main` w kroku 4 odmawia, gdy main jest wypięty w innym worktree.
 INNE=$(g worktree list --porcelain | awk -v r="$(g rev-parse --show-toplevel)" '/^worktree /{w=substr($0,10)} /^branch refs\/heads\/main$/{if (w!=r) print w}')
 [ -z "$INNE" ] || blad "main wypięty w innym worktree: $INNE"
+g apply --check "$LATKA_HOOKA" || blad "łatka bash-guard nie pasuje do drzewa głównego"
 g fetch -q origin
 [ -z "$(g ls-remote --heads origin main_dev)" ] || blad "main_dev już jest na GitHubie"
 if [ -z "$PROBA" ]; then
@@ -71,6 +73,17 @@ g tag przed-main-dev main
 g switch -q -c main_dev
 g merge -q --no-ff -m "Scal origin/main do main_dev: wdrożone hotfixy przed przełączeniem gałęzi" origin/main
 g merge -q --no-ff -m "Scal $GALAZ_ZMIAN: main_dev jako gałąź pracy, main jako produkcja" "$GALAZ_ZMIAN"
+# bash-guard w drzewie głównym: ~/.claude/hooks to dowiazania tutaj, więc strażnik parytetu z pre-commit przechodzi,
+# a nowa reguła działa od razu. Z worktree ten commit jest zablokowany.
+g apply "$LATKA_HOOKA"
+g add .claude/hooks/bash-guard.sh
+g commit -q -m "feat(deploy): Czytać w bash-guard źródło refspecu przy pushu na main
+
+Po rozdzieleniu lokalny main jest równy origin/main, więc stara reguła przepuściłaby release setek
+scaleń kolejki bez pytania.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017ojKjKgQYaZnNmU3ZsTqqX"
 g merge-base --is-ancestor przed-main-dev main_dev
 g merge-base --is-ancestor origin/main main_dev
 
