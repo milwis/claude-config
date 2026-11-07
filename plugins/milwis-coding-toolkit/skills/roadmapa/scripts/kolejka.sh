@@ -18,6 +18,8 @@
 #
 # Configuration (environment, read at start):
 #   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
+#   KOLEJKA_WYPYCHAJ (empty = off; 1 = the watcher pushes KOLEJKA_MAIN after every issue, see synchronizuj.sh; refused
+#   when KOLEJKA_MAIN is KOLEJKA_GALAZ_PROD), KOLEJKA_GALAZ_PROD (main — the branch whose push deploys),
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_ETYKIETA_RECZNA (weryfikacja:reczna — merged
 #   issues whose surface verification ended BLOCKED, for the owner to check by hand), KOLEJKA_IDLE_MIN (30), KOLEJKA_STALL_MIN (90),
 #   KOLEJKA_GRACE_MIN (10), KOLEJKA_MODEL_LIDER (opus — the lead implements), KOLEJKA_MODEL_TRIAGE (opus),
@@ -75,6 +77,9 @@ start)
   [ -z "$BEZ_TRIAGE" ] || [ -n "$PARASOL" ] || { echo "--bez-triage tylko z --parasol (porcje parasola z planu)"; exit 1; }
   MAIN="${KOLEJKA_MAIN:-main}"
   [ "$(git -C "$REPO" branch --show-current)" = "$MAIN" ] || { echo "Drzewo główne nie stoi na $MAIN"; exit 1; }
+  if [ -n "${KOLEJKA_WYPYCHAJ:-}" ] && [ "$MAIN" = "${KOLEJKA_GALAZ_PROD:-main}" ]; then
+    echo "KOLEJKA_WYPYCHAJ przy KOLEJKA_MAIN=$MAIN: to gałąź produkcyjna, push uruchomiłby deploy. Ustaw KOLEJKA_MAIN na gałąź roboczą."; exit 1
+  fi
   BRUD=$(git -C "$REPO" status --short --untracked-files=no)
   [ -z "$BRUD" ] || { echo "Drzewo główne ma niezacommitowane zmiany — lider scala w tym drzewie:"; echo "$BRUD"; exit 1; }
   tmux has-session -t "$SESJA" 2>/dev/null && { echo "Sesja tmux '$SESJA' już działa (tmux attach -t $SESJA)"; exit 1; }
@@ -103,6 +108,8 @@ SKRYPTY="$SKRYPTY"
 INSTRUKCJA="$INSTRUKCJA"
 SESJA="$SESJA"
 MAIN="$MAIN"
+WYPYCHAJ="${KOLEJKA_WYPYCHAJ:-}"
+GALAZ_PROD="${KOLEJKA_GALAZ_PROD:-main}"
 LEDGER="${KOLEJKA_LEDGER:-docs/plans/kolejka-ledger.md}"
 WT="$REPO/.claude/worktrees/kolejka"
 ETYKIETA_ZROBIONE="${KOLEJKA_ETYKIETA_ZROBIONE:-status:zrobione-lokalnie}"
@@ -145,6 +152,14 @@ EOF
   elif [ -n "$LISTA" ]; then ZRODLO="weź następne issue z listy $LISTA (w tej kolejności)"
   else ZRODLO="weź jedno issue z backlogu wg priorytetu P0→P3: bugi, braki testów i pomysły zatwierdzone przez właściciela (pomysl:zatwierdzony); pomysły bez tej etykiety pomijasz"; fi
   echo "Kolejka roadmapa: $ZRODLO, rozwiąż je sam w worktree kolejki (triage, recenzja i weryfikacja to świeże podagenty), scal lokalnie do $MAIN przez scal.sh (bramka, --no-ff, znacznik [roadmapa]) i zamknij issue na GitHubie. Bez push, bez deployu. Model triage: ${KOLEJKA_MODEL_TRIAGE:-opus}. Ścieżki i ustawienia wyłącznie ze zmiennych po . .claude/tmp/kolejka/config.env. Zasady: $INSTRUKCJA" > "$K/start-prompt.txt"
+
+  # Work pushed from the cloud or the laptop while the queue stood still enters before the first issue. No network is
+  # not a reason to refuse a start; a conflict is, since the queue would build on a tree missing that work.
+  if [ -n "${KOLEJKA_WYPYCHAJ:-}" ]; then
+    SYNC_KOD=0; SYNC=$("$SKRYPTY/synchronizuj.sh" "$K/config.env") || SYNC_KOD=$?
+    echo "GitHub: $(tail -1 <<<"$SYNC")"
+    case "$SYNC_KOD" in 2|3) echo "Nie startuję: rozwiąż to i uruchom ponownie."; exit 1 ;; esac
+  fi
 
   # One claude process per issue: the watcher replaces it (respawn-pane) after every issue.
   tmux new-session -d -s "$SESJA" -n lider -x 220 -y 50 -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
@@ -197,6 +212,10 @@ status)
   echo "--- ledger ($LEDGER), ostatnie wiersze:"; grep '^| [0-9]' "$REPO/$LEDGER" 2>/dev/null | tail -5 || true
   echo "--- watcher.log:"; tail -5 "$K/watcher.log" 2>/dev/null || true
   echo "--- scalone lokalnie, niewypchnięte:"; git -C "$REPO" log --oneline --merges --grep '\[roadmapa\]' "origin/$MAIN..$MAIN" | head -20
+  if [ -n "$(cfg WYPYCHAJ "")" ]; then
+    PROD=$(cfg GALAZ_PROD main)
+    echo "--- do wdrożenia (origin/$PROD..$MAIN): $(git -C "$REPO" rev-list --count --merges --grep '\[roadmapa\] Scal #' "origin/$PROD..$MAIN") scaleń issue"
+  fi
   R=$(cfg ETYKIETA_RECZNA weryfikacja:reczna)
   echo "--- do ręcznego sprawdzenia (etykieta $R; zdejmij ją po sprawdzeniu):"
   (cd "$REPO" && gh issue list --state all --label "$R" --json number,title -q '.[] | "#\(.number) \(.title)"' 2>/dev/null) || echo "(gh niedostępne)"

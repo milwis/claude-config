@@ -7,6 +7,15 @@
 > 4. **Rutyna miesięczna nie dopisuje reguł.** Robi audyt spójności (każdy agent wywoływany w skillach istnieje, rozmiary w budżecie, frontmatter poprawny, brak wiszących odwołań do usuniętych agentów i sekcji; `task-lifecycle/SKILL.md` poniżej 20 000 znaków z limitami na początku, bo po kompakcji wraca tylko pierwsze 5 000 tokenów skilla; opisy skilli i agentów tylko jako wyzwalacz). Nie odtwarza L2, agentów językowych ani ciepłego buildera (v1.7.0; L2 także w sekcji „Removed” skilla `roadmapa`). Zmiany mechaniki Claude Code (podagenci, skille, hooki) zgłasza jako propozycje w PR, nie wdraża.
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 
+## Run: 2026-11-07 — kolejka wypycha gałąź roboczą na GitHuba (v1.8.0)
+
+Źródło: prośba właściciela. Praca na `main_dev`, wdrożenie dopiero po przesunięciu `main`, a GitHub ma aktualny kod po każdym issue, żeby dało się pracować z chmury i z laptopa. `POMIAR` (KonkretnyTMS, 2026-11-07): lokalny `main` 470 commitów ponad `origin/main` i 2 commity za nim; żaden workflow nie ma triggera `push` poza `main` i `ci/reuse-rehearsal/**`, więc push `main_dev` kosztuje 0 minut.
+
+- **`scripts/synchronizuj.sh` (nowy), `KOLEJKA_WYPYCHAJ` i `KOLEJKA_GALAZ_PROD`.** Domyślnie wyłączone. Watcher przed każdym nowym issue i przed zatrzymaniem scala `origin/$GALAZ_PROD` i `origin/$MAIN`, potem wypycha `$MAIN`. Brak sieci nie zatrzymuje kolejki, konflikt tak.
+- **Watcher, a nie `scal.sh`:** wiersz ledgera powstaje po scaleniu, a lider nadal ma zablokowany `git push`.
+- **`## Bramka`: nowy klucz `tylko-wlasciciel:`.** Gałąź robocza jako domyślna oznacza, że GitHub czyta z niej workflow `workflow_run`, więc zmiana `deploy.yml` działałaby od pushu, przed release'em.
+- Komentarz przy zamknięciu issue: „not deployed” obowiązkowe, „not pushed” tylko bez `$WYPYCHAJ`.
+
 ## Run: 2026-11-02 — issue #19: claim weryfikatora z kryteriów (v1.7.9)
 
 Źródło: issue #19 (analiza dwóch filmów i artykułu pstack z 2026-11-01). Każdy punkt najpierw pomiar.
