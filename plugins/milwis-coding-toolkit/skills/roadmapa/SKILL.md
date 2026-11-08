@@ -82,7 +82,7 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   a `powierzchnia:` path cannot pass with `Weryfikacja: n/a`.
 - **One issue at a time**, each branch from the `$MAIN` that already contains the previous merge — so no
   two branches ever race for the same base.
-- **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41; ideas = `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).
+- **Bugs, missing tests and OWNER-APPROVED ideas only from the backlog** (`typ:test` since v1.5.41, with a named risk since v1.9.0; ideas = `pomysl:zatwierdzony`, ranked by priority like bugs). The picker filters by label; the triage subagent is the second filter (`feature.`).
   The error is asymmetric: an unapproved idea taken = functionality nobody ordered, built overnight; a fix skipped =
   it waits one cycle. With unclear content, defer.
 - **Deferral lives in the issue** — `status:odlozone` plus a comment saying what unblocks it. A deferral
