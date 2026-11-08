@@ -142,7 +142,8 @@ N=$("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>"$K/pominiete.txt"); echo "N=$N RC=$?"
 **What the picker takes** (backlog source):
 - open issues with a priority, ordered P0 → P3, then oldest;
 - with a bug-type label (`typ:bug`, `typ:point-fix`, `typ:structural`, legacy `bug`), a missing-test label
-  (`typ:test`), or an owner-approved idea (`pomysl:zatwierdzony`). Approved ideas rank like bugs.
+  (`typ:test`, which triage takes only with a named risk or `pomysl:zatwierdzony`), or an owner-approved idea
+  (`pomysl:zatwierdzony`). Approved ideas rank like bugs.
 
 **What it skips:**
 - unapproved ideas (`pomysl:do-analizy`, `pomysl:odlozony`);
@@ -195,7 +196,9 @@ Issue text: <title + body>.
    Re-derive file:line yourself. An anchor is a command plus its raw output; a zero counts only after a second
    pattern or a positive control; no `| head` on an anchor grep. A claim about the DB engine or infrastructure
    is measured on dev, not asserted. For `typ:test` the problem is the missing coverage: VALID when the named
-   behaviour has no test on HEAD.
+   behaviour has no test on HEAD AND the issue names its risk (a past regression by issue or commit, money/VAT,
+   permissions, data integrity) or carries `pomysl:zatwierdzony`; without either, `ambiguous. ask: which risk does
+   this test guard?`.
 2. Bugs, missing tests and approved ideas only. If the issue in fact asks for new functionality (a new feature, screen, report, option,
    integration — not restoring behaviour that is broken; a missing test for existing behaviour is not a
    feature) and does NOT carry `pomysl:zatwierdzony`, the verdict is `feature.`. With that label the
@@ -232,7 +235,9 @@ dead ends except under "Ruled out". The template, all sections present (`n/a` wh
      IN scope, found by one literal `git grep -nF`, command quoted); what must NOT change and why.
   ## Tests — the test that goes RED on HEAD for this defect, or the probe that shows it (command + result);
      existing tests that reference the changed symbols (`git grep -l` over the whole tests tree, command quoted);
-     project latches the diff will touch (corpus / counter / generated-artefact), if any.
+     the existing test file (and data set) the new case goes into, or `none: <class> has no test file`; the shared
+     test support to reuse (base class, builders, helpers: path); project latches the diff will touch (corpus /
+     counter / generated-artefact), if any.
   ## Sizing facts — files likely touched (n), expected production diff (lines, estimate), sensitive module
      (money/VAT, auth/permissions, regulated data: yes/no + which), DB/migration (yes/no),
      user-facing surface (yes/no + entry point path:line from a grep of the handler binding).
@@ -356,6 +361,9 @@ is 3 verify rounds.
   - `Weryfikacja: BLOCKED — do kliknięcia: <the user steps that were not verified>`;
   - `Weryfikacja: n/a — <why there is no surface>`. The gate refuses `n/a` when the diff hits a `powierzchnia:`
     glob of `## Bramka`: run the verifier, and report BLOCKED when it cannot reach the surface.
+- **`Testy-proporcja: <why>`** when the gate asks for it: the branch adds more than 10× (`proporcja-testow:`) its
+  production lines in tests, and over 100. Before writing the reason, check `implementacja.md` §Test volume: a
+  case that belongs in an existing file or data set is moved there, not explained.
 - **Then:**
   - the tip SHA and commits;
   - review rounds and what each found;

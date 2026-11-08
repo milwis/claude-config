@@ -18,6 +18,8 @@
 #                         cannot pass with `Weryfikacja: n/a` — it needs a verifier's PASS or BLOCKED
 #   domkniecie: <glob> [=> <command>]  case-sensitive, whole path; test and docs paths a closure may touch. With a
 #                         command ({PLIK} = the test file, {WT}, {REPO}) the path is a test the gate runs
+#   proporcja-testow: <n> added test lines above n × added production lines (and above 100) need the report line
+#                         `Testy-proporcja: <why>`; default 10, 0 = off
 # Closure (v1.7.3): a review or a verification on an ancestor of the tip still counts when every commit after it
 # touches only `domkniecie:` paths (never docs/VERIFICATION_ENV.md, CLAUDE.md, .claude/, .github/), removes or edits
 # no assertion line and adds no skip. A review with open REQUIRED findings also needs CRITICAL 0 and the line
@@ -249,6 +251,23 @@ if [ -n "$WRAZLIWE" ]; then
     *) brak "ścieżki wrażliwe ($(cut -c1-200 <<<"$WRAZLIWE")), a recenzja ma tier ${TIER:-?} — potrzebny M albo L" ;;
   esac
 fi
+# Test volume (v1.9.0): lines the branch adds under test paths against lines it adds to production code. Docs (*.md)
+# and fixture directories count on neither side. Above `proporcja-testow:` × (default 10, 0 = off) and above
+# 100 test lines, the lead's report names the reason in one line `Testy-proporcja: <why>`.
+PROP=$(sed -n 's/^proporcja-testow: *//p' <<<"$SEKCJA" | head -1); PROP=${PROP:-10}
+if [[ "$PROP" =~ ^[0-9]+$ ]] && [ "$PROP" -gt 0 ]; then
+  read -r LT LP < <(git -C "$WT" -c core.quotePath=false diff --no-renames --numstat "$MAIN...$GALAZ" | awk -F'\t' '
+    $1 == "-" || $3 ~ /\.md$/ || $3 ~ /(^|\/)fixtures?\// { next }
+    $3 ~ /(^|\/)(tests?|__tests__)\// || $3 ~ /\.(test|spec)\.[A-Za-z]+$/ || $3 ~ /Test\.php$/ { t += $1; next }
+    { p += $1 }
+    END { print t + 0, p + 0 }')
+  if [ "$LT" -gt 100 ] && [ "$LT" -gt $((LP * PROP)) ]; then
+    POW=$(pole "$R" Testy-proporcja)
+    if [ -n "$POW" ]; then ok "testy +$LT linii przy +$LP linii kodu (> ${PROP}×): $POW"
+    else brak "testy +$LT linii przy +$LP linii kodu (> ${PROP}×) — raport potrzebuje linii Testy-proporcja: <dlaczego tyle> (implementacja.md §Test volume)"; fi
+  else ok "proporcja testów: +$LT linii testów, +$LP linii kodu"; fi
+fi
+
 TESTY=$(sed -n 's/^testy: *//p' <<<"$SEKCJA" | head -1)
 if [ -n "$TESTY" ]; then
   LOG="$K/bramka-$N.log"

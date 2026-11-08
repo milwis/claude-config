@@ -25,8 +25,8 @@ brief lines (`briefy.md`). `E<n>` points to `evidence.md`.
   one defect: stop with `ambiguous. ask:` listing the attempts.
 - **A diff that changes a persisted or public shape** (schema, data, API, config, dependency major) does only the
   requested stage and never performs Contract implicitly (`migration`).
-- **Copying pattern X copies the latch of X:** name the test that goes red when X is broken, and the copy gets its
-  own latch (E7).
+- **Copying pattern X copies the latch of X:** name the test that goes red when X is broken, and the copy joins
+  that latch (a new row in its list or data set). A new latch only when X has none (E7).
 
 ## Latches and mutants
 
@@ -50,15 +50,38 @@ brief lines (`briefy.md`). `E<n>` points to `evidence.md`.
 
 ## Comments and docs in code
 
-- **Docblocks are capped at 10 lines** in production code and on any single test method. The full derivation (the
-  measured race, the counts behind a threshold, library line numbers, why the alternative fails, the mine for the
-  next task) goes into the test file's header block: the class docblock, or the docblock of the constant it
-  explains. That block has no cap and carries only commands with results, `file:line` anchors and named mines.
+- **Docblocks are capped at 10 lines** in production code and on any single test method; a test file's header
+  block (the class docblock, or the docblock of the constant it explains) at 15. The header carries what the test
+  guards and its `file:line` anchors. The full derivation (the measured race, the counts behind a threshold,
+  library line numbers, why the alternative fails, the mine for the next task) goes into the commit message body
+  and the report, where `git log` finds it; it never grows the file.
 - **Check the cap where it applies:** the longest run of added comment lines in
   `git diff <base>..<tip> -- <production trees>`, and inside a test file from the first `function` onward. Never
   run the same check over the whole diff: it measures the header the rule points to (E11).
 - **A test of a kind the repo already has once** (a real library in jsdom, a live-DB parity test, an A/B route test)
   starts from that existing test as the template (E12).
+
+## Test volume
+
+Safety comes from tests that can fail (the mutant table), not from their number. Before writing a test:
+1. **Extend, do not add.** A new case goes into the existing test file of the changed class or entry point
+   (`git grep -l '<class>' tests/`), as a data-set row (`@dataProvider`, `test.each`) when only the input differs.
+   A new test file only for a class or entry point that has none.
+2. **Reuse the shared setup.** Database connection, seeding and helpers come from the project's test support
+   (base class, builders, `tests/Support`, `tests/helpers`); grep it before writing a helper. A private copy of an
+   existing helper or a test's own database connection is a finding.
+3. **Pick the cheapest form that can fail.** A behaviour test through the public entry point first. A structural
+   property across many files (a forbidden call, a required wrapper, a layering rule) as a rule of the project's
+   static analyser (PHPStan, ESLint) when it can express it. A test that reads source as text only when neither
+   can, with the reason in its header.
+4. **Tooling is checked by its tool.** A CI workflow, a shell script or a config file is checked by its own linter
+   or self-test (`actionlint`, `shellcheck`, the script's `--test`), not by a test reading it as text.
+5. **A test-only task names its risk:** a past regression (issue or commit), money/VAT, permissions, or data
+   integrity. Coverage for its own sake is not a task.
+
+The queue's merge gate measures the ratio: above 10× the added production lines (and above 100 test lines) the report
+needs one line `Testy-proporcja: <why>`. A count the project should only lower (own database connections in
+tests, text latches, header length) is a ratchet test in the project's suite, not a review finding.
 
 ## Test economy
 

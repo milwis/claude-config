@@ -73,7 +73,8 @@ When the change is a VARIANT of an existing operation (correction vs invoice, ba
 - Do test names describe the scenario clearly?
 - Assertions check specific values (not `.toBeDefined()`)?
 - **Tautological test → CRITICAL:** the expected value is recomputed the way the code computes it, a snapshot derived by the same path, or a constant compared with itself. Such a test cannot disagree with the code and stays GREEN under every mutant — treat it as no test.
-- **No tests → CRITICAL**
+- **No tests → CRITICAL** (a new row in an existing test or data set counts).
+- **Test volume → REQUIRED** (v1.9.0): a new test file where the class has one; a helper copied from test support or an own DB connection beside a shared base; a source-as-text test where a behaviour test or analyser rule fits, unless its header says why; a test header over 15 lines. Fix: move the case, keep every assertion and the mutant kill.
 
 ### 5. Review implementation — 7 axes
 

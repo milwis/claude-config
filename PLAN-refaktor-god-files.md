@@ -66,7 +66,13 @@ Wymóg właściciela (2026-11-01): po refaktorze moduł ma być w **formie docel
 
 Stan wyjściowy (pomiar 2026-11-01): GutschriftDocumentController ma 3849 linii fizycznych, z czego 2245 to komentarze i puste linie (58%). Kod to ok. 1600 linii w 59 metodach, bez bezpośredniego SQL. Najdłuższe metody mają 151–261 linii (`performAccept`, `applyReread`, `rereadDocument`, `resolveCompareResponse`, `acceptDiscrepancy`).
 
-**Cztery fazy na plik.** Rozszerzenie §4.1. Dowód 1:1 obowiązuje we wszystkich fazach, bo porównuje zachowanie, a nie tekst kodu.
+**Pięć faz na plik** (do 2026-11-08 cztery; deduplikacja dodana decyzją właściciela, Gutschrift: claude-config #30). Rozszerzenie §4.1. Dowód 1:1 obowiązuje we wszystkich fazach, bo porównuje zachowanie, a nie tekst kodu. Moduł domykamy w całości przed następnym dużym plikiem.
+
+**Kolejność: najpierw rozbicie, potem deduplikacja** — nie odwrotnie, bo:
+- rozbicie verbatim ma najmocniejszy dowód (AST: ciało metody bez zmian); deduplikacja zmienia ciała, więc zrobiona najpierw odebrałaby fazie 2 ten dowód dla całego pliku;
+- po rozbiciu powtórzenie widać jako całą małą metodę lub klasę, którą da się wprost porównać z istniejącym kodem; w pliku na 3000 linii ginie;
+- zmiana deduplikacji dotyka wtedy jednej małej klasy, a nie środka wielkiego pliku.
+Wyjątek nie zmienia kolejności, tylko projekt: kopie wewnątrz samego pliku i odpowiedniki już istniejące w repo wykrywa faza 1, więc projekt od razu kieruje je do jednej klasy docelowej albo do istniejącej klasy.
 
 1. **Projekt docelowy modułu.** Podział na role:
    - kontroler: wejście HTTP → walidacja → wywołanie przypadku użycia → odpowiedź;
@@ -75,10 +81,13 @@ Stan wyjściowy (pomiar 2026-11-01): GutschriftDocumentController ma 3849 linii 
    - obiekty wartości / DTO;
    - renderer PDF i mapper odpowiedzi osobno.
 
-   Projekt zawiera tabelę „klasa → odpowiedzialność → metody ze starego pliku” oraz listę „co się NIE zmienia”. Przy pilocie zatwierdza go właściciel; dla kolejnych plików projekt musi być zgodny ze wzorcem z pilota, a sprawdza to recenzent.
-2. **Podział strukturalny verbatim.** Ciała metod przenoszone bez zmian. Kontrola AST z §3 + porównanie 1:1.
-3. **Doprowadzenie do standardu.** Wydzielanie metod, nazwy, typy, guard clauses, komentarze. Kontrola AST verbatim tu nie obowiązuje. Obowiązują porównanie 1:1, pokrycie i sondy mutacyjne oraz bramki jakości z listy niżej.
-4. **Zapisanie stylu.** Moduł trafia na listę modułów ze standardem; reguły i zapadki działają od tej chwili przy każdej zmianie (kolejka, sesje, CI).
+   Projekt zawiera tabelę „klasa → odpowiedzialność → metody ze starego pliku” oraz listę „co się NIE zmienia”. Przy pilocie zatwierdza go właściciel; dla kolejnych plików projekt musi być zgodny ze wzorcem z pilota, a sprawdza to recenzent. Projekt zaczyna się od grafu wywołań (wynik pilota) i skanu powtórzeń: kopie wewnątrz pliku oraz odpowiedniki już istniejące w repo — „zanim powstanie nowa klasa, sprawdź, czy jej odpowiednik już jest”.
+2. **Rozbicie na klasy projektu.** Dwa kroki:
+   - **2a verbatim:** metody zamknięte na wywołania, ciała bez zmian. Kontrola AST z §3 + porównanie 1:1;
+   - **2b przebudowa:** metody wołające `error()`/BaseController przechodzą do UseCase/Query z wyjątkiem zamiast `exit` (Gutschrift: #22–#24). Kontrola AST nie obowiązuje; porównanie 1:1 i sondy mutacyjne.
+3. **Deduplikacja modułu** (po całym rozbiciu — Gutschrift: #30 po #24). Nowe klasy kontra całe repo (narzędzie z claude-config #29). Każde trafienie: użyj istniejącego / wyciągnij wspólne / zostaw z uzasadnieniem (podobny kod zmieniany z różnych powodów zostaje osobno). Zmiana pliku spoza modułu wymaga dowodu dla tego pliku — bez jego scenariuszy trafienie idzie do deduplikacji między modułami (#31). Porównanie 1:1 i sondy mutacyjne.
+4. **Doprowadzenie do standardu.** Wydzielanie metod, nazwy, typy, guard clauses, komentarze. Kontrola AST verbatim tu nie obowiązuje. Obowiązują porównanie 1:1, pokrycie i sondy mutacyjne oraz bramki jakości z listy niżej.
+5. **Zapisanie stylu.** Moduł trafia na listę modułów ze standardem; reguły i zapadki działają od tej chwili przy każdej zmianie (kolejka, sesje, CI).
 
 **Standard (wartości do potwierdzenia na pilocie), egzekwowany maszynowo w CI.** Czerwony test = brak deploya, więc tego nie da się obejść:
 
@@ -95,7 +104,7 @@ Stan wyjściowy (pomiar 2026-11-01): GutschriftDocumentController ma 3849 linii 
 - `code-reviewer` sprawdza diff na tych modułach względem dokumentu modułu;
 - zapadki z listy wyżej obejmują katalogi modułu na zawsze. Dodanie modułu do listy jest jednokierunkowe.
 
-**Odbiór jakości.** Poza zapadkami: ślepa ocena przez 2 świeżych recenzentów według rubryki z przeglądu jakości z 2026-11-01 (6 wymiarów po 1–5). Próg: ≥ 4 w każdym wymiarze i ≥ 27/30. Poniżej progu wraca faza 3.
+**Odbiór jakości.** Poza zapadkami: ślepa ocena przez 2 świeżych recenzentów według rubryki z przeglądu jakości z 2026-11-01 (6 wymiarów po 1–5). Próg: ≥ 4 w każdym wymiarze i ≥ 27/30. Poniżej progu wraca faza 4.
 
 ## 2. Stanowisko różnicowe (KonkretnyTMS, `tests/rownowaznosc/`)
 
@@ -214,7 +223,7 @@ Gałąź `refaktor/gutschrift-pilot` w KonkretnyTMS (worktree `.claude/worktrees
 - `auto_prepend_file` + pcov: działa dla wszystkich wejść HTTP przez `php -S` (jeden router). CLI do sprawdzenia na pierwszym pliku z wejściem cron/CLI (`php -d auto_prepend_file=`);
 - reset bazy per bieg (nie per scenariusz) wystarcza. Scenariusze są uporządkowane, a stan przechodzi między nimi celowo (serie zbioru, cooldown).
 
-**Projekt docelowy zatwierdzony przez właściciela (2026-11-03):** faza 2 verbatim przenosi tylko metody zamknięte na wywołania i bez `$this->error()`/metod BaseController (RereadRules, AcceptancePolicy, AcceptanceSnapshot, DocumentPresenter). `perform*`/`resolve*` przechodzą do UseCase/Query dopiero w fazie 3, z wyjątkiem `GutschriftActionRejected` zamiast `exit`. Wniosek dla kolejnych plików: projekt fazy 1 zaczyna się od **grafu wywołań** (kto woła `error()`/BaseController = faza 3).
+**Projekt docelowy zatwierdzony przez właściciela (2026-11-03):** faza 2 verbatim przenosi tylko metody zamknięte na wywołania i bez `$this->error()`/metod BaseController (RereadRules, AcceptancePolicy, AcceptanceSnapshot, DocumentPresenter). `perform*`/`resolve*` przechodzą do UseCase/Query dopiero w fazie 2b (do 2026-11-08 nazywanej fazą 3), z wyjątkiem `GutschriftActionRejected` zamiast `exit`. Wniosek dla kolejnych plików: projekt fazy 1 zaczyna się od **grafu wywołań** (kto woła `error()`/BaseController = faza 2b).
 
 **Do toolkitu v1.8.0 (`cykl-refaktoru.md`) — miny pilota:**
 1. Porcja przepina testy spoza stanowiska: `ReflectionMethod` na starej klasie, zapadki z markerem sygnatury w tekście źródła, allowlisty `plik::metoda`. Krok porcji: grep nazw przenoszonych metod w `tests/`.
@@ -224,4 +233,4 @@ Gałąź `refaktor/gutschrift-pilot` w KonkretnyTMS (worktree `.claude/worktrees
 5. Stany testowe muszą przejść CHECK-i bazy (`chk_*_type`, `json_valid`). Gałąź za CHECK-iem = niezmiennik-bazy.
 6. Przebieg ujawnia utajone błędy (tu: `UserRepository::findById()` bez `full_name`, przez co nazwisko akceptującego nigdy się nie pokazuje). Refaktor zachowuje je 1:1, a poprawka idzie osobnym issue.
 
-**Zostało:** toolkit v1.8.0 (§5 pkt 5), fazy 2–4 dla reszty Gutschrift (następne sesje), push/deploy gałęzi pilota — decyzja właściciela.
+**Zostało:** toolkit v1.8.0 (§5 pkt 5), fazy 2b–5 dla reszty Gutschrift (claude-config #21–#26 i #30), push/deploy gałęzi pilota — decyzja właściciela.
