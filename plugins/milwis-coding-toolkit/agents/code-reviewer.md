@@ -156,7 +156,9 @@ Cross-file / cross-layer defects: each file looks correct in isolation — the b
 ### 6. Categorize and report
 
 Every finding MUST have:
+- **Number `F<n>`** in its first line, continuing the previous rounds' numbering from the brief (the lead answers each by it)
 - **Severity label** + confidence (CONFIRMED / PLAUSIBLE / LATENT)
+- **`Class:` line** — the defect class in a few words and its other instances (`path:line` each, or `only this one`), from one search you ran (command cited). Instances inside the spec's scope are part of this finding's fix; the rest go in one FYI for a spin-off. A fix of one instance leaves the class open
 - **File:line reference** AND the verbatim `+` line(s) it targets, copied from the diff — line numbers drift between the review and the fix, a quoted line does not; a finding whose quoted line is not in the diff targets code that is not under review
 - **Description** with the measurement
 - **Suggested fix** (specific)
@@ -252,12 +254,13 @@ Domknięcie: 1 mutant, 0 docs   ← only with 0 CRITICAL; one Mutant-plik/-przed
 
 ### Findings
 
-🔴 **CRITICAL** (CONFIRMED) — `path/to/file.py:145`
+🔴 **CRITICAL** F1 (CONFIRMED) — `path/to/file.py:145`
 > `+    total = amount * rate ?? 0`
 Description of the issue, with the measurement that disproved the alternative.
+Class: silent fallback on a VAT rate — also `path/to/other.py:88` (`git grep -nF 'rate ?? 0'`)
 **Fix:** Specific suggestion with code if needed.
 
-🟡 **REQUIRED** (PLAUSIBLE — unmeasured link: <which>) — `path/to/file.js:230`
+🟡 **REQUIRED** F2 (PLAUSIBLE — unmeasured link: <which>) — `path/to/file.js:230`
 > `+  const rows = await db.query(sql + id)`
 Description.
 **Fix:** Specific suggestion.
@@ -296,5 +299,5 @@ M/L tier:
 - **One CRITICAL = CHANGES REQUIRED** — no exceptions
 - **Read-only on tracked files** — probe copies go where the brief says (`.claude/tmp/`), never into the tree
 
-<!-- Updated: 2026-10-27 (v1.7.3: kalibracja nowej powierzchni i rekordy domknięcia — historia zmian w UPDATE_LOG.md) -->
-Last updated: 2026-10-27
+<!-- Updated: 2026-11-11 (v1.10.0: numer F<n> i klasa błędu w każdym znalezisku — historia zmian w UPDATE_LOG.md) -->
+Last updated: 2026-11-11

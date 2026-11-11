@@ -102,7 +102,8 @@ Before the spawn, check that the brief carries each of these lines:
      `scripts/nowe-warunki.sh <worktree> <previous tip>` with the mutant row or the reason for each line;
    - the instruction: "review `<previous tip>..<tip>`; close each previous finding by its number, one line each
      (`F<n>: closed | open — <path:line or command>`); size your tier from this delta's stat (a sensitive path
-     still lifts it); do not re-review the untouched rest unless the delta reaches it". In a plan checkpoint the
+     still lifts it); do not re-review the untouched rest unless the delta reaches it; number new findings from
+     F<next>". In a plan checkpoint the
      range is the group's fix range `<from>..<to>` (`executingplans` Step 4), not `..HEAD`.
 7. **Small, the narrow form:**
    - the diff stat plus 3–4 two-sided questions specific to the change;
