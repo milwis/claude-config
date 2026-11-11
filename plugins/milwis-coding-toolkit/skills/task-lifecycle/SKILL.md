@@ -170,6 +170,7 @@ The only thing the user reads:
 **What changed & why:** 2-4 sentences.
 **Branch / commits:** branch, tip SHA, N commits, diff stat.
 **Review:** N round(s); fixed: <counts by severity>; remaining: <OPTIONAL/NIT/uncertain list or "none">.
+**Findings:** one line per CRITICAL/REQUIRED/OPTIONAL finding of every round: `F<n>: fixed <SHA> | wrong — <the measurement that refutes it> | intentional — <why> | irrelevant — <why>`.
 **Security (in review):** covered / not triggered (+why); findings.
 **Docs:** <files> or "none stale" (+ the check).
 **Verification:** PASS/FAIL/BLOCKED + evidence paths.

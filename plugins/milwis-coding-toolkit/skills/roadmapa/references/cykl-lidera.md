@@ -305,7 +305,7 @@ everything first; the reviewer reviews the tip. The brief carries:
 - the issue number, with "read the issue yourself (`gh issue view <N> --comments`) before my notes: it is the
   spec, my summary and decisions are claims to check". Never paste your own restatement of the issue in its place;
 - the diff stat;
-- the previous round's findings and tip, from round 2 on, with the output of
+- the previous round's findings and tip, from round 2 on (new findings are numbered from F<next>), with the output of
   `"$SKRYPTY/../../task-lifecycle/scripts/nowe-warunki.sh" "$WT" <previous tip>` (the lines your fix added that
   carry a condition, a branch or a log: the reviewer checks those first), `git diff --stat <previous tip>..HEAD`
   (the delta, next to the branch stat), and the scope line "review
@@ -364,6 +364,10 @@ is 3 verify rounds.
 - **`Testy-proporcja: <why>`** when the gate asks for it: the branch adds more than 10× (`proporcja-testow:`) its
   production lines in tests, and over 100. Before writing the reason, check `implementacja.md` §Test volume: a
   case that belongs in an existing file or data set is moved there, not explained.
+- **`## Znaleziska`:** one line per CRITICAL, REQUIRED and OPTIONAL finding of every review round, by its number:
+  `F<n>: naprawione <SHA>`, `F<n>: błędne — <the measurement that refutes it>`, `F<n>: celowe — <why the code
+  stays>` or `F<n>: bez znaczenia — <why>`. The gate refuses a numbered finding without one. `błędne` and
+  `bez znaczenia` are the reviewer's noise, which `retro` counts; an opinion is not a measurement.
 - **Then:**
   - the tip SHA and commits;
   - review rounds and what each found;

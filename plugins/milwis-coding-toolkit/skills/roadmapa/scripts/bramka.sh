@@ -9,7 +9,8 @@
 #                              `SHA: <reviewed tip>`, `Tier: S|M|L` and `Otwarte: <n> CRITICAL, <m> REQUIRED`
 #                              (every CRITICAL and REQUIRED finding of the report, PLAUSIBLE ones included)
 #   $K/weryfikacja-<N>-<k>.md  verifier, round k: first line `VERDICT: PASS|FAIL|BLOCKED`, and `SHA: <verified tip>`
-#   $K/raport-<N>.md           the lead: first line `done.`, and one line `Weryfikacja: PASS|BLOCKED — …|n/a — …`
+#   $K/raport-<N>.md           the lead: first line `done.`, and one line `Weryfikacja: PASS|BLOCKED — …|n/a — …`;
+#                              one line `F<n>: naprawione|błędne|celowe|bez znaczenia …` per numbered review finding
 # Optional, from the project's docs/VERIFICATION_ENV.md, section `## Bramka`:
 #   testy: <command>      run in the worktree, {WT} = its absolute path; exit 0 = pass; keep it under 5 minutes
 #   wrazliwe: <glob>      one per line, case-insensitive, matched against each changed path and its basename;
@@ -266,6 +267,20 @@ if [[ "$PROP" =~ ^[0-9]+$ ]] && [ "$PROP" -gt 0 ]; then
     if [ -n "$POW" ]; then ok "testy +$LT linii przy +$LP linii kodu (> ${PROP}×): $POW"
     else brak "testy +$LT linii przy +$LP linii kodu (> ${PROP}×) — raport potrzebuje linii Testy-proporcja: <dlaczego tyle> (implementacja.md §Test volume)"; fi
   else ok "proporcja testów: +$LT linii testów, +$LP linii kodu"; fi
+fi
+
+# Findings answered (v1.10.0): every CRITICAL/REQUIRED/OPTIONAL finding numbered `F<n>` in any review round has one
+# line `F<n>: naprawione|błędne|celowe|bez znaczenia` in the lead's report. Reviews from before the numbering
+# carry no `F<n>` in the finding's first line and need nothing.
+NUMERY=$(cat "$K"/recenzja-"$N"-[0-9]*.md 2>/dev/null \
+  | grep -oE '\*\*(CRITICAL|REQUIRED|OPTIONAL)\*\*[^A-Za-z0-9]*F[0-9]+' | grep -oE 'F[0-9]+$' | sort -u -t F -k2,2n)
+if [ -n "$NUMERY" ]; then
+  BEZ=""
+  for F in $NUMERY; do
+    grep -qE "^[-*> ]*$F:[* ]*(naprawione|błędne|celowe|bez znaczenia)" "$R" 2>/dev/null || BEZ="$BEZ $F"
+  done
+  if [ -z "$BEZ" ]; then ok "znaleziska z odpowiedzią: $(wc -w <<<"$NUMERY" | tr -d ' ')"
+  else brak "znaleziska bez odpowiedzi w raporcie:$BEZ — linia F<n>: naprawione <SHA> | błędne — … | celowe — … | bez znaczenia — …"; fi
 fi
 
 TESTY=$(sed -n 's/^testy: *//p' <<<"$SEKCJA" | head -1)
