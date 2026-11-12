@@ -14,7 +14,9 @@ KonkretnyTMS · main · Opus 5.5 · ██████░░░░░░░░�
 
 Elementy rozkładają się na całą szerokość okna z równymi odstępami, w złotej zaokrąglonej ramce. Pasek rysuje się tylko w aplikacji desktopowej; w terminalu te same dane pokazuje linia statusu.
 
-Dane odświeżają się na starcie sesji, po każdej turze i przy każdej zmianie pomiaru zużycia.
+Pasek nie pokazuje się sam: włącza go komenda `/pasek`, ta sama komenda go chowa (tak jak panel `/issues`).
+
+Dane odświeżają się na starcie sesji, przy `/pasek`, po każdej turze i przy każdej zmianie pomiaru zużycia.
 
 ## Instalacja
 

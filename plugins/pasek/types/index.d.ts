@@ -9,6 +9,6 @@ export type SessionInfo = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'pasek': { info: SessionInfo | null }
+    'pasek': { info: SessionInfo | null; visible: boolean }
   }
 }

@@ -4,6 +4,8 @@ import type { Color, EngineInterface, Register, SessionContextUsage, SessionRate
 import type { SessionInfo } from '../types'
 
 const info = atom({ plugin: 'pasek', key: 'info' } as const, null)
+// pasek nie pokazuje się sam — tylko komendą /pasek (jak panel /issues)
+const visible = atom({ plugin: 'pasek', key: 'visible' } as const, false)
 
 const BAR_CELLS = 20
 
@@ -62,8 +64,17 @@ const refresh = async (
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
+    await $.command.register({ name: 'pasek', description: 'Pokazuje albo chowa pasek nad promptem' })
     await refresh($)
     return result
+  })
+
+  on('command.run', { command: 'pasek' }, async $ => {
+    const shown = !(await read($, visible))
+    await update($, visible, () => shown)
+    if (!shown) return { text: 'Pasek schowany. /pasek pokaże go z powrotem.' }
+    await refresh($)
+    return { text: 'Pasek widoczny nad promptem (tylko w aplikacji desktopowej). /pasek go schowa.' }
   })
 
   on('session.measure', async ($, e, next) => {
@@ -80,6 +91,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const s = await read($, info)
+    if (!(await read($, visible))) return next(e)
     // terminal ma własną linię statusu z tymi danymi, pasek tylko dubluje ją nad promptem
     if (e.surface === 'terminal' || e.props.hasSurvey || s === null) {
       return next(e)

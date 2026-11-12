@@ -25,7 +25,7 @@
       "name": "pasek",
       "source": "./plugins/pasek",
       "description": "Pasek nad promptem: repo, gałąź, model, wypełnienie kontekstu i limit tygodniowy",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "category": "productivity",
       "tags": [
         "status",
