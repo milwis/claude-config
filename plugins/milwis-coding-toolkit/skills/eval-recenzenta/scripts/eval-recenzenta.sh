@@ -9,6 +9,9 @@
 #     -j <n>                cases in parallel (default 1)          --etykieta <s> label in the history line
 #     --sucho               prepare the clones and print the briefs, run no reviewer
 #     --zostaw              keep the clones in $TMPDIR/rv-<token> (default: removed after scoring)
+#     --refaktor <plik>     refactor checklist (roadmapa/references/recenzja-refaktoru.md): a case whose spec starts with
+#                           `Porcja refaktoru:` gets it in the brief, as the refactor gate's brief does; the column
+#                           `lista` scores its output contract (Lista-refaktoru hash, one R<n> line per point)
 # Cases: <repo>/.claude/eval-recenzenta/przypadki.tsv, tab-separated, `#` starts a comment:
 #   id  rodzaj(blad|czysty)  baza  tip  oczekiwane  opis
 #   - the reviewed diff is baza..tip; `latki/<id>.patch`, when present, is applied on tip and amended into it
@@ -20,12 +23,13 @@
 # Output: .claude/tmp/eval-recenzenta/<run>/ (reports, JSON, wyniki.tsv) and one line in historia.tsv beside it.
 set -u
 TU=$(cd "$(dirname "$0")" && pwd)
-AGENT="" MODEL="" EFFORT=high TYLKO="" POWT=1 J=1 ETYK="" SUCHO=0 ZOSTAW=0
+AGENT="" MODEL="" EFFORT=high TYLKO="" POWT=1 J=1 ETYK="" SUCHO=0 ZOSTAW=0 REFAKTOR=""
 while [ $# -gt 1 ]; do
   case "$1" in
     --agent) AGENT=$2; shift 2 ;; --model) MODEL=$2; shift 2 ;; --effort) EFFORT=$2; shift 2 ;;
     --tylko) TYLKO=",$2,"; shift 2 ;; --powtorzenia) POWT=$2; shift 2 ;; -j) J=$2; shift 2 ;;
     --etykieta) ETYK=$2; shift 2 ;; --sucho) SUCHO=1; shift ;; --zostaw) ZOSTAW=1; shift ;;
+    --refaktor) REFAKTOR=$2; shift 2 ;;
     *) echo "nieznana opcja: $1" >&2; exit 2 ;;
   esac
 done
@@ -37,6 +41,12 @@ if [ -z "$AGENT" ]; then
 fi
 [ -s "$AGENT" ] || { echo "brak pliku recenzenta: $AGENT" >&2; exit 2; }
 AGENT=$(cd "$(dirname "$AGENT")" && pwd)/$(basename "$AGENT")
+LISTA_SHA="" LISTA_N=0
+if [ -n "$REFAKTOR" ]; then
+  [ -s "$REFAKTOR" ] || { echo "brak listy refaktoru: $REFAKTOR" >&2; exit 2; }
+  LISTA_SHA=$(shasum -a 256 "$REFAKTOR" | cut -c1-12)
+  LISTA_N=$(grep -cE '^[0-9]+\. ' "$REFAKTOR")
+fi
 RUN="$REPO/.claude/tmp/eval-recenzenta/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RUN" || exit 2
 # The reviewer as a session agent: body of the file as its prompt, tools and model from its frontmatter.
@@ -66,11 +76,11 @@ przypadek() {
   mkdir -p "$RUN/wyniki"
   git clone -q --no-checkout --shared "$REPO" "$D" 2>"$RUN/$NAZWA.git.log" \
     && git -C "$D" checkout -q --detach "$TIP" 2>>"$RUN/$NAZWA.git.log" \
-    || { printf '%s\t%s\tBLAD-KLONU\t-\t-\t-\t-\n' "$NAZWA" "$RODZ" > "$RUN/wyniki/$NAZWA.tsv"; return; }
+    || { printf '%s\t%s\tBLAD-KLONU\t-\t-\t-\t-\t-\n' "$NAZWA" "$RODZ" > "$RUN/wyniki/$NAZWA.tsv"; return; }
   if [ -s "$E/latki/$ID.patch" ]; then
     git -C "$D" apply "$E/latki/$ID.patch" 2>>"$RUN/$NAZWA.git.log" \
       && git -C "$D" add -A && git -C "$D" -c user.name=eval -c user.email=eval@localhost commit -q --amend --no-edit 2>>"$RUN/$NAZWA.git.log" \
-      || { printf '%s\t%s\tBLAD-LATKI\t-\t-\t-\t-\n' "$NAZWA" "$RODZ" > "$RUN/wyniki/$NAZWA.tsv"; return; }
+      || { printf '%s\t%s\tBLAD-LATKI\t-\t-\t-\t-\t-\n' "$NAZWA" "$RODZ" > "$RUN/wyniki/$NAZWA.tsv"; return; }
   fi
   git -C "$D" remote remove origin 2>/dev/null
   git -C "$D" for-each-ref --format='%(refname)' | while IFS= read -r REF; do git -C "$D" update-ref -d "$REF"; done
@@ -79,6 +89,14 @@ przypadek() {
   mkdir -p "$D/.claude/tmp"; local SPEC="$D/.claude/tmp/spec.md"
   cp "$E/spec/$ID.md" "$SPEC" 2>/dev/null || echo "(no spec: review the diff on its own)" > "$SPEC"
   local STAT; STAT=$(git -C "$D" diff --stat "$BAZA" HEAD | tail -40)
+  local REF_BRIEF="" REF=0
+  if [ -n "$REFAKTOR" ] && head -1 "$SPEC" | grep -q '^Porcja refaktoru:'; then
+    REF=1; cp "$REFAKTOR" "$D/.claude/tmp/recenzja-refaktoru.md"
+    REF_BRIEF="
+This is a refactor portion. Refactor checklist: $D/.claude/tmp/recenzja-refaktoru.md — apply every point and
+follow its output contract (\`Lista-refaktoru:\` and one \`R<n>:\` line per point after \`Otwarte:\`).
+"
+  fi
   cat > "$RUN/$NAZWA.brief.md" <<EOF
 Review the diff \`$BAZA..HEAD\` of the repository in your working directory ($D).
 
@@ -88,12 +106,13 @@ in this review, do not call it. Rules: list \`.claude/rules/\` and read each fil
 \`git diff --stat $BAZA HEAD\`:
 $STAT
 
+$REF_BRIEF
 Write your report to $RAP. Line 1: \`No issues.\` or your verdict line. Then the lines
 \`SHA: <git rev-parse HEAD at your start>\`, \`Tier: S|M|L\` and \`Otwarte: <n> CRITICAL, <m> REQUIRED\` (every CRITICAL
 and REQUIRED finding below, PLAUSIBLE included), then the report. Change no tracked file; probe copies go under
 $D/.claude/tmp/. Your last message is the first line of the report and its path.
 EOF
-  if [ "$SUCHO" = 1 ]; then printf '%s\t%s\tSUCHO\t-\t-\t-\t%s\n' "$NAZWA" "$RODZ" "$D" > "$RUN/wyniki/$NAZWA.tsv"; return; fi
+  if [ "$SUCHO" = 1 ]; then printf '%s\t%s\tSUCHO\t-\t-\t-\t%s\t%s\n' "$NAZWA" "$RODZ" "$D" "$([ "$REF" = 1 ] && echo lista || echo -)" > "$RUN/wyniki/$NAZWA.tsv"; return; fi
   ( cd "$D" && claude -p --setting-sources user,project --strict-mcp-config --no-session-persistence \
       --permission-mode "${EVAL_TRYB:-auto}" --effort "$EFFORT" --model "$MODEL_EF" \
       --agents "$(cat "$RUN/agent.json")" --agent eval-recenzent --disallowedTools 'Bash(gh:*)' \
@@ -121,7 +140,17 @@ EOF
           END { exit !t }' "$RAP"; then WYNIK=TRAF; else WYNIK=OBOK; fi
     fi
   fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$NAZWA" "$RODZ" "$WYNIK" "$BLOK" "$KOSZT" "$CZAS" "$OCZ" > "$RUN/wyniki/$NAZWA.tsv"
+  # The refactor checklist's contract: the file's hash and every point answered (ok | F<k> | n/d).
+  local LISTA=-
+  if [ "$REF" = 1 ]; then
+    if [ ! -s "$RAP" ]; then LISTA=brak
+    elif ! grep -qE "^[#*> ]*Lista-refaktoru:[* ]*$LISTA_SHA" "$RAP"; then LISTA=bez-skrotu
+    else
+      local RN; RN=$(grep -oE '^[#*> -]*R[0-9]+:[* ]*(ok|F[0-9]+|n/d)' "$RAP" | grep -oE 'R[0-9]+' | sort -u | wc -l | tr -d ' ')
+      if [ "$RN" -ge "$LISTA_N" ]; then LISTA="ok $RN/$LISTA_N"; else LISTA="niepelna $RN/$LISTA_N"; fi
+    fi
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$NAZWA" "$RODZ" "$WYNIK" "$BLOK" "$KOSZT" "$CZAS" "$OCZ" "$LISTA" > "$RUN/wyniki/$NAZWA.tsv"
   [ "$ZOSTAW" = 1 ] || rm -rf "$D"
 }
 
@@ -137,15 +166,17 @@ while IFS=$'\t' read -r ID RODZ BAZA TIP OCZ _; do
 done < "$E/przypadki.tsv"
 wait
 
-{ printf 'przypadek\trodzaj\twynik\tblokujace\tkoszt_usd\tczas\toczekiwane\n'; cat "$RUN"/wyniki/*.tsv 2>/dev/null; } > "$RUN/wyniki.tsv"
+{ printf 'przypadek\trodzaj\twynik\tblokujace\tkoszt_usd\tczas\toczekiwane\tlista\n'; cat "$RUN"/wyniki/*.tsv 2>/dev/null; } > "$RUN/wyniki.tsv"
 column -t -s $'\t' "$RUN/wyniki.tsv"
 # Recall = TRAF / blad; OBOK (blocks, but not on the bug), PUSTY, BEZ-OTWARTE and BRAK-RAPORTU do not count.
 # Noise = blocking findings on clean diffs.
 PODS=$(awk -F'\t' 'NR > 1 {
     if ($2 == "blad") { b++; if ($3 == "TRAF") t++ }
     if ($2 == "czysty") { c++; if ($4 ~ /^[0-9]+$/) s += $4; if ($3 == "SZUM") cs++ }
-    if ($5 ~ /^[0-9.]+$/) k += $5 }
-  END { printf "trafione %d/%d, czyste z szumem %d/%d (blokujących %d), koszt %.2f USD", t, b, cs, c, s, k }' "$RUN/wyniki.tsv")
+    if ($5 ~ /^[0-9.]+$/) k += $5
+    if ($8 != "" && $8 != "-") { l++; if ($8 ~ /^ok /) lo++ } }
+  END { printf "trafione %d/%d, czyste z szumem %d/%d (blokujących %d), koszt %.2f USD", t, b, cs, c, s, k
+        if (l) printf ", lista refaktoru %d/%d", lo, l }' "$RUN/wyniki.tsv")
 echo "$PODS"
 [ "$SUCHO" = 1 ] && { echo "sucho: briefy w $RUN, klony w ostatniej kolumnie (usuń je ręcznie)"; exit 0; }
 H="$REPO/.claude/tmp/eval-recenzenta/historia.tsv"
