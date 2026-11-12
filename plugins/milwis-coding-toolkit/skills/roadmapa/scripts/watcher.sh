@@ -1,9 +1,10 @@
 #!/bin/bash
 # Watcher of the queue: after every issue it ends the lead's claude process (/exit) and starts a new one
-# in the same tmux pane (lider.sh, the start prompt as its first message) — one issue = one session, each
+# in a new Herdr terminal of the same name, "$SESJA-lider" (lider.sh, the start prompt as its first message;
+# herdr.sh) — one issue = one session, each
 # visible on its own in /resume and in Remote Control. Replaced /clear in v1.5.35: /clear kept one process
 # (one Remote Control session for the whole night) and the plugin version from the moment of start.
-# Started by `kolejka.sh start` in the second window of the tmux session, under `caffeinate -ims`: the system
+# Started by `kolejka.sh start` in its own Herdr terminal, "$SESJA-watcher", under `caffeinate -ims`: the system
 # never sleeps while the watcher lives (pauses included), the display does — no -d/-u (owner, 2026-09-26).
 #
 # Flags written by the LEAD in $K (the watcher never guesses the lead's state from the screen):
@@ -34,25 +35,29 @@ set -uo pipefail
 . "$1"
 KONFIG="$1"
 cd "$K" || exit 1
+# shellcheck disable=SC1091
+. "$SKRYPTY/herdr.sh"
 
 log() { echo "$(date '+%F %T') $*" >> "$K/watcher.log"; }
 powiadom() {
   log "POWIADOMIENIE: $1"
   osascript -e "display notification \"${1//\"/\'}\" with title \"Kolejka roadmapa\"" 2>/dev/null
 }
-wyslij() { tmux send-keys -t "$SESJA:0" -l "$1"; sleep 1; tmux send-keys -t "$SESJA:0" Enter; }
-martwy() { [ "$(tmux display-message -p -t "$SESJA:0" '#{pane_dead}' 2>/dev/null)" = 1 ]; }
+wyslij() { hc_wyslij lider "$1"; }
+# The lead's claude process has ended: its terminal is finished, or gone altogether.
+martwy() { case "$(hc_stan lider)" in finished|brak) return 0 ;; *) return 1 ;; esac; }
 nowy_cykl() {
   rm -f rotuj pusto
-  # remain-on-exit keeps the pane (and its index 0) after claude exits, so respawn has a target.
-  tmux set-option -w -t "$SESJA:0" remain-on-exit on
-  # /exit lets claude close its Remote Control session cleanly; -k below kills whatever is left.
+  # /exit lets claude close its Remote Control session cleanly; hc_zabij below kills whatever is left and frees the name.
   if ! martwy; then
-    wyslij "/exit"
+    hc_wyjdz lider
     for _ in $(seq 30); do martwy && break; sleep 1; done
   fi
-  rm -f tura-koniec blad-api
-  tmux respawn-pane -k -t "$SESJA:0" -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
+  rm -f tura-koniec tura-koniec.przed-kontynuacja blad-api
+  hc_zabij lider
+  hc_uruchom lider "$REPO" "$SKRYPTY/lider.sh" "$K/config.env" \
+    || zakoncz "Nie udało się uruchomić lidera w Herdr (hc run). Sprawdź: hc server status"
+  BRAK_LIDERA=0
   STALL_ZGLOSZONY=0
   KONTYNUACJE=0
   ST_OD=$(date +%s)
@@ -193,14 +198,14 @@ else
   # kolejka.sh start has already launched the first lead (lider.sh) after checking the limit.
   log "cykl: start (następne issue: $("$SKRYPTY/wybierz-issue.sh" "$REPO" 2>/dev/null || echo '?'))"
 fi
-# Hard stop (tmux kill-session, closed window, kill): write "zatrzymana" before exiting. Without it the dashboard
+# Hard stop (kolejka.sh zabij, hc kill, a closed terminal): write "zatrzymana" before exiting. Without it the dashboard
 # keeps the last state and turns red after 30 min as "no signal — Mac, power, network?" (2026-10-02: kill-session
-# during a pause left "pauza-okno" for good). `kolejka.sh watcher` replaces the watcher with kill-window and touches
+# during a pause left "pauza-okno" for good). `kolejka.sh watcher` replaces the watcher with hc kill and touches
 # $K/podmiana-watchera first: a replacement, not a stop, so nothing is written — the new watcher writes its own state.
 twardy_stop() {
   trap - HUP TERM INT
   if [ -n "$(find podmiana-watchera -mmin -2 2>/dev/null)" ]; then log "watcher: podmieniony ($1)"; exit 0; fi
-  status_github zatrzymana "Kolejka zatrzymana twardo ($1, np. tmux kill-session). Bieżące issue podejmie odzysk przy następnym starcie."
+  status_github zatrzymana "Kolejka zatrzymana twardo ($1, np. kolejka.sh zabij). Bieżące issue podejmie odzysk przy następnym starcie."
   log "watcher: twardy stop ($1)"
   exit 0
 }
@@ -215,9 +220,19 @@ BEZ_FLAGI=0
 STALL_ZGLOSZONY=0
 KONTYNUACJE=0
 KONT_MIN="${KOLEJKA_KONT_MIN:-2}"
+BRAK_LIDERA=0
 
 while sleep 20; do
-  tmux has-session -t "$SESJA" 2>/dev/null || { log "sesja tmux zniknęła"; status_github zatrzymana "sesja tmux zniknęła"; exit 1; }
+  # The lead's terminal removed by hand (hc rm, closed in Herdr) = the old "tmux session gone". Three readings in a
+  # row (a minute), so one slow answer from hc does not end the queue.
+  if [ "$(hc_stan lider)" = brak ]; then
+    BRAK_LIDERA=$((BRAK_LIDERA + 1))
+    if [ "$BRAK_LIDERA" -ge 3 ]; then
+      log "terminal lidera zniknął"; status_github zatrzymana "terminal lidera ($SESJA-lider) zniknął z Herdr"; exit 1
+    fi
+  else
+    BRAK_LIDERA=0
+  fi
   status_puls
   wypchnij_puls
 
@@ -230,7 +245,7 @@ while sleep 20; do
   if [ ! -f tura-koniec ]; then
     # The lead is working (or hung). A subagent on a Large issue may run for hours — only notify.
     if [ "$STALL_ZGLOSZONY" = 0 ] && ! aktywnosc_w_ciagu "$STALL_MIN"; then
-      powiadom "Brak aktywności od $STALL_MIN min — sprawdź sesję: tmux attach -t $SESJA"
+      powiadom "Brak aktywności od $STALL_MIN min — sprawdź terminal $SESJA-lider w Herdr (hc attach $SESJA-lider)"
       STALL_ZGLOSZONY=1
     fi
     continue
@@ -290,8 +305,16 @@ while sleep 20; do
       aktywnosc_w_ciagu "$KONT_MIN" && continue
       KONTYNUACJE=$((KONTYNUACJE + 1))
       NR=$(cat w-toku 2>/dev/null || echo '?')
-      rm -f tura-koniec
-      wyslij "Kolejka: tura skończyła się bez flagi rotuj/pusto/stop, więc issue #$NR nie jest zamknięte. Kontynuuj według $K/stan-$NR.md i zasad. Jeśli coś blokuje, napisz co i odłóż issue (krok 8)."
+      # The marker moves aside before the send, so the Stop hook of the continued turn writes a fresh one.
+      mv tura-koniec tura-koniec.przed-kontynuacja
+      if ! wyslij "Kolejka: tura skończyła się bez flagi rotuj/pusto/stop, więc issue #$NR nie jest zamknięte. Kontynuuj według $K/stan-$NR.md i zasad. Jeśli coś blokuje, napisz co i odłóż issue (krok 8)."; then
+        # hc refused (a dialog open in the lead, or the owner's unfinished draft): the turn end comes back, and the
+        # next attempt or the restart below takes over.
+        [ -f tura-koniec ] || mv tura-koniec.przed-kontynuacja tura-koniec
+        log "lider: tura bez flagi — kontynuacja $KONTYNUACJE/2 niedostarczona (hc send), issue #$NR"
+        continue
+      fi
+      rm -f tura-koniec.przed-kontynuacja
       log "lider: tura bez flagi — kontynuacja $KONTYNUACJE/2 (issue #$NR)"
       continue
     fi
@@ -300,7 +323,7 @@ while sleep 20; do
     [ "$WIEK" -lt $((GRACE_MIN * 60)) ] && continue
     aktywnosc_w_ciagu "$GRACE_MIN" && continue
     BEZ_FLAGI=$((BEZ_FLAGI + 1))
-    [ "$BEZ_FLAGI" -ge 2 ] && zakoncz "Lider drugi raz z rzędu skończył turę bez flagi — kolejka stoi, zajrzyj: tmux attach -t $SESJA"
+    [ "$BEZ_FLAGI" -ge 2 ] && zakoncz "Lider drugi raz z rzędu skończył turę bez flagi — kolejka stoi, zajrzyj: hc attach $SESJA-lider"
     powiadom "Lider skończył turę bez flagi — restartuję cykl (odzysk przez w-toku)."
     nastepny_cykl
   fi

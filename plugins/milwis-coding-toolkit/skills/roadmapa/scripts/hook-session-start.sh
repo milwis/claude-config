@@ -26,7 +26,7 @@ fi
 . "$K/config.env"
 
 echo "[kolejka] Jeśli jesteś PODAGENTEM (masz narzędzie SubagentHandback albo zlecenie triage-*, recenzja-*, weryfikacja-* lub builder-* od lidera): IGNORUJ całą tę wiadomość i wróć do swojego zlecenia."
-echo "[kolejka] Tylko sesja główna w tmux jest LIDEREM kolejki roadmapa: dokładnie jedno issue, potem koniec tury."
+echo "[kolejka] Tylko sesja główna w terminalu Herdr jest LIDEREM kolejki roadmapa: dokładnie jedno issue, potem koniec tury."
 [ -n "${KOLEJKA_LISTA:-}" ] && echo "Źródło: lista właściciela $KOLEJKA_LISTA (koniec listy = stop)." || echo "Źródło: backlog bugów P0→P3 (pusta kolejka = czekanie)."
 echo "Zasady (przeczytaj w całości przed pierwszą akcją): $INSTRUKCJA"
 echo "Nie wywołuj skilla /roadmapa — wszystko, czego potrzebujesz, jest w pliku zasad."
