@@ -12,10 +12,12 @@
 #   KOLEJKA_LISTA empty  — the backlog: open, one of KOLEJKA_TYPY (bugs, missing tests) OR an owner-approved idea
 #                          (KOLEJKA_ZATWIERDZONY), none of KOLEJKA_POMIJAJ, a priority
 #                          label, P0 -> P3 (ideas ranked like bugs), oldest first; skips issues with a local agent/issue-<nr> branch
-#                          and issues whose deferral is written in the repo (KOLEJKA_ODROCZENIA dirs).
+#                          and issues whose deferral is written in the repo (KOLEJKA_ODROCZENIA dirs), and issues whose
+#                          title or body names a file under refactor (zamrozone.sh: path or class name; v1.12.0, L18).
 # Skip reasons go to stderr as "pominięto #<nr>: <reason>" — the lead labels those (see cykl-lidera.md).
 set -euo pipefail
 
+SKRYPTY="$(cd "$(dirname "$0")" && pwd)"
 LISTA_TRYB=0
 [ "${1:-}" = "--lista" ] && { LISTA_TRYB=1; shift; }
 cd "${1:-.}"
@@ -69,12 +71,18 @@ odroczenie() {
     | head -1 | cut -d: -f1,2
 }
 
-gh issue list --state open --limit 1000 --json number,title,labels,createdAt \
-| jq -r --arg typy "$KOLEJKA_TYPY" --arg pomijaj "$KOLEJKA_POMIJAJ" --arg zatwierdzony "$KOLEJKA_ZATWIERDZONY" --argjson zaczete "$ZACZETE" '
+# Files under refactor (L18): the path and the class name of each, matched in the title and the body.
+REFAKTOR=$(bash "$SKRYPTY/zamrozone.sh" . | cut -f2 | sort -u | while IFS= read -r P; do
+  [ -n "$P" ] || continue; B=${P##*/}; printf '%s\n%s\n' "$P" "${B%.*}"; done | jq -R . | jq -sc .)
+
+gh issue list --state open --limit 1000 --json number,title,body,labels,createdAt \
+| jq -r --arg typy "$KOLEJKA_TYPY" --arg pomijaj "$KOLEJKA_POMIJAJ" --arg zatwierdzony "$KOLEJKA_ZATWIERDZONY" --argjson zaczete "$ZACZETE" \
+    --argjson refaktor "$REFAKTOR" '
   ($typy | split(",")) as $T | ($pomijaj | split(",")) as $X |
   {"P0":0,"P1":1,"P2":2,"P3":3,
    "priorytet:krytyczny":0,"priorytet:wysoki":1,"priorytet:sredni":2,"priorytet:niski":3} as $PRIO |
-  map({number, title, createdAt, l: [.labels[].name]})
+  map({number, title, createdAt, l: [.labels[].name],
+       r: ((.title + " " + (.body // "")) as $t | [$refaktor[] | select(. as $n | $t | contains($n))] | first // "")})
   | map(. + {p: ([.l[] | $PRIO[.] // empty] | min)})
   | map(select(.p != null))
   | map(select(any(.l[]; . as $x | $T | index($x))
@@ -82,9 +90,11 @@ gh issue list --state open --limit 1000 --json number,title,labels,createdAt \
   | map(select(all(.l[]; . as $x | $X | index($x) | not)))
   | map(select(.number as $n | $zaczete | index($n) | not))
   | sort_by(.p, .createdAt)
-  | .[] | "P\(.p)\t#\(.number)\t\(.title)"
+  | .[] | "\(.r)\tP\(.p)\t#\(.number)\t\(.title)"
 ' | while IFS= read -r wiersz; do
+  r=${wiersz%%$'\t'*}; wiersz=${wiersz#*$'\t'}
   n=$(cut -f2 <<<"$wiersz" | tr -d '#')
+  if [ -n "$r" ]; then echo "pominięto #$n: plik w refaktorze ($r) — czeka na koniec refaktoru" >&2; continue; fi
   if gdzie=$(odroczenie "$n") && [ -n "$gdzie" ]; then
     echo "pominięto #$n: odroczenie w $gdzie" >&2
     continue
