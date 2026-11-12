@@ -8,6 +8,23 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
+## Run: 2026-11-12 — kolejka w Herdr zamiast tmux (v1.11.0)
+
+Źródło: prośba właściciela („przepisz kolejka.sh tak, aby działało na herdr”). Herdr pokazuje tylko terminale uruchomione przez `hc`, więc lider w odłączonym tmuxie był dla właściciela niewidoczny.
+
+- **`scripts/herdr.sh` (nowy):** lider i watcher to dwa nazwane terminale Herdr, `$KOLEJKA_SESJA-lider` i `-watcher` (`--no-parent`, etykieta `kolejka=<sesja>`). Adres bieżącego terminala jest w `$K/lider.adres` i `$K/watcher.adres`, bo nazwa przechodzi na nowy terminal co issue. `hc run` dostaje PATH i każde `KOLEJKA_*` przez `env`.
+- **`watcher.sh`:** `respawn-pane` zastąpiony przez `/exit` → `hc kill` + `hc rm` → nowy terminal o tej samej nazwie. `/exit` idzie klawiszami (`hc keys`), kontynuacja przez `hc send`. Gdy `hc send` odmówi (otwarty dialog albo szkic właściciela), znacznik końca tury wraca na miejsce. Brak terminala lidera w trzech odczytach z rzędu zastępuje dawne „sesja tmux zniknęła”.
+- **`kolejka.sh`:** `start` sprawdza `hc server status` i odmawia, gdy któryś terminal kolejki żyje. Nowa komenda `zabij` (twardy stop: najpierw watcher, którego pułapka zapisuje `zatrzymana`, potem lider) zastępuje `tmux kill-session`. `watcher` podmienia terminal watchera. `status` pokazuje stan i adresy obu terminali. Okno „Enter zamyka” znikło, bo zakończony terminal Herdr zachowuje historię do następnego startu.
+- `POMIAR` (2026-11-12, hc 0.1.20, repo testowe, prawdziwe `kolejka.sh`/`watcher.sh`/`herdr.sh`, atrapa lidera):
+  - rotacja `rotuj` + `tura-koniec`: `/exit` dotarło, stary terminal usunięty, nowy pod tą samą nazwą, `KOLEJKA_PROBA` przeszło przez dwa uruchomienia;
+  - drugi `start` odmówił;
+  - `watcher --limit 100`: „podmieniony (SIGHUP)”, nowy dołączył bez cyklu;
+  - `stop`: „zatrzymana przez właściciela”;
+  - `zabij`: „twardy stop (SIGHUP)” przez `caffeinate`, oba terminale usunięte;
+  - lider = prawdziwy `claude` (haiku) w Herdr: rotacja w 2 s, więc proces skończył się na `/exit`, a nie na `kill`.
+- `POMIAR`: `hc send t "/exit"` do Claude Code w terminalu Herdr doszło jako wiadomość (`<hc from="t16">/exit</hc>`) i proces żył dalej. `hc keys t / e x i t` + `enter` → `finished`, exit 0.
+- `NIEZMIERZONE`: pełne issue z prawdziwym liderem i `--remote-control` w terminalu Herdr; scalenie przez `scal.sh` z sesji w Herdr (pty jak w tmux, klasyfikator powinien widzieć sesję interaktywną). Pierwszy przebieg na KonkretnyTMS jest obserwowany.
+
 ## Run: 2026-11-11 — recenzja według artykułu „How the Claude Code team does code review” (v1.10.0)
 
 Źródło: prośba właściciela o porównanie workflow z artykułem (claude.dev, 2026-10-15) i decyzja „wprowadź wszystkie 3”. Większość praktyk artykułu kolejka już ma (świeży recenzent ze spec, reguły z `paths:` jako REVIEW.md, dowód `path:line`, tier od ryzyka, limit rund, recenzja delty od rundy 2, zamykanie po numerze, `retro` z warstwą ucieczki). `POMIAR` przed decyzją o etykiecie Pre-existing (KonkretnyTMS `.claude/tmp/kolejka/recenzja-*.md`, 382 raporty, awk po blokach CRITICAL/REQUIRED): 0 z 266 blokujących znalezisk dotyczy kodu sprzed gałęzi, więc etykiety nie dodano. Odrzucone bez danych: głosujący weryfikatorzy (recenzenci to już 25–34% jednostek, #1811: trzech na jednym tipie się nie zgodziło) i osobny przebieg bezpieczeństwa (0 nieprzyjętych ucieczek, retro 11-02). Odłożone: „zmień podejście” przy oscylacji rund (jeden przypadek, #1884) do danych z punktu 2.

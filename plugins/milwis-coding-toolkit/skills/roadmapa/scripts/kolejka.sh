@@ -2,7 +2,8 @@
 # The issue queue (roadmapa) — owner's control script. Rules for the lead: ../references/cykl-lidera.md
 #
 #   kolejka.sh start  [repo] [--issues 812,815 | --parasol 1875 [--bez-triage]] [--limit 92] [--okno 5]
-#                              start the lead in tmux (a new claude session per issue) + the watcher (owner's terminal); without --issues: the bug
+#                              start the lead (a new claude session per issue) and the watcher as two Herdr terminals,
+#                              "$KOLEJKA_SESJA-lider" and "$KOLEJKA_SESJA-watcher" (herdr.sh); without --issues: the bug
 #                              backlog by priority, no end; --parasol: the portions of that umbrella in its `## Porcje` order,
 #                              each through triage; --bez-triage: the owner says the umbrella came from a plan — every open
 #                              portion must name a plan on main (start refuses otherwise), the plan replaces triage and the
@@ -11,13 +12,14 @@
 #                              (default 92, 100 = off); --okno: in the last N hours before the weekly reset the limit
 #                              is lifted, and a queue stopped by the limit pauses until then (default 5, 0 = off)
 #   kolejka.sh stop   [repo]   finish the current issue, then stop
+#   kolejka.sh zabij  [repo]   hard stop now: end both terminals (the current issue is recovered at the next start)
 #   kolejka.sh status [repo]   where the queue stands
 #   kolejka.sh lista  [repo]   the queue in the order it will be taken (skips with reasons on stderr)
 #   kolejka.sh watcher [repo] [--limit 92] [--okno 5]   replace the watcher of a running queue without a new cycle
 #                              (after a toolkit update); the lead keeps working
 #
 # Configuration (environment, read at start):
-#   KOLEJKA_SESJA (kolejka), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
+#   KOLEJKA_SESJA (kolejka — prefix of the Herdr terminal names: a-z 0-9 - _), KOLEJKA_LEDGER (docs/plans/kolejka-ledger.md), KOLEJKA_MAIN (main),
 #   KOLEJKA_WYPYCHAJ (empty = off; 1 = the watcher pushes KOLEJKA_MAIN after every issue, see synchronizuj.sh; refused
 #   when KOLEJKA_MAIN is KOLEJKA_GALAZ_PROD), KOLEJKA_GALAZ_PROD (main — the branch whose push deploys),
 #   KOLEJKA_ETYKIETA_ZROBIONE (status:zrobione-lokalnie), KOLEJKA_ETYKIETA_RECZNA (weryfikacja:reczna — merged
@@ -49,6 +51,11 @@ done
 REPO="$(cd "$REPO_ARG" && git rev-parse --show-toplevel)"
 K="$REPO/.claude/tmp/kolejka"
 SESJA="${KOLEJKA_SESJA:-kolejka}"
+[[ "$SESJA" =~ ^[a-z0-9_-]{1,24}$ ]] || { echo "KOLEJKA_SESJA=$SESJA: nazwa terminala Herdr, 1–24 znaki a-z 0-9 - _"; exit 1; }
+# shellcheck disable=SC1091
+. "$SKRYPTY/herdr.sh"
+# Both terminals of the queue, for status and the start/watcher checks.
+terminale() { local r a o=""; for r in lider watcher; do a=$(hc_adres "$r"); o="$o${o:+, }$r: $(hc_stan "$r")${a:+ $a}"; done; echo "$o"; }
 cfg() { (. "$K/config.env" 2>/dev/null; eval "echo \"\${$1:-$2}\""); }
 LIMIT_TYG="${LIMIT_ARG:-${KOLEJKA_LIMIT_TYG:-92}}"
 [[ "$LIMIT_TYG" =~ ^[0-9]+$ ]] || { echo "--limit: liczba procent, np. 92 (100 = bez limitu)"; exit 1; }
@@ -69,7 +76,7 @@ numer_statusu() { local s; s=$(cfg STATUS_ISSUE ""); if [ -n "$s" ]; then echo "
 
 case "$CMD" in
 start)
-  for t in tmux jq gh claude caffeinate; do command -v "$t" >/dev/null || { echo "Brak narzędzia: $t"; exit 1; }; done
+  for t in "$HC" jq gh claude caffeinate; do command -v "$t" >/dev/null || { echo "Brak narzędzia: $t"; exit 1; }; done
   gh auth status >/dev/null 2>&1 || { echo "gh nie jest zalogowany (gh auth login)"; exit 1; }
   [ -z "$LISTA" ] || [[ "$LISTA" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "--issues: same numery po przecinku, np. 812,815"; exit 1; }
   [ -z "$PARASOL" ] || [[ "$PARASOL" =~ ^[0-9]+$ ]] || { echo "--parasol: jeden numer issue parasolowego, np. 1875"; exit 1; }
@@ -82,7 +89,10 @@ start)
   fi
   BRUD=$(git -C "$REPO" status --short --untracked-files=no)
   [ -z "$BRUD" ] || { echo "Drzewo główne ma niezacommitowane zmiany — lider scala w tym drzewie:"; echo "$BRUD"; exit 1; }
-  tmux has-session -t "$SESJA" 2>/dev/null && { echo "Sesja tmux '$SESJA' już działa (tmux attach -t $SESJA)"; exit 1; }
+  if [ "$(hc_stan lider)" = live ] || [ "$(hc_stan watcher)" = live ]; then
+    echo "Kolejka '$SESJA' już działa w Herdr ($(terminale)). Twardy stop: kolejka.sh zabij"; exit 1
+  fi
+  "$HC" server status >/dev/null 2>&1 || { echo "Herdr nie odpowiada (hc server status) — uruchom aplikację Herdr"; exit 1; }
   if POWOD=$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG" "$OKNO_H"); then
     echo "Nie startuję: $POWOD. Start mimo limitu: kolejka.sh start --limit 100"; exit 1
   fi
@@ -93,7 +103,9 @@ start)
   fi
 
   mkdir -p "$K"
-  rm -f "$K"/{rotuj,pusto,stop,zatrzymaj,tura-koniec,blad-api,pauza,start-prompt.txt,parasol.tsv}
+  rm -f "$K"/{rotuj,pusto,stop,zatrzymaj,tura-koniec,tura-koniec.przed-kontynuacja,blad-api,pauza,start-prompt.txt,parasol.tsv}
+  # Finished terminals of the previous run (their history was readable until now) give their names back.
+  hc_zabij lider; hc_zabij watcher
   # The umbrella's portions, resolved once, in its order. Only --bez-triage writes $K/parasol.tsv (portion → plan),
   # the file step 4 reads: whether a plan replaces triage is the owner's call at start, not the wording of a portion.
   if [ -n "$PARASOL" ]; then
@@ -161,12 +173,14 @@ EOF
     case "$SYNC_KOD" in 2|3) echo "Nie startuję: rozwiąż to i uruchom ponownie."; exit 1 ;; esac
   fi
 
-  # One claude process per issue: the watcher replaces it (respawn-pane) after every issue.
-  tmux new-session -d -s "$SESJA" -n lider -x 220 -y 50 -c "$REPO" "'$SKRYPTY/lider.sh' '$K/config.env'"
-  tmux set-option -w -t "$SESJA:0" remain-on-exit on
-  tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
-    "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env'; echo 'watcher zakończony — Enter zamyka okno'; read"
-  echo "Kolejka ruszyła. Podgląd: tmux attach -t $SESJA  (Ctrl-b d = odłącz, Ctrl-b n = okno watchera)"
+  # One claude process per issue: the watcher replaces the lead's terminal after every issue. The lead's address
+  # is written before the watcher starts, since the watcher reads it at once.
+  hc_uruchom lider "$REPO" "$SKRYPTY/lider.sh" "$K/config.env" || { echo "hc run nie uruchomił lidera"; exit 1; }
+  if ! hc_uruchom watcher "$REPO" caffeinate -ims "$SKRYPTY/watcher.sh" "$K/config.env"; then
+    hc_zabij lider; echo "hc run nie uruchomił watchera — lider zatrzymany"; exit 1
+  fi
+  echo "Kolejka ruszyła w Herdr: $SESJA-lider ($(hc_adres lider)), $SESJA-watcher ($(hc_adres watcher))."
+  echo "Podgląd: aplikacja Herdr albo hc attach $SESJA-lider (ctrl+\\ odłącza); log watchera: hc read --lines 40 $SESJA-watcher"
   if [ -n "$BEZ_TRIAGE" ]; then awk -F'\t' -v p="$PARASOL" 'NR == 1 {print "Porcje parasola #" p ", plan zamiast triage:"}
     {print "  #" $1 " — " ($2 == "-" ? "zamknięta, bez planu" : $2)}' "$K/parasol.tsv"
   elif [ -n "$PARASOL" ]; then echo "Porcje parasola #$PARASOL, każda przez triage: $LISTA"; fi
@@ -174,7 +188,7 @@ EOF
   echo "$("$SKRYPTY/limit-tygodniowy.sh" "$LIMIT_TYG" "$OKNO_H") — po przekroczeniu kolejka czeka na okno $OKNO_H h przed resetem"
   ;;
 watcher)
-  tmux has-session -t "$SESJA" 2>/dev/null || { echo "Sesja tmux '$SESJA' nie działa"; exit 1; }
+  [ "$(hc_stan lider)" = live ] || { echo "Lider kolejki '$SESJA' nie działa w Herdr ($(terminale))"; exit 1; }
   [ -f "$K/config.env" ] || { echo "Brak $K/config.env"; exit 1; }
   # A queue started before the limit/window/status issue existed lacks the key in its config: add it (or replace
   # on the flag). The status issue is looked up only when missing.
@@ -190,18 +204,23 @@ watcher)
   done
   # A replacement, not a stop: the old watcher's hard-stop trap must not write "zatrzymana" over the new one.
   touch "$K/podmiana-watchera"
-  tmux kill-window -t "$SESJA:watcher" 2>/dev/null || true
-  tmux new-window -d -t "$SESJA" -n watcher -c "$REPO" \
-    "caffeinate -ims '$SKRYPTY/watcher.sh' '$K/config.env' --bez-cyklu; echo 'watcher zakończony — Enter zamyka okno'; read"
+  hc_zabij watcher
+  hc_uruchom watcher "$REPO" caffeinate -ims "$SKRYPTY/watcher.sh" "$K/config.env" --bez-cyklu \
+    || { echo "hc run nie uruchomił watchera — lider pracuje bez watchera, uruchom ponownie: kolejka.sh watcher"; exit 1; }
   echo "Watcher podmieniony (lider pracuje dalej). Limit tygodniowy: $(cfg LIMIT_TYG 92)%, okno przed resetem: $(cfg OKNO_H 5) h, issue statusu: $(numer_statusu)"
   ;;
 stop)
   mkdir -p "$K" && touch "$K/zatrzymaj"
   echo "STOP ustawiony — lider dokończy bieżące issue, potem watcher się zatrzyma."
-  echo "Twardy stop natychmiast: tmux kill-session -t $SESJA  (bieżące issue podejmie odzysk przy następnym starcie)"
+  echo "Twardy stop natychmiast: kolejka.sh zabij  (bieżące issue podejmie odzysk przy następnym starcie)"
+  ;;
+zabij)
+  # Watcher first: its trap writes "zatrzymana" to the status issue, and it must not start a new lead meanwhile.
+  hc_zabij watcher; hc_zabij lider
+  echo "Kolejka '$SESJA' zatrzymana twardo ($(terminale)). Bieżące issue podejmie odzysk przy następnym starcie."
   ;;
 status)
-  tmux has-session -t "$SESJA" 2>/dev/null && echo "sesja: działa ($SESJA)" || echo "sesja: nie działa"
+  echo "terminale Herdr: $(terminale)"
   L=$(cfg KOLEJKA_LISTA ""); P=$(cfg KOLEJKA_PARASOL ""); B=$(cfg KOLEJKA_BEZ_TRIAGE "")
   if [ -n "$P" ]; then echo "źródło: parasol #$P ($([ -n "$B" ] && echo 'plan, bez triage' || echo 'z triage')), porcje $L"; elif [ -n "$L" ]; then echo "źródło: lista $L"; else echo "źródło: backlog bugów P0→P3"; fi
   [ -f "$K/w-toku" ] && echo "w toku: #$(cat "$K/w-toku")" || echo "w toku: -"
@@ -224,5 +243,5 @@ lista)
   "$SKRYPTY/wybierz-issue.sh" --lista "$REPO"
   ;;
 *)
-  sed -n '2,20p' "$0"; exit 1 ;;
+  sed -n '2,22p' "$0"; exit 1 ;;
 esac

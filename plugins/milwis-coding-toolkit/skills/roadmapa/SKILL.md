@@ -13,12 +13,12 @@ time: the lead lives for exactly one issue. A fresh triage subagent decides whet
 plan has none: the plan is its triage), the lead
 implements the fix itself in the queue worktree (planning, implementation and testing share one context), a fresh
 reviewer and a fresh verifier judge the tip, and `scal.sh` merges only what `bramka.sh` lets through. After the
-issue a watcher ends that claude process (`/exit`) and starts a new one in the same tmux pane
-(`lider.sh`, the start prompt as the first message). One issue = one session: its own entry in `/resume` and in
+issue a watcher ends that claude process (`/exit`) and starts a new one in a new Herdr terminal of the same name, `kolejka-lider`
+(`lider.sh`, the start prompt as the first message; `scripts/herdr.sh`). One issue = one session: its own entry in `/resume` and in
 Remote Control (named `kolejka #<issue>`), and the current plugin version. Everything that must survive
 lives outside any context: GitHub labels, `git` merges, a committed ledger, flag files.
 
-The session-per-issue cycle (`/exit` → `respawn-pane` → fresh lead, `--no-ff` merge passing the auto-mode classifier
+The session-per-issue cycle (`/exit` → a new Herdr terminal → fresh lead, `--no-ff` merge passing the auto-mode classifier
 in an interactive session) is measured — `references/evidence.md`. The first run on a new project is a watched dry run.
 
 ## When — and when not
@@ -37,15 +37,16 @@ in an interactive session) is measured — `references/evidence.md`. The first r
 
 ```bash
 kolejka.sh lista [repo]                      # the queue in order (skips and reasons on stderr)
-kolejka.sh start [repo] [--issues 812,815 | --parasol 1875 [--bez-triage]] [--limit 92] [--okno 5]   # lead + watcher in tmux session "kolejka"
-tmux attach -t kolejka                       # watch; Ctrl-b n = watcher window, Ctrl-b d = detach
+kolejka.sh start [repo] [--issues 812,815 | --parasol 1875 [--bez-triage]] [--limit 92] [--okno 5]   # lead + watcher as Herdr terminals kolejka-lider, kolejka-watcher
+hc attach kolejka-lider                      # watch (or the Herdr app); ctrl+\ = detach; hc read --lines 40 kolejka-watcher
 kolejka.sh status [repo]                     # current issue, flags, last ledger rows, unpushed [roadmapa] merges
-kolejka.sh stop [repo]                       # finish the current issue, then stop (hard: tmux kill-session -t kolejka)
+kolejka.sh stop [repo]                       # finish the current issue, then stop
+kolejka.sh zabij [repo]                      # hard stop now: ends both terminals; the issue is recovered at the next start
 kolejka.sh watcher [repo] [--limit N] [--okno H]   # replace the watcher of a running queue (new limit), lead untouched
 ```
 `kolejka.sh` = `scripts/kolejka.sh` of this skill; settings via environment (header of the script).
 
-**Before start:** `tmux`, `jq`, `gh` (logged in); the main tree on `$MAIN` (`KOLEJKA_MAIN`, default `main`) with no uncommitted tracked changes
+**Before start:** Herdr running (`hc server status`), `jq`, `gh` (logged in); the main tree on `$MAIN` (`KOLEJKA_MAIN`, default `main`) with no uncommitted tracked changes
 (the lead merges there); **no other lead working in the repo** — two leads in one tree collide on the index
 lock and one commit sweeps up the other's uncommitted edit. The machine stays awake (`caffeinate -ims` is built in; the display still sleeps).
 
@@ -66,7 +67,7 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   quoted in ledger row 0) is the owner's instruction to merge locally and close issues. It never covers
   `git push`, deploy, `npm run build`, production, KSeF. The watcher's push under `KOLEJKA_WYPYCHAJ` is the owner's
   own setting at start, not something the lead may do.
-- **Only an interactive session merges.** The lead runs as a normal `claude` in tmux, never `claude --bg`:
+- **Only an interactive session merges.** The lead runs as a normal interactive `claude` in a Herdr terminal (a real pty, like tmux before v1.11.0), never `claude --bg`:
   `POMIAR` (waves E and G, 2026-09-08) — `git merge` from a background session bounces off the auto-mode
   classifier; the same merge in an interactive session passed (batch 2.3, 2026-09-15; scratch run 2026-09-24).
 - **One writer.** Only the lead merges into `$MAIN`, writes to the tracker and commits the ledger. Its subagents

@@ -1,6 +1,8 @@
 # roadmapa — evidence behind the session-per-issue cycle
 
-Measurements behind `../SKILL.md` (intro). Not re-checked at run time; re-measure after a Claude Code upgrade that touches tmux sessions, `/exit`, hooks or the auto-mode classifier.
+Measurements behind `../SKILL.md` (intro). Not re-checked at run time; re-measure after a Claude Code upgrade that touches interactive sessions, `/exit`, hooks or the auto-mode classifier, or after a Herdr (`hc`) upgrade.
+
+**v1.11.0 (2026-11-12), Herdr instead of tmux.** The measurements below were taken in tmux; the cycle is the same in a Herdr terminal (a real pty). `POMIAR` (hc 0.1.20, scratch repo, the real `kolejka.sh`/`watcher.sh`/`herdr.sh`): rotation, a refused second start, watcher replacement, `stop` and `zabij` (SIGHUP trap through `caffeinate`) as expected. A real `claude` lead was replaced 2 s after `rotuj`. `/exit` must be typed with `hc keys`, since a `hc send` paste reaches the model as a message. `NIEZMIERZONE`: a `scal.sh` merge from a lead in Herdr.
 
 `POMIAR` (2026-09-24, scratch repo, Claude Code 2.1.281, auto mode): an interactive session in tmux merged
 `--no-ff`, received `/clear` via `tmux send-keys`, did not remember the previous turn, received the
