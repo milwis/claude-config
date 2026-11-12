@@ -48,6 +48,15 @@ final class PlikTest
         $this->assertSame(1.01, (new Plik())->kwota(1.005));
         $this->assertSame(2.0, (new Plik())->kwota(2.0));
     }
+
+    public function testWyjatek(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->assertSame(
+            3.0,
+            (new Plik())->kwota(3.0)
+        );
+    }
 }
 PHP
 cat > "$R/tests/Static/ZapadkaTest.php" <<'PHP'
@@ -55,6 +64,7 @@ cat > "$R/tests/Static/ZapadkaTest.php" <<'PHP'
 final class ZapadkaTest
 {
     private const LIMIT = 5;
+    private const DOZWOLONE = ['app/Plik.php'];
 }
 PHP
 printf '#!/bin/bash\n[ ! -e "$1/ZEPSUTE" ]\n' > "$R/tests/Static/run.sh"
@@ -106,6 +116,7 @@ karta() {
 
 plik: app/Plik.php
 stary: $STARY
+kolejka: zaufana
 status: aktywny
 narzedzia: tests/rown
 stanowisko: tests/rown/stanowisko.sh
@@ -137,6 +148,8 @@ DODATEK=$'scalenie-z: main_dev_konflikt\nstatic: bash {WT}/tests/Static/run.sh {
 DODATEK=$'podstawienia: tests/rown/podstawienia/Plik.json\npodstawienia_sha256: 0000' karta > "$R/docs/refaktor/Plik/KARTA-podst.md"
 DODATEK=$'podstawienia: tests/rown/podstawienia/Plik.json\npodstawienia_sha256: '"$(h "$STARY" tests/rown/podstawienia/Plik.json)"$'\nprzeniesienia: bash {WT}/tests/rown/sprawdz.sh --od={OD} --nowy={SHA} --podstawienia={PODSTAWIENIA}' karta > "$R/docs/refaktor/Plik/KARTA-przen.md"
 DODATEK=$'przeniesienia: bash {WT}/tests/rown/sprawdz.sh' karta > "$R/docs/refaktor/Plik/KARTA-przen-bez-mapy.md"
+karta | sed 's/^kolejka: zaufana/kolejka: main/' > "$R/docs/refaktor/Plik/KARTA-poza-kolejka.md"
+karta | sed 's/^status: aktywny/status: zakonczony/' > "$R/docs/refaktor/Plik/KARTA-zakonczona.md"
 g checkout -q -b zaufana && g add -A && g commit -qm warianty && g checkout -q main
 printf '#!/bin/bash\necho "$*" > "%s/slot.args"\nTREE=$1; shift\ncd "$TREE" && exec bash tests/rown/stanowisko.sh "$@"\n' "$T" > "$T/slot.sh"
 # main_dev for the trial merge (N5): a clean change, one that breaks tests/Static, one that conflicts.
@@ -146,6 +159,9 @@ g checkout -q -b main_dev_konflikt main && sed -i '' 's/round(\$a, 2)/round($a, 
 # The portion: one production change.
 g checkout -q -b porcja main && sed -i '' 's/return round/return \\round/' "$R/app/Plik.php" && g commit -qam porcja
 PORCJA=$(g rev-parse HEAD)
+# A card whose old SHA is the portion itself (nothing to compare), on the trusted branch.
+g checkout -q zaufana && karta | sed "s/^stary: .*/stary: $PORCJA/" > "$R/docs/refaktor/Plik/KARTA-stary-sha.md" \
+  && g add -A && g commit -qm stary-sha && g checkout -q porcja
 N_PKT=$(grep -cE '^[0-9]+\. ' "$LISTA" 2>/dev/null || echo 16)
 H_LISTY=$(shasum -a 256 "$LISTA" 2>/dev/null | cut -c1-12)
 
@@ -189,6 +205,7 @@ Z() { unset PREP FIKSTURA RAPORT REC KARTA BRUDNE LISTA_LINIA NIE_URUCHOMIONE; }
 
 # ---- the rig's verdict decides; the executor's report does not -----------------------------------------------
 Z; przypadek identyczny 0 'OK +stanowisko: IDENTYCZNY, 3/3 scenariuszy'
+Z; przypadek uwaga-klucze-opcjonalne 0 'UWAGA: KARTA bez static:'
 Z; FIKSTURA='{"kod": 2, "raport": {"werdykt": "RÓŻNICA", "identycznych": 1, "z_roznica": 2}}'
 przypadek roznica 1 'BRAK: stanowisko kod 2'
 Z; FIKSTURA='{"kod": 9, "raport": {"werdykt": "NIEWAŻNY"}}';            przypadek niewazny 1 'BRAK: stanowisko kod 9'
@@ -231,8 +248,8 @@ Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-podst.md;                      przypad
 # ---- substitution check for 2b–4 (#50), behind the card key `przeniesienia:` -------------------------------------
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; rm -f "$T/podst.kod"
 przypadek podstawienia-czyste 0 'OK +podstawienia_sha256 = KARTA|||OK +podstawienia od .*: kod 0, werdykt czysto' \
-  && { grep -q -- "--od=$STARY --nowy=.* --podstawienia=tests/rown/podstawienia/Plik.json" "$T/podst.args" && DOBRZE=$((DOBRZE + 1)) && echo "ok   podstawienia-argumenty" \
-       || { ZLE=$((ZLE + 1)); echo "ZLE  podstawienia-argumenty: $(cat "$T/podst.args" 2>/dev/null)"; }; }
+  && { { [ -n "$FILTR" ] && ! [[ podstawienia-czyste =~ $FILTR ]]; } || { grep -q -- "--od=$STARY --nowy=.* --podstawienia=tests/rown/podstawienia/Plik.json" "$T/podst.args" && DOBRZE=$((DOBRZE + 1)) && echo "ok   podstawienia-argumenty" \
+       || { ZLE=$((ZLE + 1)); echo "ZLE  podstawienia-argumenty: $(cat "$T/podst.args" 2>/dev/null)"; }; }; }
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; echo 1 > "$T/podst.kod"
 przypadek podstawienia-roznice 1 'BRAK: podstawienia od .*: kod 1, werdykt roznice'; rm -f "$T/podst.kod"
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen-bez-mapy.md;             przypadek przeniesienia-bez-mapy 1 'BRAK: KARTA przeniesienia: bez podstawienia'
@@ -256,6 +273,15 @@ Z; RAPORT=$'Koszt-USD: 1\n## Odstępstwa od 1:1\n| co | dlaczego |\n|---|---|\n|
 przypadek odstepstwo-bez-zgody 1 'BRAK: .*odstępstw.*zgody'
 Z; RAPORT=$'Koszt-USD: 1\n## Odstępstwa od 1:1\n| co | zgoda |\n|---|---|\n| 4xx zamiast 500 | zgoda nadzorcy 2026-11-12 |\n'
 przypadek odstepstwo-ze-zgoda 0 'OK +odstępstwa od 1:1: 1'
+Z; RAPORT=$'Koszt-USD: 1\n## Odstępstwa od 1:1\n- 4xx zamiast 500 pod cli\n';  przypadek odstepstwo-lista 1 'BRAK: 1 z 1 odstępstw'
+Z; RAPORT=$'Koszt-USD: 1\n## Odstępstwa od 1:1\n| co | zgoda |\n|---|---|\n| 4xx zamiast 500 | zgoda nadzorcy |\n'
+przypadek odstepstwo-bez-daty 1 'BRAK: 1 z 1 odstępstw'
+Z; PREP="sed -i '' '/assertSame(2.0/d' tests/Unit/PlikTest.php";       przypadek od-zaweza 1 'BRAK: --od=.* zawęża' --od=HEAD
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-poza-kolejka.md;              przypadek karta-poza-kolejka 1 'BRAK: KARTA .* na gałęzi kolejki main'
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-zakonczona.md;                 NIE_URUCHOMIONE=1 przypadek status-zakonczony 1 'BRAK: KARTA ma status .zakonczony.'
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-stary-sha.md;                  NIE_URUCHOMIONE=1 przypadek stary-rowny-sha 1 'BRAK: stary: .* nie jest właściwym przodkiem'
+Z; KARTA="$R/docs/refaktor/Plik/KARTA.md";                              przypadek karta-absolutna 1 'BRAK: KARTA podana ścieżką absolutną'
+Z; KARTA="HEAD:docs/refaktor/Plik/KARTA.md";                            przypadek karta-z-porcji 1 'BRAK: ref KARTY HEAD zawiera SHA porcji'
 Z; PREP="sed -i '' '/assertSame(2.0/d' tests/Unit/PlikTest.php";       przypadek asercja-bez-wiersza 1 'BRAK: .*A1'
 Z; PREP="sed -i '' '/assertSame(2.0/d' tests/Unit/PlikTest.php"; RAPORT="${RAPORT_DOBRY}A1: przepięcie — ten sam przypadek w PlikModulTest"
 przypadek asercja-z-wierszem 0 'A1 .*tests/Unit/PlikTest.php'
@@ -265,6 +291,14 @@ Z; PREP="sed -i '' 's/LIMIT = 5/LIMIT = 6/' tests/Static/ZapadkaTest.php"; RAPOR
 przypadek zapadka-bez-decyzji 1 'BRAK: .*Z1.*decyzj'
 Z; PREP="sed -i '' 's/LIMIT = 5/LIMIT = 6/' tests/Static/ZapadkaTest.php"; RAPORT="${RAPORT_DOBRY}Z1: decyzja właściciela 2026-11-12"
 przypadek zapadka-z-decyzja 0 'Z1 .*ZapadkaTest'
+Z; PREP="sed -i '' '/expectException/d' tests/Unit/PlikTest.php";     przypadek asercja-expectexception 1 'BRAK: .*A1|||A1 .*expectException'
+Z; PREP="sed -i '' 's/^            3.0,\$/            3.5,/' tests/Unit/PlikTest.php"
+przypadek asercja-wieloliniowa 1 'BRAK: .*A1|||A1 .*assertSame\( 3.0, \(new Plik'
+Z; PREP="sed -i '' 's/testKwota(): void/testKwota(): void { \$this->markTestSkipped(\"x\"); } public function bylo(): void/' tests/Unit/PlikTest.php"
+RAPORT="${RAPORT_DOBRY}A1: przepięcie — x"
+przypadek pominiecie-dodane 1 'A1 .*dodane pominięcie|||BRAK: .*A1: osłabienie bez decyzji'
+Z; PREP="sed -i '' \"s|\\['app/Plik.php'\\]|['app/Plik.php', 'app/Inny.php']|\" tests/Static/ZapadkaTest.php"
+przypadek zapadka-dodana 1 "BRAK: .*Z1|||Z1 .*ZapadkaTest.php: 1 usuniętych, 1 dodanych"
 Z; PREP="sed -i '' '4,10d' app/Plik.php";                               przypadek komentarz-bez-wiersza 1 'BRAK: .*K1'
 Z; PREP="sed -i '' '4,10d' app/Plik.php"; RAPORT="${RAPORT_DOBRY}K1: do docs/architektura/modul-plik.md"
 przypadek komentarz-z-wierszem 0 'K1 .*app/Plik.php'
@@ -277,8 +311,11 @@ Z; PREP="printf 'd\t%s\t%s\tOK\t0\t1\n' a $STARY b $STARY c $STARY > $T/dziennik
 przypadek budzet-porcji 1 'BRAK: .*budżet porcji'
 Z; PREP="printf 'd\t%s\t%s\tBRAK\t2\t1\n' x $STARY y $STARY z $STARY > $T/dziennik-stop.tsv"
 NIE_URUCHOMIONE=1 przypadek stop 1 'BRAK: .*reguła stopu'
-Z; przypadek dziennik 0 'OK' && { [ "$(cut -f4 "$T/dziennik-dziennik.tsv" 2>/dev/null)" = OK ] && DOBRZE=$((DOBRZE + 1)) && echo "ok   dziennik-wpis" \
-  || { ZLE=$((ZLE + 1)); echo "ZLE  dziennik-wpis: $(cat "$T/dziennik-dziennik.tsv" 2>/dev/null)"; }; }
+Z; przypadek dziennik 0 'OK'
+if [ -z "$FILTR" ] || [[ dziennik =~ $FILTR ]]; then
+  if [ "$(cut -f4 "$T/dziennik-dziennik.tsv" 2>/dev/null)" = OK ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   dziennik-wpis"
+  else ZLE=$((ZLE + 1)); echo "ZLE  dziennik-wpis: $(cat "$T/dziennik-dziennik.tsv" 2>/dev/null)"; fi
+fi
 
 # ---- the project's slot, and tests/Static on a trial merge with main_dev (N5) -----------------------------------
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-slot.md;                       przypadek slot 0 "stanowisko: bash $T/slot.sh $R --plik"
@@ -301,6 +338,14 @@ kolejka() {  # $1 name, $2 file the branch touches, $3 0 = the freeze line must 
 }
 kolejka kolejka-zamrozony app/Plik.php 0
 kolejka kolejka-inny app/Inny.php 1
+kolejka kolejka-karta docs/refaktor/Plik/KARTA.md 0
+if [ -z "$FILTR" ] || [[ kolejka-rename =~ $FILTR ]]; then
+  g checkout -q -B agent/issue-5 main && g mv app/Plik.php app/PlikNowy.php && echo '// x' >> "$R/app/PlikNowy.php" && g commit -qam "issue 5"
+  OUT=$(bash "$S/bramka.sh" "$T/k/config.env" 5 2>&1)
+  if grep -qE 'BRAK: plik w refaktorze' <<<"$OUT"; then DOBRZE=$((DOBRZE + 1)); echo "ok   kolejka-rename"
+  else ZLE=$((ZLE + 1)); echo "ZLE  kolejka-rename"; sed 's/^/     | /' <<<"$OUT" | tail -10; fi
+  g checkout -q main
+fi
 if [ -z "$FILTR" ] || [[ wybierz =~ $FILTR ]]; then
   mkdir -p "$T/bin"
   printf '#!/bin/bash\ncat <<JSON\n[{"number":1,"title":"Plik: zaokrąglenie","body":"","labels":[{"name":"typ:bug"},{"name":"P1"}],"createdAt":"2026-01-01"},{"number":2,"title":"Inne","body":"","labels":[{"name":"typ:bug"},{"name":"P1"}],"createdAt":"2026-01-02"},{"number":3,"title":"Raport","body":"dotyczy app/Plik.php","labels":[{"name":"typ:bug"},{"name":"P2"}],"createdAt":"2026-01-03"}]\nJSON\n' > "$T/bin/gh"
@@ -325,6 +370,19 @@ hak hak-write-kod kod 0 Write "{\"file_path\": \"$R/app/Plik.php\"}"
 hak hak-bash-przekierowanie kod 2 Bash '{"command": "echo {} > tests/rown/maska/Plik.json"}'
 hak hak-bash-sed kod 2 Bash '{"command": "sed -i \"\" s/a/b/ tests/rown/lib/x.php"}'
 hak hak-bash-checkout kod 2 Bash '{"command": "git checkout main -- tests/rown/maska"}'
+hak hak-perl-pi kod 2 Bash '{"command": "perl -pi -e s/a/b/ tests/rown/lib/x.php"}'
+hak hak-perl-0pi kod 2 Bash '{"command": "perl -0pi -e s/a/b/ tests/rown/lib/x.php"}'
+hak hak-sed-in-place kod 2 Bash '{"command": "sed --in-place s/a/b/ tests/rown/lib/x.php"}'
+hak hak-cd-sed kod 2 Bash '{"command": "cd tests/rown && sed -i \"\" s/a/b/ lib/x.php"}'
+hak hak-cd-przekierowanie kod 2 Bash '{"command": "cd tests/rown/maska; echo {} > Plik.json"}'
+hak hak-cd-odczyt kod 0 Bash '{"command": "cd tests/rown && ls -la 2>&1 > /dev/null"}'
+hak hak-python-c kod 2 Bash '{"command": "python3 -c \"open(\u0027tests/rown/maska/Plik.json\u0027,\u0027w\u0027).write(\u0027{}\u0027)\""}'
+hak hak-python-heredoc kod 2 Bash '{"command": "python3 - <<EOF\nopen(\"tests/rown/maska/Plik.json\",\"w\")\nEOF"}'
+hak hak-php-r kod 2 Bash '{"command": "php -r \"file_put_contents(\u0027tests/rown/maska/Plik.json\u0027, 1);\""}'
+hak hak-node-e kod 2 Bash '{"command": "node -e \"require(\u0027fs\u0027).writeFileSync(\u0027tests/rown/x\u0027,\u00271\u0027)\""}'
+hak hak-sponge kod 2 Bash '{"command": "jq . tests/rown/maska/Plik.json | sponge tests/rown/maska/Plik.json"}'
+hak hak-python-skrypt-odczyt kod 0 Bash '{"command": "python3 scripts/raport.py tests/rown/maska/Plik.json"}'
+hak hak-rm-katalog kod 2 Bash '{"command": "rm -rf tests/rown"}'
 hak hak-bash-odczyt kod 0 Bash '{"command": "cat tests/rown/maska/Plik.json | jq ."}'
 hak hak-stanowisko-uruchomienie kod 0 Bash '{"command": "bash tests/rown/stanowisko.sh --plik=app/Plik.php > /tmp/log"}'
 hak hak-php-narzedzie kod 0 Bash '{"command": "php tests/rown/sprawdz-przeniesienia.php --stary=a"}'

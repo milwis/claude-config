@@ -17,14 +17,17 @@ portion of one phase. The *reviewer* is a fresh `code-reviewer` with the refacto
 
 ## The KARTA
 
-One file per refactored file, e.g. `docs/refaktor/<Class>/KARTA.md`, committed by the supervisor on a trusted ref
-(the integration branch or `main_dev`). The gate reads it from that ref (`--karta=<ref>:<path>`), never from the
-portion, and refuses a portion whose own copy of the KARTA differs. Section `## Bramka`, one `key: value` per line:
+One file per refactored file, e.g. `docs/refaktor/<Class>/KARTA.md`, committed by the supervisor when the refactor
+starts on the queue's base branch (`$MAIN`, e.g. `main_dev`; key `kolejka:`), so the queue sees the freeze. The gate
+reads it from a trusted ref (`--karta=<ref>:<path>`, usually the same branch) and refuses: an absolute path, a ref
+that contains the portion's SHA (the portion's own branch), a portion whose own copy of the KARTA differs, and a
+KARTA whose text on `kolejka:` differs from the trusted one. Section `## Bramka`, one `key: value` per line:
 
 | key | meaning |
 |---|---|
 | `plik` | the file under refactor (repo-relative) |
 | `stary` | the old SHA: side A of every rig run |
+| `kolejka` | the queue's base branch the KARTA is committed on (the freeze is read from there) |
 | `status` | `aktywny` while the refactor runs; anything else stops the gate and releases the queue freeze |
 | `narzedzia` | the rig's directory (`tests/rownowaznosc`) |
 | `stanowisko` | the rig's entry script, repo-relative |
@@ -36,9 +39,13 @@ portion, and refuses a portion whose own copy of the KARTA differs. Section `## 
 | `raport` | the rig's report directory, with `{KLASA}` and `{ETAP}` |
 | `zamrozone` | one glob per line: paths the queue does not merge while the refactor runs (L18) |
 | `zapadki` | optional globs of ratchet files (default `tests/Static/**`, `tests/Config/**`, `*Latch*`, `*Ratchet*`, `*Zapadk*`) |
-| `scalenie-z`, `static` | N5: the branch for the trial merge and the command run on it (`{WT}` = the merged copy) |
+| `scalenie-z`, `static` | N5: the branch for the trial merge and the command run on it (`{WT}` = the merged copy, `{PORCJA}` = the portion's worktree, e.g. to copy `vendor/` and `.env` from it) |
 | `przeniesienia` | optional: the substitution check command (below) |
 | `budzet-porcji`, `budzet-prob`, `budzet-usd`, `budzet-rund` | L26: portions passed, failed attempts in a row (default 3), USD in total, review rounds per portion |
+
+Required: `plik stary kolejka narzedzia stanowisko maska scenariusze uzasadnienia raport` and the four hashes. When
+`static`, `zamrozone` or a `budzet-*` other than `budzet-prob` is missing, the gate skips that check and prints an
+`UWAGA` line for it.
 
 Hashes, the same definitions as the rig's own check (KonkretnyTMS patch in the #27 report): a file →
 `git show <SHA>:<path> | shasum -a 256`; a directory → `git ls-tree -r <SHA> -- <dir> | shasum -a 256`. The
@@ -47,8 +54,9 @@ stanowiska` portion. Three calibration runs old ↔ old (guideline 1) happen bef
 
 **Queue freeze (L18).** The project's `docs/VERIFICATION_ENV.md`, section `## Bramka`, gets
 `refaktor-karta: docs/refaktor/*/KARTA.md`. `scripts/zamrozone.sh` lists the `zamrozone:` globs of every active
-KARTA; `bramka.sh` refuses a queue merge that touches one and `wybierz-issue.sh` skips an issue that names the file
-or its class. A P0 fix goes through the supervisor, who carries it into the refactor and adds a scenario for it.
+KARTA, and the KARTA's own path, reading both from the commit of `$MAIN` (not the working tree; a KARTA that sits only
+on another branch freezes nothing); `bramka.sh` refuses a queue merge that touches one and `wybierz-issue.sh` skips
+an issue that names the file or its class. A P0 fix goes through the supervisor, who carries it into the refactor and adds a scenario for it.
 Never merge `main_dev` into the refactor branch.
 
 ## A portion, step by step
@@ -57,7 +65,9 @@ Never merge `main_dev` into the refactor branch.
    there so the session cannot switch it:
    `{"hooks":{"PreToolUse":[{"matcher":"Write|Edit|MultiEdit|NotebookEdit|Bash","hooks":[{"type":"command","command":"bash <toolkit>/skills/roadmapa/scripts/hook-refaktor.sh kod"}]}]}}`.
    In a `kod` portion the hook blocks writes to `tests/rownowaznosc/**` and `**/KARTA.md` (other globs as extra
-   arguments); running the rig and its checkers passes. A `zmiana-stanowiska` portion changes only the measure,
+   arguments): edits, redirects, `tee`/`sponge`, `cp`/`mv`/`rm`, `sed`/`perl` in place, `git checkout|restore`, any
+   writer after `cd` into the directory, inline interpreter code (`python -c`, `php -r`, `node -e`, heredocs) that
+   names it. Running the rig and its checkers passes. The hook is the first line; the hashes in the gate are the proof. A `zmiana-stanowiska` portion changes only the measure,
    and the supervisor then updates the hashes in the KARTA.
 2. **Executor: one phase.** Guidelines 7–20 below. Commit; the tree is clean before the gate.
 3. **Executor: its own rig run and the portion report.** One full run on the commit through the project's slot
@@ -67,8 +77,11 @@ Never merge `main_dev` into the refactor branch.
    <toolkit>/skills/roadmapa/references/recenzja-refaktoru.md — apply every point`. A review without the
    `Lista-refaktoru:` hash and one `R<n>:` line per point fails the gate. At most `budzet-rund` rounds; round 2
    checks only that round 1's findings are closed; new findings in it go to issues unless they are a regression.
-5. **Gate.** `bramka.sh --refaktor --wt=<worktree> --karta=<ref>:<path> --raport-porcji=<file> --recenzja=<file>`
-   (`--sha`, `--od`, `--dziennik` optional). Exit 0 = the portion passes; the log line lands in the gate's TSV.
+5. **Gate — run by the supervisor**, not the executor (it picks `--karta`, `--recenzja` and `--dziennik`):
+   `bramka.sh --refaktor --wt=<worktree> --karta=<ref>:<path> --raport-porcji=<file> --recenzja=<file>`
+   (`--sha`, `--od`, `--dziennik` optional; `--od` may only widen the range: it must be an ancestor of the default
+   start). Exit 0 = the portion passes; the log line lands in the gate's TSV. The gate needs the rig with the
+   network block (`siec` in `raport.json`, KonkretnyTMS #49): a rig without it fails the gate.
 6. **On BRAK.** Fix what the line names and run the gate again. After `budzet-prob` failed attempts from the same
    start the gate itself refuses (stop rule): hand the supervisor a description of the obstacle.
 
@@ -77,14 +90,14 @@ Never merge `main_dev` into the refactor branch.
 | check | blocks when |
 |---|---|
 | tree and SHA | the worktree is not on the portion's SHA, or has uncommitted changes |
-| KARTA | missing keys, status not `aktywny`, the portion's copy differs from the trusted one, `stary` not an ancestor |
+| KARTA | missing keys, status not `aktywny`, absolute path or a ref containing the portion, the portion's copy or the copy on `kolejka:` differs from the trusted one, `stary` not a proper ancestor |
 | frozen measure (L2) | a hash of mask, scenarios, justifications, tools or substitution map differs from the KARTA |
 | budget (L26) | portions or USD over budget, failed attempts ≥ `budzet-prob`, rounds over `budzet-rund`, no `Koszt-USD` |
 | rig (L1) | any exit code ≠ 0 (2 RÓŻNICA, 3, 5/6/7, 9, 10, 11, 12, unknown); `werdykt` ≠ IDENTYCZNY; identical ≠ scenarios or 0; `tylko`, `kalibracja`, `mutant_b`, mode ≠ `domyslny`; positive control skipped or with misses; `kod_pokrycia` ≠ 0; `siec.kod` ≠ 0; `stanowisko_sha`/`nowy` ≠ SHA, `stary` ≠ KARTA, uncommitted rig changes; `maska_sha256`/`scenariusze_sha256` ≠ KARTA |
 | substitutions (#50) | the `przeniesienia:` command exits ≠ 0 (only when the KARTA has the key) |
 | review | another SHA, open CRITICAL/REQUIRED, no checklist hash, a missing `R<n>` |
-| deviations (L17) | no `## Odstępstwa od 1:1` section, a row without `zgoda nadzorcy` |
-| tests, ratchets, comments (L16, L23) | a listed `A<n>`/`Z<n>`/`K<n>` without its line in the report; weakening or a ratchet change without `decyzja właściciela` |
+| deviations (L17) | no `## Odstępstwa od 1:1` section; any line of it (a table row, a list item, prose — except `brak`) without `zgoda nadzorcy RRRR-MM-DD` |
+| tests, ratchets, comments (L16, L23) | a listed `A<n>`/`Z<n>`/`K<n>` without its line in the report; weakening, an added skip or a ratchet change without `decyzja właściciela` |
 | N5 | `tests/Static` red, or a conflict, on a trial merge with `scalenie-z` in a throw-away worktree |
 
 The gate runs the rig itself, with arguments it builds (`--plik --stary --nowy=<SHA> --etap=<unique>
@@ -100,16 +113,18 @@ Koszt-USD: <all attempts of this portion, in total>
 Rundy: <review rounds>
 
 ## Odstępstwa od 1:1
-brak            ← or a table; every row carries "zgoda nadzorcy <when>"
+brak            ← or a table; every row carries "zgoda nadzorcy RRRR-MM-DD"
 
 A1: przepięcie — <why>      ← one line for each A<n>/Z<n>/K<n> the gate lists from od..SHA
 Z1: decyzja właściciela <when> — <why>
 K1: <where the comment's content now lives>
 ```
 
-`A<n>` is a removed or changed assertion in an existing test (classify: `przepięcie`, `zaostrzenie` or
-`osłabienie`; a weakening needs `decyzja właściciela`). `Z<n>` is a changed constant, allow-list or exclusion in a
-ratchet file (always `decyzja właściciela`). `K<n>` is a removed comment block longer than 5 lines that did not
+`A<n>` is an assertion statement of an existing test (`assert…(`, `expect…(`, `expectException`, `.toBe(`, …,
+read as a whole statement, also across lines) that is gone or changed in od..SHA, or an added skip
+(`markTestSkipped`, `.skip(`, …); classify `przepięcie`, `zaostrzenie` or `osłabienie`; a weakening and an added skip
+need `decyzja właściciela`. Files are compared without rename detection, so a moved test lists every assertion.
+`Z<n>` is any changed line, removed or added, in a ratchet file, one per file (always `decyzja właściciela`). `K<n>` is a removed comment block longer than 5 lines that did not
 reappear in the diff. Run the gate once to see the list, then write the lines.
 
 ## Guidelines for the executor (audit §3, N2)

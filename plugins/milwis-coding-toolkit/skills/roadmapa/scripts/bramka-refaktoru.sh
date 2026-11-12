@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1111  # Polish quotation marks „…” in messages are intended
 # The refactor gate (audit 2026-11-12, L1/L2/L16/L17/L23/L26/N5; claude-config #27). Decides from git and from the
 # equivalence rig's own files whether one portion of a file refactor passes. The executor's report is not a source of
 # the verdict: the gate runs the rig itself on the portion's SHA and reads raport.json / meta.json.
@@ -7,9 +8,11 @@
 # Prints one line per check (OK / BRAK: <why>, UWAGA for listed items) and exits 0 only when every check passes.
 #
 # --karta  the file's card, KARTA.md, read from a trusted ref (the branch the supervisor commits it to), never from the
-#          portion: `<ref>:<path>`, or an absolute path to a file outside the repo. Its section `## Bramka` has one
-#          `klucz: wartość` per line (format and meaning: ../references/cykl-refaktoru.md §KARTA). {REPO} in a value is
-#          the main checkout of the repo (parent of the git common dir).
+#          portion: `<ref>:<path>`. The same text must sit on the queue's base branch (key `kolejka:`), where the queue
+#          reads the freeze from; an absolute path is refused. Its section `## Bramka` has one `klucz: wartość` per line
+#          (format and meaning: ../references/cykl-refaktoru.md §KARTA). {REPO} in a value is the main checkout of the
+#          repo (parent of the git common dir). Optional keys left out (static, zamrozone, budzet-*) print UWAGA.
+# Run by the supervisor, not by the executor: --dziennik, --recenzja and --karta come from the caller.
 # --od     where the portion starts (the lists of L16/L23 cover od..SHA); default: the last SHA this gate passed in the
 #          log, else `stary:` of the card.
 # --dziennik  TSV log of the gate (date, SHA, od, OK|BRAK, rig exit code, Koszt-USD); default
@@ -64,15 +67,30 @@ PLIK=$(kv plik) STARY_K=$(kv stary) STAN=$(kv stanowisko) SLOT=$(kv slot) WZORZE
 RAPORT_TPL=$(kv raport) SCAL=$(kv scalenie-z) STATIC=$(kv static)
 KLASA=$(basename "$PLIK"); KLASA=${KLASA%.*}
 BRAKI=""
-for k in plik stary narzedzia stanowisko maska scenariusze uzasadnienia raport maska_sha256 scenariusze_sha256 uzasadnienia_sha256 narzedzia_sha256; do
+for k in plik stary kolejka narzedzia stanowisko maska scenariusze uzasadnienia raport maska_sha256 scenariusze_sha256 uzasadnienia_sha256 narzedzia_sha256; do
   [ -n "$(kv "$k")" ] || BRAKI="$BRAKI $k"
 done
 if [ -n "$BRAKI" ]; then echo "BRAK: KARTA $KARTA_ARG bez kluczy:$BRAKI (sekcja ## Bramka)"; exit 1; fi
+# Optional keys: their check is skipped when absent — said out loud, so a card that forgot one does not pass silently.
+[ -n "$STATIC" ] || echo "UWAGA: KARTA bez static: — bramka nie uruchamia tests/Static na próbnym scaleniu (N5)"
+[ -n "$(kv zamrozone)" ] || echo "UWAGA: KARTA bez zamrozone: — kolejka zamraża tylko samą KARTĘ, nie plik refaktoru (L18)"
+for k in budzet-porcji budzet-usd budzet-rund; do
+  [ -n "$(kv "$k")" ] || echo "UWAGA: KARTA bez $k: — ten budżet nie jest liczony (L26)"
+done
 [ "$(kv status)" = aktywny ] || brak0 "KARTA ma status '$(kv status)', nie 'aktywny' — refaktor tego pliku nie biegnie"
+if [ -n "$KARTA_REF" ] && G merge-base --is-ancestor "$SHA" "$KARTA_REF" 2>/dev/null; then
+  brak0 "ref KARTY $KARTA_REF zawiera SHA porcji — KARTĘ czyta się z gałęzi nadzorcy (\$MAIN), nie z gałęzi porcji"
+fi
 if [ -n "$KARTA_SCIEZKA" ] && G cat-file -e "$SHA:$KARTA_SCIEZKA" 2>/dev/null; then
   [ "$(G show "$SHA:$KARTA_SCIEZKA")" = "$KARTA_TXT" ] \
     || brak0 "KARTA $KARTA_SCIEZKA w SHA porcji różni się od zaufanej ($KARTA_REF) — kartę zmienia nadzorca, nie porcja"
 fi
+# The queue reads the freeze (L18) from its base branch: the card must sit there, the same text as the trusted copy.
+KOLEJKA=$(kv kolejka)
+if [ -z "$KARTA_SCIEZKA" ]; then brak0 "KARTA podana ścieżką absolutną — zamrożenie w kolejce czyta ją z $KOLEJKA:<ścieżka>, podaj --karta=<ref>:<ścieżka>"
+elif [ "$(G show "$KOLEJKA:$KARTA_SCIEZKA" 2>/dev/null)" != "$KARTA_TXT" ]; then
+  brak0 "KARTA $KARTA_SCIEZKA na gałęzi kolejki $KOLEJKA (klucz kolejka:) różni się albo jej brak — kolejka nie widzi zamrożenia pliku (L18)"
+else ok "KARTA na gałęzi kolejki $KOLEJKA — plik zamrożony"; fi
 STARY=$(G rev-parse --verify -q "$STARY_K^{commit}") || { echo "BRAK: stary: $STARY_K z KARTY nie jest commitem"; exit 1; }
 if [ "$STARY" = "$SHA" ] || ! G merge-base --is-ancestor "$STARY" "$SHA"; then
   brak0 "stary: ${STARY:0:9} z KARTY nie jest właściwym przodkiem SHA porcji"
@@ -98,9 +116,16 @@ done
 DZIENNIK=${DZIENNIK:-$REPO/.claude/tmp/refaktor/$KLASA.tsv}
 mkdir -p "$(dirname "$DZIENNIK")" && touch "$DZIENNIK"
 OSTATNI_OK=$(awk -F'\t' -v s="$SHA" '$4 == "OK" && $2 != s {x = $2} END {print x}' "$DZIENNIK")
-if [ -n "$OD_ARG" ]; then OD=$(G rev-parse --verify -q "$OD_ARG^{commit}") || { echo "BRAK: --od=$OD_ARG nie jest commitem"; exit 1; }
-elif [ -n "$OSTATNI_OK" ] && G merge-base --is-ancestor "$OSTATNI_OK" "$SHA" 2>/dev/null; then OD=$(G rev-parse "$OSTATNI_OK")
+if [ -n "$OSTATNI_OK" ] && G merge-base --is-ancestor "$OSTATNI_OK" "$SHA" 2>/dev/null; then OD=$(G rev-parse "$OSTATNI_OK")
 else OD=$STARY; fi
+# --od may only widen the range (an ancestor of the default start): a later start would hide the portion's own
+# assertion, ratchet and comment changes from the lists below.
+if [ -n "$OD_ARG" ]; then
+  OD2=$(G rev-parse --verify -q "$OD_ARG^{commit}") || { echo "BRAK: --od=$OD_ARG nie jest commitem"; exit 1; }
+  if [ "$OD2" != "$OD" ] && ! G merge-base --is-ancestor "$OD2" "$OD"; then
+    brak0 "--od=${OD2:0:9} zawęża zakres porcji: musi być przodkiem ${OD:0:9} (ostatnia porcja OK albo stary: z KARTY)"
+  else OD=$OD2; fi
+fi
 PORCJI=$(awk -F'\t' -v s="$SHA" '$4 == "OK" && $2 != s {u[$2] = 1} END {print length(u)}' "$DZIENNIK")
 B=$(kv budzet-porcji)
 if [ -n "$B" ] && [ "$PORCJI" -ge "$B" ]; then brak0 "budżet porcji wyczerpany: $PORCJI przeszło, KARTA budzet-porcji: $B — stop, decyzja nadzorcy"
@@ -222,10 +247,17 @@ else
   if ! grep -qE '^#+[[:space:]]*Odstępstwa od 1:1' "$RAPORT_P"; then
     brak "raport porcji bez sekcji „## Odstępstwa od 1:1” (L17; pusta = linia „brak”)"
   else
-    WIERSZE=$(grep -E '^[[:space:]]*\|' <<<"$ODST" | grep -vE '^[[:space:]]*\|[-:| ]+\|?[[:space:]]*$' | sed 1d)
+    # Every non-empty line of the section is a deviation (table row, bullet or sentence), except a table's header and
+    # separator and the report's own A<n>/Z<n>/K<n> and key lines; a section that says only "brak" has none. Each needs "zgoda nadzorcy <YYYY-MM-DD>".
+    TRESC=$(grep -vE '^[[:space:]]*$|^[-*> ]*([AZK][0-9]+|Koszt-USD|Rundy|Stanowisko):' <<<"$ODST")
+    if grep -qiE '^[[:space:]*_-]*brak[[:space:].*_]*$' <<<"$TRESC" && [ "$(grep -c . <<<"$TRESC")" = 1 ]; then WIERSZE=""
+    else
+      WIERSZE=$(grep -vE '^[[:space:]]*\|[-:| ]+\|?[[:space:]]*$' <<<"$TRESC" \
+        | awk '/^[[:space:]]*\|/ { if (!t) { t = 1; next } } { print }')
+    fi
     ILE=$(grep -c . <<<"$WIERSZE")
-    BEZZ=$(grep . <<<"$WIERSZE" | grep -vic 'zgoda nadzorcy')
-    if [ "$BEZZ" -gt 0 ]; then brak "$BEZZ z $ILE odstępstw od 1:1 bez zgody nadzorcy — każde odstępstwo zatrzymuje porcję do jego decyzji (wiersz z „zgoda nadzorcy <kiedy>”)"
+    BEZZ=$(grep . <<<"$WIERSZE" | grep -vicE 'zgoda nadzorcy[^0-9]*[0-9]{4}-[0-9]{2}-[0-9]{2}')
+    if [ "$BEZZ" -gt 0 ]; then brak "$BEZZ z $ILE odstępstw od 1:1 bez zgody nadzorcy z datą — każde odstępstwo zatrzymuje porcję do jego decyzji (wiersz z „zgoda nadzorcy RRRR-MM-DD”)"
     else ok "odstępstwa od 1:1: $ILE"; fi
   fi
 fi
@@ -234,18 +266,57 @@ fi
 ZAPADKI=$(kvs zapadki); [ -n "$ZAPADKI" ] || ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*'
 POZYCJE=$(G -c core.quotePath=false diff --no-renames -U0 "$OD" "$SHA" | ZAPADKI="$ZAPADKI" python3 -I -c '
 import os, re, subprocess, sys, fnmatch
-od, wt = sys.argv[1], sys.argv[2]
+from collections import Counter
+od, sha, wt = sys.argv[1], sys.argv[2], sys.argv[3]
 zap = [z for z in os.environ["ZAPADKI"].splitlines() if z.strip()]
 test_re = re.compile(r"(^|/)(tests?|__tests__)/|\.(test|spec)\.[A-Za-z]+$|Test\.php$")
-asercja = re.compile(r"assert|expect *\(|\.to[A-Z][A-Za-z]*\(|\.(rejects|resolves)\.|should\.")
-stala = re.compile(r"const |=> *[0-9]|exclude|pomijaj|[A-Z_]{3,} *= *[0-9]")
+# An assertion statement: from the token back to the previous ; { } and forward to the ; that closes it (multi-line).
+token = re.compile(r"\b(assert[A-Za-z]*|expect[A-Za-z]*)\s*\(|\.to[A-Z][A-Za-z]*\(|\.(rejects|resolves)\.|\bshould\.")
+pomin = re.compile(r"markTestSkipped|markTestIncomplete|\.(skip|only|todo)\(|(^|[^A-Za-z])x(it|describe|test)\(|skip: *true|@group +(skip|disabled)")
 koment = re.compile(r"^\s*(/\*|\*|//|#)")
-def istnial(p):
-    return subprocess.run(["git", "-C", wt, "cat-file", "-e", od + ":" + p], capture_output=True).returncode == 0
+def show(rev, p):
+    r = subprocess.run(["git", "-C", wt, "show", rev + ":" + p], capture_output=True)
+    return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else None
+def zdania(txt):
+    out, seen = [], set()
+    for m in token.finditer(txt):
+        s = max(txt.rfind(";", 0, m.start()), txt.rfind("{", 0, m.start()), txt.rfind("}", 0, m.start())) + 1
+        d, i = 0, m.start()
+        while i < len(txt):
+            c = txt[i]
+            if c in "([": d += 1
+            elif c in ")]": d -= 1
+            elif c == ";" and d <= 0: break
+            i += 1
+        if (s, i) in seen: continue
+        seen.add((s, i)); out.append(" ".join(txt[s:i + 1].split()))
+    return out
 def zapadka(p):
     return any(fnmatch.fnmatch(p, z) or fnmatch.fnmatch(os.path.basename(p), z) for z in zap)
-plik, usuniete, dodane, bloki = None, [], [], []
-blok = []
+pliki = subprocess.run(["git", "-c", "core.quotePath=false", "-C", wt, "diff", "--no-renames", "--name-only", od, sha],
+                       capture_output=True, text=True).stdout.splitlines()
+a = z = k = 0
+for p in pliki:
+    stary = show(od, p)
+    if stary is None: continue          # a new file: nothing it pinned before
+    nowy = show(sha, p) or ""
+    if test_re.search(p):
+        for t in (Counter(zdania(stary)) - Counter(zdania(nowy))).elements():
+            a += 1; print(f"A{a}\t{p}\t{t[:160]}")
+        for t in (Counter(l.strip() for l in nowy.splitlines() if pomin.search(l))
+                  - Counter(l.strip() for l in stary.splitlines() if pomin.search(l))).elements():
+            a += 1; print(f"A{a}\t{p}\tdodane pominięcie: {t[:140]}")
+for p in pliki:
+    stary = show(od, p)
+    if stary is None or not zapadka(p): continue
+    nowy = show(sha, p) or ""
+    so = Counter(" ".join(l.split()) for l in stary.splitlines() if l.strip())
+    sn = Counter(" ".join(l.split()) for l in nowy.splitlines() if l.strip())
+    usun, dod = list((so - sn).elements()), list((sn - so).elements())
+    if usun or dod:
+        z += 1; pierwsza = (["-" + x for x in usun] + ["+" + x for x in dod])[0]
+        print(f"Z{z}\t{p}\t{len(usun)} usuniętych, {len(dod)} dodanych linii; {pierwsza[:120]}")
+plik, usuniete, dodane, bloki, blok = None, [], [], [], []
 def zamknij():
     global blok
     if len(blok) > 5: bloki.append((plik, blok))
@@ -256,26 +327,16 @@ for l in sys.stdin.read().splitlines():
     if l.startswith("+++ "): plik = l[6:] if l.startswith("+++ b/") else plik; continue
     if l.startswith("@@"): zamknij(); continue
     if l.startswith("-"):
-        usuniete.append((plik, l[1:]))
         if koment.match(l[1:]): blok.append(l[1:].strip())
         else: zamknij()
     elif l.startswith("+"):
         zamknij(); dodane.append(l[1:].strip())
 zamknij()
 dodane_txt = "\n".join(dodane)
-a = z = k = 0
-for p, t in usuniete:
-    if p is None: continue
-    if test_re.search(p) and istnial(p) and asercja.search(t):
-        a += 1; print(f"A{a}\t{p}\t{t.strip()[:160]}")
-for p, t in usuniete:
-    if p is None: continue
-    if zapadka(p) and stala.search(t):
-        z += 1; print(f"Z{z}\t{p}\t{t.strip()[:160]}")
 for p, b in bloki:
     if "\n".join(b) in dodane_txt: continue  # moved, not lost
     k += 1; print(f"K{k}\t{p}\t{len(b)} linii: {b[0][:80]} … {b[-1][:40]}")
-' "$OD" "$WT")
+' "$OD" "$SHA" "$WT")
 NA=$(grep -c '^A' <<<"$POZYCJE"); NZ=$(grep -c '^Z' <<<"$POZYCJE"); NK=$(grep -c '^K' <<<"$POZYCJE")
 echo "INFO  od ${OD:0:9} do ${SHA:0:9}: asercje usunięte/zmienione: $NA, zapadki: $NZ, komentarze: $NK usuniętych (> 5 linii)"
 BEZ="" SLABE=""
@@ -285,7 +346,8 @@ while IFS=$'\t' read -r ID P TXT; do
   W=$(grep -m1 -E "^[-*> ]*$ID:" "$RAPORT_P" 2>/dev/null)
   case "$ID" in
     A*) if ! grep -qE "$ID:[* ]*(przepięcie|zaostrzenie|osłabienie)" <<<"$W"; then BEZ="$BEZ $ID"
-        elif grep -q 'osłabienie' <<<"$W" && ! grep -qiE 'decyzj[aię] właściciela' <<<"$W"; then SLABE="$SLABE $ID: osłabienie bez decyzji właściciela;"; fi ;;
+        elif { grep -q 'osłabienie' <<<"$W" || [ "${TXT#dodane pominięcie}" != "$TXT" ]; } && ! grep -qiE 'decyzj[aię] właściciela' <<<"$W"; then
+          SLABE="$SLABE $ID: osłabienie bez decyzji właściciela;"; fi ;;
     Z*) if [ -z "$W" ]; then BEZ="$BEZ $ID"
         elif ! grep -qiE 'decyzj[aię] właściciela' <<<"$W"; then SLABE="$SLABE $ID: zmiana zapadki bez decyzji właściciela;"; fi ;;
     K*) grep -qE "$ID:[* ]*[^[:space:]]" <<<"$W" || BEZ="$BEZ $ID" ;;

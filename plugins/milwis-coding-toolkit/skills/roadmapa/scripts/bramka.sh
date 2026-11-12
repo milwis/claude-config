@@ -52,7 +52,7 @@ trafione() {
       # shellcheck disable=SC2053
       if [[ "$P" == $G || "${P##*/}" == $G ]]; then T="$T $P"; break; fi
     done <<<"$1"
-  done < <(git -C "$WT" diff --name-only "$MAIN...$GALAZ")
+  done < <(git -c core.quotePath=false -C "$WT" diff --no-renames --name-only "$MAIN...$GALAZ")
   shopt -u nocasematch
   echo "$T"
 }
@@ -80,7 +80,7 @@ domk_glob() {
 # Paths changed between two commits, unquoted (Polish letters and spaces stay as they are), renames as delete + add.
 zmienione() { git -c core.quotePath=false -C "$WT" diff --no-renames --name-only "$1" "$2"; }
 # Empty when the commits from verdict SHA $1 to the tip qualify as a closure, else the reason.
-ASERCJA='assert|expect *\(|\.to[A-Z][A-Za-z]*\(|\.(rejects|resolves)\.|should\.'
+ASERCJA='assert|expect[A-Za-z]* *\(|\.to[A-Z][A-Za-z]*\(|\.(rejects|resolves)\.|should\.'
 SKIP='markTestSkipped|markTestIncomplete|\.(skip|only|todo)\(|(^|[^A-Za-z])x(it|describe|test)\(|skip: *true|@group +(skip|disabled)'
 domk_delta() {
   local OD P R
@@ -182,7 +182,7 @@ TYLKO_WLASCICIEL=$(trafione "$(sed -n 's/^tylko-wlasciciel: *//p' <<<"$SEKCJA")"
 [ -z "$TYLKO_WLASCICIEL" ] || brak "pliki tylko dla właściciela:$TYLKO_WLASCICIEL — kolejka ich nie scala, odłóż issue"
 # A file under refactor (L18, v1.12.0): its frozen paths (zamrozone.sh: `zamrozone:` of an active KARTA) are not merged
 # by the queue; a P0 fix goes through the refactor's supervisor, who carries it over and adds a scenario.
-ZAMR=$(bash "$(dirname "$0")/zamrozone.sh" "$REPO")
+ZAMR=$(bash "$(dirname "$0")/zamrozone.sh" "$REPO" "$MAIN")
 if [ -n "$ZAMR" ]; then
   ZTRAF=$(trafione "$(cut -f3 <<<"$ZAMR")")
   [ -z "$ZTRAF" ] || brak "plik w refaktorze ($(cut -f2 <<<"$ZAMR" | sort -u | tr '\n' ' ')— KARTA $(cut -f1 <<<"$ZAMR" | sort -u | tr '\n' ' '))$(cut -c1-200 <<<"$ZTRAF") — kolejka go nie scala, odłóż issue do końca refaktoru"
