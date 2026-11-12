@@ -3,7 +3,7 @@ import type { Color, EngineInterface, Register, SessionContextUsage, SessionRate
 
 import type { SessionInfo } from '../types'
 
-const info = atom({ plugin: 'session-bar', key: 'info' } as const, null)
+const info = atom({ plugin: 'pasek', key: 'info' } as const, null)
 
 const BAR_CELLS = 20
 

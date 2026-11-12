@@ -266,7 +266,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await $.command.register({ name: 'issues', description: 'Otwiera panel issues i odświeża listę' })
-    void $.ui.open({ id: PANE, title: 'Issues' })
+    // panel nie otwiera się sam — tylko komendą /issues
     // stan przeżywa przeładowanie moda: flaga z pobierania przerwanego reloadem blokowałaby refresh na zawsze
     await update($, isLoading, () => false)
     void refresh($)

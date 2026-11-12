@@ -1,4 +1,4 @@
-# session-bar
+# pasek
 
 Mod Claude Code rysujący jedną linię nad oknem promptu:
 
@@ -19,11 +19,11 @@ Dane odświeżają się na starcie sesji, po każdej turze i przy każdej zmiani
 ## Instalacja
 
 ```
-/plugin install session-bar@milwis-marketplace
+/plugin install pasek@milwis-marketplace
 ```
 
 albo w `~/.claude/settings.json`:
 
 ```json
-"enabledPlugins": { "session-bar@milwis-marketplace": true }
+"enabledPlugins": { "pasek@milwis-marketplace": true }
 ```
