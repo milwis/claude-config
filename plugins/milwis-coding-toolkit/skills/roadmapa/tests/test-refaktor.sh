@@ -57,8 +57,21 @@ final class PlikTest
             (new Plik())->kwota(3.0)
         );
     }
+
+    public function testBlad(): void
+    {
+        try { (new Plik())->kwota(-1.0); $this->fail('bez wyjątku'); } catch (\Throwable $e) {}
+    }
 }
 PHP
+mkdir -p "$R/tests/Scripts"
+cat > "$R/tests/Scripts/test_plik.py" <<'PY'
+def test_kwota():
+    assert kwota(1) == 2
+    assert kwota(
+        3) == 3
+    x = 1
+PY
 cat > "$R/tests/Static/ZapadkaTest.php" <<'PHP'
 <?php
 final class ZapadkaTest
@@ -98,7 +111,7 @@ jq -n --arg p "$P" --arg st "$(git -C "$REPO" rev-parse "$ST")" --arg no "$(git 
 exit "$KOD"
 SH
 mkdir -p "$R/docs"
-printf '# env\n\n## Bramka\n\nrefaktor-karta: docs/refaktor/*/KARTA.md\n' > "$R/docs/VERIFICATION_ENV.md"
+printf '# env\n\n## Bramka\n\nrefaktor-karta: docs/refaktor/*/KARTA*.md\n' > "$R/docs/VERIFICATION_ENV.md"
 # The move checker with a substitution map (#50): a stand-in that records its arguments and exits with the code in
 # $T/podst.kod (default 0).
 mkdir -p "$R/tests/rown/podstawienia"
@@ -150,6 +163,8 @@ DODATEK=$'podstawienia: tests/rown/podstawienia/Plik.json\npodstawienia_sha256: 
 DODATEK=$'przeniesienia: bash {WT}/tests/rown/sprawdz.sh' karta > "$R/docs/refaktor/Plik/KARTA-przen-bez-mapy.md"
 karta | sed 's/^kolejka: zaufana/kolejka: main/' > "$R/docs/refaktor/Plik/KARTA-poza-kolejka.md"
 karta | sed 's/^status: aktywny/status: zakonczony/' > "$R/docs/refaktor/Plik/KARTA-zakonczona.md"
+karta | sed '/^zamrozone: app/d' > "$R/docs/refaktor/Plik/KARTA-bez-pliku.md"
+mkdir -p "$R/docs/inne" && karta > "$R/docs/inne/KARTA.md"
 g checkout -q -b zaufana && g add -A && g commit -qm warianty && g checkout -q main
 printf '#!/bin/bash\necho "$*" > "%s/slot.args"\nTREE=$1; shift\ncd "$TREE" && exec bash tests/rown/stanowisko.sh "$@"\n' "$T" > "$T/slot.sh"
 # main_dev for the trial merge (N5): a clean change, one that breaks tests/Static, one that conflicts.
@@ -278,6 +293,9 @@ Z; RAPORT=$'Koszt-USD: 1\n## Odstępstwa od 1:1\n| co | zgoda |\n|---|---|\n| 4x
 przypadek odstepstwo-bez-daty 1 'BRAK: 1 z 1 odstępstw'
 Z; PREP="sed -i '' '/assertSame(2.0/d' tests/Unit/PlikTest.php";       przypadek od-zaweza 1 'BRAK: --od=.* zawęża' --od=HEAD
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-poza-kolejka.md;              przypadek karta-poza-kolejka 1 'BRAK: KARTA .* na gałęzi kolejki main'
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-bez-pliku.md;                 przypadek karta-bez-pliku 1 'BRAK: KARTA na zaufana nie zamraża pliku app/Plik.php'
+Z; KARTA=zaufana:docs/inne/KARTA.md;                                     przypadek karta-poza-globem 1 'BRAK: kolejka \(zaufana\) nie widzi KARTY docs/inne/KARTA.md'
+Z; przypadek karta-zamraza 0 'OK +KARTA na gałęzi kolejki zaufana — kolejka zamraża app/Plik.php'
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-zakonczona.md;                 NIE_URUCHOMIONE=1 przypadek status-zakonczony 1 'BRAK: KARTA ma status .zakonczony.'
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-stary-sha.md;                  NIE_URUCHOMIONE=1 przypadek stary-rowny-sha 1 'BRAK: stary: .* nie jest właściwym przodkiem'
 Z; KARTA="$R/docs/refaktor/Plik/KARTA.md";                              przypadek karta-absolutna 1 'BRAK: KARTA podana ścieżką absolutną'
@@ -291,6 +309,13 @@ Z; PREP="sed -i '' 's/LIMIT = 5/LIMIT = 6/' tests/Static/ZapadkaTest.php"; RAPOR
 przypadek zapadka-bez-decyzji 1 'BRAK: .*Z1.*decyzj'
 Z; PREP="sed -i '' 's/LIMIT = 5/LIMIT = 6/' tests/Static/ZapadkaTest.php"; RAPORT="${RAPORT_DOBRY}Z1: decyzja właściciela 2026-11-12"
 przypadek zapadka-z-decyzja 0 'Z1 .*ZapadkaTest'
+Z; PREP="sed -i '' 's/== 2/== 3/' tests/Scripts/test_plik.py";        przypadek asercja-python 1 'BRAK: .*A1|||A1 .*assert kwota\(1\) == 2'
+Z; PREP="sed -i '' 's/x = 1/x = 2/' tests/Scripts/test_plik.py";      przypadek asercja-python-bez-szumu 0 'OK: porcja'
+Z; PREP="sed -i '' 's/ \$this->fail([^;]*;//' tests/Unit/PlikTest.php"; przypadek asercja-fail 1 'BRAK: .*A1|||A1 .*fail\('
+Z; RAPORT=$'# Porcja\nKoszt-USD: 5\nRundy: 1\n\n## Odstępstwa od 1:1\n\n| 4xx zamiast 500 |\n'
+przypadek odstepstwo-tabela-bez-naglowka 1 'BRAK: 1 z 1 odstępstw'
+Z; RAPORT=$'# Porcja\nKoszt-USD: 5\nRundy: 1\n\n## Odstępstwa od 1:1\n\n| a — bez zgody |\n| b — zgoda nadzorcy 2026-11-12 |\n'
+przypadek odstepstwo-dwa-wiersze-bez-naglowka 1 'BRAK: 1 z 2 odstępstw'
 Z; PREP="sed -i '' '/expectException/d' tests/Unit/PlikTest.php";     przypadek asercja-expectexception 1 'BRAK: .*A1|||A1 .*expectException'
 Z; PREP="sed -i '' 's/^            3.0,\$/            3.5,/' tests/Unit/PlikTest.php"
 przypadek asercja-wieloliniowa 1 'BRAK: .*A1|||A1 .*assertSame\( 3.0, \(new Plik'

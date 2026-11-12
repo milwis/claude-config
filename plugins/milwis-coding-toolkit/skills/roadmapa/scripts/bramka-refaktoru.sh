@@ -90,7 +90,19 @@ KOLEJKA=$(kv kolejka)
 if [ -z "$KARTA_SCIEZKA" ]; then brak0 "KARTA podana ścieżką absolutną — zamrożenie w kolejce czyta ją z $KOLEJKA:<ścieżka>, podaj --karta=<ref>:<ścieżka>"
 elif [ "$(G show "$KOLEJKA:$KARTA_SCIEZKA" 2>/dev/null)" != "$KARTA_TXT" ]; then
   brak0 "KARTA $KARTA_SCIEZKA na gałęzi kolejki $KOLEJKA (klucz kolejka:) różni się albo jej brak — kolejka nie widzi zamrożenia pliku (L18)"
-else ok "KARTA na gałęzi kolejki $KOLEJKA — plik zamrożony"; fi
+else
+  # What the queue itself will freeze: zamrozone.sh on the queue's branch (the refaktor-karta: glob in VERIFICATION_ENV
+  # must match the card, and a zamrozone: glob must cover the file).
+  ZAM=$(bash "$TU/zamrozone.sh" "$REPO" "$KOLEJKA" | awk -F'\t' -v k="$KARTA_SCIEZKA" '$1 == k {print $3}')
+  JEST=0
+  while IFS= read -r Z; do
+    # shellcheck disable=SC2053
+    [ -n "$Z" ] && [[ "$PLIK" == $Z ]] && JEST=1
+  done <<<"$ZAM"
+  if [ -z "$ZAM" ]; then brak0 "kolejka ($KOLEJKA) nie widzi KARTY $KARTA_SCIEZKA: brak pasującego refaktor-karta: w docs/VERIFICATION_ENV.md (## Bramka) na $KOLEJKA (L18)"
+  elif [ "$JEST" = 0 ]; then brak0 "KARTA na $KOLEJKA nie zamraża pliku $PLIK — żaden glob zamrozone: go nie obejmuje (L18)"
+  else ok "KARTA na gałęzi kolejki $KOLEJKA — kolejka zamraża $PLIK"; fi
+fi
 STARY=$(G rev-parse --verify -q "$STARY_K^{commit}") || { echo "BRAK: stary: $STARY_K z KARTY nie jest commitem"; exit 1; }
 if [ "$STARY" = "$SHA" ] || ! G merge-base --is-ancestor "$STARY" "$SHA"; then
   brak0 "stary: ${STARY:0:9} z KARTY nie jest właściwym przodkiem SHA porcji"
@@ -252,8 +264,9 @@ else
     TRESC=$(grep -vE '^[[:space:]]*$|^[-*> ]*([AZK][0-9]+|Koszt-USD|Rundy|Stanowisko):' <<<"$ODST")
     if grep -qiE '^[[:space:]*_-]*brak[[:space:].*_]*$' <<<"$TRESC" && [ "$(grep -c . <<<"$TRESC")" = 1 ]; then WIERSZE=""
     else
-      WIERSZE=$(grep -vE '^[[:space:]]*\|[-:| ]+\|?[[:space:]]*$' <<<"$TRESC" \
-        | awk '/^[[:space:]]*\|/ { if (!t) { t = 1; next } } { print }')
+      # A table row is a header only when a separator row follows it; a headerless table counts every row.
+      WIERSZE=$(awk '/^[[:space:]]*\|[-:| ]+\|?[[:space:]]*$/ { if (n && b[n] ~ /^[[:space:]]*\|/) n--; next }
+                     { b[++n] = $0 } END { for (i = 1; i <= n; i++) print b[i] }' <<<"$TRESC")
     fi
     ILE=$(grep -c . <<<"$WIERSZE")
     BEZZ=$(grep . <<<"$WIERSZE" | grep -vicE 'zgoda nadzorcy[^0-9]*[0-9]{4}-[0-9]{2}-[0-9]{2}')
@@ -271,22 +284,25 @@ od, sha, wt = sys.argv[1], sys.argv[2], sys.argv[3]
 zap = [z for z in os.environ["ZAPADKI"].splitlines() if z.strip()]
 test_re = re.compile(r"(^|/)(tests?|__tests__)/|\.(test|spec)\.[A-Za-z]+$|Test\.php$")
 # An assertion statement: from the token back to the previous ; { } and forward to the ; that closes it (multi-line).
-token = re.compile(r"\b(assert[A-Za-z]*|expect[A-Za-z]*)\s*\(|\.to[A-Z][A-Za-z]*\(|\.(rejects|resolves)\.|\bshould\.")
+token = re.compile(r"\b(assert[A-Za-z]*|expect[A-Za-z]*|fail|raises)\s*\(|\bassert\s|\.to[A-Z][A-Za-z]*\(|\.(rejects|resolves)\.|\bshould\.")
 pomin = re.compile(r"markTestSkipped|markTestIncomplete|\.(skip|only|todo)\(|(^|[^A-Za-z])x(it|describe|test)\(|skip: *true|@group +(skip|disabled)")
 koment = re.compile(r"^\s*(/\*|\*|//|#)")
 def show(rev, p):
     r = subprocess.run(["git", "-C", wt, "show", rev + ":" + p], capture_output=True)
     return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else None
-def zdania(txt):
+def zdania(txt, py):
+    # Python has no ";": its statement is the line, continued while a bracket is open.
     out, seen = [], set()
+    koniec = "\n" if py else ";"
     for m in token.finditer(txt):
-        s = max(txt.rfind(";", 0, m.start()), txt.rfind("{", 0, m.start()), txt.rfind("}", 0, m.start())) + 1
+        if py: s = txt.rfind("\n", 0, m.start()) + 1
+        else: s = max(txt.rfind(";", 0, m.start()), txt.rfind("{", 0, m.start()), txt.rfind("}", 0, m.start())) + 1
         d, i = 0, m.start()
         while i < len(txt):
             c = txt[i]
             if c in "([": d += 1
             elif c in ")]": d -= 1
-            elif c == ";" and d <= 0: break
+            elif c == koniec and d <= 0: break
             i += 1
         if (s, i) in seen: continue
         seen.add((s, i)); out.append(" ".join(txt[s:i + 1].split()))
@@ -301,7 +317,8 @@ for p in pliki:
     if stary is None: continue          # a new file: nothing it pinned before
     nowy = show(sha, p) or ""
     if test_re.search(p):
-        for t in (Counter(zdania(stary)) - Counter(zdania(nowy))).elements():
+        py = p.endswith(".py")
+        for t in (Counter(zdania(stary, py)) - Counter(zdania(nowy, py))).elements():
             a += 1; print(f"A{a}\t{p}\t{t[:160]}")
         for t in (Counter(l.strip() for l in nowy.splitlines() if pomin.search(l))
                   - Counter(l.strip() for l in stary.splitlines() if pomin.search(l))).elements():

@@ -72,7 +72,7 @@ odroczenie() {
 }
 
 # Files under refactor (L18): the path and the class name of each, matched in the title and the body.
-REFAKTOR=$(bash "$SKRYPTY/zamrozone.sh" . | cut -f2 | sort -u | while IFS= read -r P; do
+REFAKTOR=$(bash "$SKRYPTY/zamrozone.sh" . "${KOLEJKA_MAIN:-HEAD}" | cut -f2 | sort -u | while IFS= read -r P; do
   [ -n "$P" ] || continue; B=${P##*/}; printf '%s\n%s\n' "$P" "${B%.*}"; done | jq -R . | jq -sc .)
 
 gh issue list --state open --limit 1000 --json number,title,body,labels,createdAt \
