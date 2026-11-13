@@ -12,7 +12,7 @@
       "name": "milwis-coding-toolkit",
       "source": "./plugins/milwis-coding-toolkit",
       "description": "Workflow skills for the session that writes the code (task lifecycle, issue queue with a merge gate, plans, verification, audits) plus goal-only agents for review, verification, debugging and an independent build",
-      "version": "1.14.0",
+      "version": "1.15.0",
       "category": "development",
       "tags": [
         "agents",

@@ -8,6 +8,19 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
+## Run: 2026-11-13 — skill `refaktor`: kompletność dowodu 1:1 (v1.15.0)
+
+Cel właściciela 2026-11-13: po refaktorze kod działa tak samo dla każdego wejścia i każdego stanu bazy, także takiego, który jeszcze nie wystąpił. Zielony przebieg na migawce dev nie jest dowodem.
+
+`POMIAR` (v1.14.0): szablon A wymagał tylko akcji przez HTTP, odmów, `oczekuj` i pokrycia linii; krok 5.1 „kontrola dodatnia wykryta” liczył domyślny katalog `tests/rownowaznosc/mutanty/` z łatkami Gutschrift, który dla innej klasy nie mierzy niczego; brak zasady dla baz poza obserwacją stanowiska (`warsztatkonkret`) i dla znanych luk (zegar). W kodzie stanowiska (main_dev 15c938442): L6c odmawia S kontra S bez `--kalibracja`/`--mutant-b`, a `--kalibracja` pomija kontrolę dodatnią — kontrola na starym kodzie biegnie dziś łatka po łatce przez `--mutant-b`; mutanty `-po` działają bez zmian przez `--mutanty=<abs katalog>` (łatki nakładane na B).
+
+- `refaktor/SKILL.md`: nowa sekcja **Completeness** — §1 klasy wejścia (granice stałych ±1, typy wejścia, stany bazy, ustawienia, każda odmowa; dane syntetyczne w `dane`/`przygotuj_sql`/wzorcu klasy; macierz klasa → scenariusze), §2 katalog mutantów klasy `mutanty/<C>/` z listą operatorów (mutant, który przeżył = brakujący scenariusz), §3 każda baza klasy pod obserwacją (inaczej kalibracja NIEWAŻNA), §4 pole karty `luki` zatwierdzane przez orkiestratora.
+- Krok 3: bazy z inwentarza, mutanty klasy N/N na `S` (pętla `--mutant-b`), przegląd macierzy, zatwierdzenie `luki`; orkiestrator może dopisać mutanty. Krok 5: przebieg z `--mutanty=…/mutanty/<C>-po` i kontrolą N/N, `-po` jedynym dozwolonym (dodanym) plikiem miary, mapowanie 1:1 (`comm` nazw, ta sama preambuła, przegląd par); kroki przenumerowane 1–8.
+- Szablony A i B: cele `/goal` z mutantami klasy, macierzą i `-po`; brief A kopiuje sekcję Completeness.
+- „Project commands”: komendy mutantów na starym i nowym kodzie, pola scenariusza, pola karty `mutanty`, `bazy_wtorne`, `luki`. TODO: `mutanty` i `bazy_wtorne` to nazwy z niescalonej gałęzi `refaktor/warsztatdocumentcontroller` — potwierdzić po scaleniu.
+- `recenzja-refaktoru.md`: R13–R21 (`strict_types`, zakres `catch` i `exit`, transakcje i blokady, kanał logów i kolejność wyjścia, kształt JSON, arytmetyka float/decimal, stan statyczny i sekwencja SQL, porównania i wartości domyślne, mutanty `-po` vs przed); R1 z wyjątkiem dla `mutanty/<C>-po/`. `code-reviewer.md` bez zmian (polityka 6).
+- Issues stanowiska: #74 zamrażanie zegara, #75 różnicowy fuzzing wejść, #76 kontrola dodatnia na starym kodzie jednym przebiegiem + kontrola mapowania `-po`.
+
 ## Run: 2026-11-13 — skill `refaktor`: jeden orkiestrator (v1.14.0)
 
 Decyzja właściciela 2026-11-13: właściciel uruchamia jedną sesję (Opus albo Fable) poleceniem `/refaktor <plik> [spec]`. Ta sesja wywołuje sesję scenariuszy, a po niej sesję refaktoru z `/goal`. Sama sprawdza dowód 1:1 i scala dopiero po nim.
