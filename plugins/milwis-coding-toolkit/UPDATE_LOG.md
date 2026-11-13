@@ -8,7 +8,7 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
-## Run: 2026-11-13 — prosta procedura refaktoru (v1.13.0)
+## Run: 2026-11-13 — prosta procedura refaktoru (v1.13.0, reguła scalenia v1.13.1)
 
 Decyzja właściciela 2026-11-13: procedura refaktoru maksymalnie prosta. Jedna sesja robi refaktoring pliku sama, potem `/goal` poprawia kod, aż stanowisko da 1:1 stary kontra nowy. Jedynym dowodem jest test przed i po.
 
