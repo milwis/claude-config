@@ -30,9 +30,6 @@
 #   Mutant-po: <its replacement>
 # The gate applies each mutant to the worktree file and runs the delta's test files: red with the mutant, green
 # without it; the file is restored and the worktree checked clean.
-# Refactor mode (v1.12.0, claude-config #27): one portion of a file refactor, judged from the equivalence rig's files.
-#   bramka.sh --refaktor --wt=<worktree> --karta=<ref>:<path> … — options and checks in bramka-refaktoru.sh.
-[ "${1:-}" = --refaktor ] && exec bash "$(dirname "$0")/bramka-refaktoru.sh" "$@"
 # shellcheck disable=SC1090
 . "$1"
 N="${2:?numer issue}"
@@ -180,13 +177,6 @@ DOMK=$(sed -n 's/^domkniecie: *//p' <<<"$SEKCJA")
 # so such a file acts on production as soon as the watcher pushes it, before any release. Silent when none is touched.
 TYLKO_WLASCICIEL=$(trafione "$(sed -n 's/^tylko-wlasciciel: *//p' <<<"$SEKCJA")")
 [ -z "$TYLKO_WLASCICIEL" ] || brak "pliki tylko dla właściciela:$TYLKO_WLASCICIEL — kolejka ich nie scala, odłóż issue"
-# A file under refactor (L18, v1.12.0): its frozen paths (zamrozone.sh: `zamrozone:` of an active KARTA) are not merged
-# by the queue; a P0 fix goes through the refactor's supervisor, who carries it over and adds a scenario.
-ZAMR=$(bash "$(dirname "$0")/zamrozone.sh" "$REPO" "$MAIN")
-if [ -n "$ZAMR" ]; then
-  ZTRAF=$(trafione "$(cut -f3 <<<"$ZAMR")")
-  [ -z "$ZTRAF" ] || brak "plik w refaktorze ($(cut -f2 <<<"$ZAMR" | sort -u | tr '\n' ' ')— KARTA $(cut -f1 <<<"$ZAMR" | sort -u | tr '\n' ' '))$(cut -c1-200 <<<"$ZTRAF") — kolejka go nie scala, odłóż issue do końca refaktoru"
-fi
 LOGD="$K/bramka-$N-domkniecie.log"; : > "$LOGD"
 
 R="$K/raport-$N.md"

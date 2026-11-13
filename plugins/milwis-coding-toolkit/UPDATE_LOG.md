@@ -8,6 +8,16 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
+## Run: 2026-11-13 — prosta procedura refaktoru (v1.13.0)
+
+Decyzja właściciela 2026-11-13: procedura refaktoru maksymalnie prosta. Jedna sesja robi refaktoring pliku sama, potem `/goal` poprawia kod, aż stanowisko da 1:1 stary kontra nowy. Jedynym dowodem jest test przed i po.
+
+- `cykl-refaktoru.md` przepisany na 5 kroków: przed (kalibracja, tło suity, `status:odlozone` na issues pliku), zadanie, `/goal` (rig IDENTYCZNY + suita = tło + miara nietknięta, albo 40 tur), po (nadzorca powtarza trzy sprawdzenia ze swojego drzewa i zleca jedną recenzję), scalenie. Sekcja o 2–3 plikach równolegle.
+- Usunięte: `bramka-refaktoru.sh` (`bramka.sh --refaktor`), `hook-refaktor.sh`, `hook-nadzor.py`, `zamrozone.sh` (zamrożenie w `bramka.sh` i `wybierz-issue.sh`), `tests/test-refaktor.sh`, KARTA. `wybierz-issue.sh` wrócił do wersji v1.11.0. Poprawki `bramka.sh` z v1.12.0 niezwiązane z refaktorem (`core.quotePath`, `--no-renames`, `expect*(`) zostają.
+- `recenzja-refaktoru.md` skrócona do 12 punktów zachowania (bez kontraktu bramki, faz i KARTY). `code-reviewer.md` bez zmian, więc eval niepotrzebny (polityka 6).
+- Rubryka ślepej oceny (#51) nie weszła; issues #51, #66, #69, #70, #71 zamknięte jako niewdrażane.
+- `POMIAR` (`/goal` jako pierwszy prompt sesji `hc run`, sonnet, 2026-11-13): „Goal set” i „/goal active” w pasku statusu, sesja pracowała dalej sama.
+
 ## Run: 2026-11-13 — bramka porcji refaktoru (v1.12.0)
 
 Źródło: claude-config #27, audyt procedury refaktoru po pilocie Gutschrift (#46, `docs/plans/2026-11-12-audyt-procedury-refaktoru.md`: §3 wytyczne, §4 lista recenzenta, L1/L2/L16–L18/L23/L26, N2, N5). Decyzja nadzorcy: wariant A, czyli lista w `roadmapa/references/recenzja-refaktoru.md` i limit `code-reviewer.md` podniesiony do 39 KB.
