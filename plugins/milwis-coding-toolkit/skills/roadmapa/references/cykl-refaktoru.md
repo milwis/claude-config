@@ -79,6 +79,11 @@ Never merge `main_dev` into the refactor branch.
    `touch`, `dd`, `rsync`, `git clean|checkout|restore`, `find -delete`, `xargs <writer>`, …) or a `cd`/`pushd` target
    it cannot expand in full (`$(…)`, backticks, `$VAR`, `~+`, `<(…)`, zsh qualifiers, braces or globs past its limits)
    is refused, even outside the directory. Interpreters are not fail-closed: what a script writes the hook never sees.
+   For a path in the directory the list is inverted: any command with an argument there is refused unless it only
+   reads (`cat`, `head`, `tail`, `grep`, `rg`, `ls`, `stat`, `wc`, `diff`, `jq`, `find` without writing actions,
+   `git show|log|diff|status`, …), so `sort -o`, `gzip`, `split` and other writers outside any list are caught too.
+   A command behind `if`/`then`/`do`/`{`/`!`/`time` or a prefix with options (`env -i`, `command -p`, `nice -n 5`) counts
+   as itself; the variable of a `for` loop over static words is checked word by word.
    The hook goes only into the executor's `--settings`: the supervisor's session and the gate never run under it.
    **The hook is a guard against accidents, not a security boundary.** For the measure the hashes in the gate are the
    proof; for the supervisor's directory the hook is the only line, and a session that means to bypass it (a script,

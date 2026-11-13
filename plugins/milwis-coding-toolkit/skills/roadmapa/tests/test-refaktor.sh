@@ -645,6 +645,35 @@ HAK_CWD=$WTH hak hak-nadzor-fail-closed-zmienna kod 2 Bash '{"command": "cp r.md
 HAK_CWD=$WTH hak hak-nadzor-fail-closed-kwalifikator kod 2 Bash '{"command": "rm -f ../../tmp/*(e:true:)"}'
 HAK_CWD=$WTH hak hak-nadzor-zmienna-odczyt kod 0 Bash '{"command": "cat $NIEZNANA/x > /tmp/k.txt; echo \"$HOME\" > /tmp/h.txt"}'
 HAK_CWD=$WTH hak hak-nadzor-pojedyncze-cudzyslowy kod 0 Bash '{"command": "php -r \u0027$a = 1; echo $a;\u0027 && git commit -m \"$(cat msg.txt)\""}'
+# F29 (nadzorca #58, r5): a reserved word or a prefix with options in front of a writer; F33: the writer list inverted —
+# an argument in the directory is refused unless the command only reads.
+P=../../tmp/refaktor/Plik
+N=0
+while IFS= read -r L; do
+  [ -n "$L" ] || continue
+  N=$((N + 1))
+  HAK_CWD=$WTH hak "hak-f29-f33-$N" kod 2 Bash "$(jq -n --arg c "${L//@P/$P}" '{command: $c}')"
+done <<'F29'
+if true; then cp a.txt @P/dziennik.tsv; fi
+for f in 1; do cp a.txt @P/dziennik.tsv; done
+{ cp a.txt @P/dziennik.tsv; }
+! cp a.txt @P/dziennik.tsv
+if :; then rm -rf @P/recenzje; fi
+env -i cp a.txt @P/dziennik.tsv
+command -p cp a.txt @P/dziennik.tsv
+nice -n 5 cp a.txt @P/dziennik.tsv
+if true; then cd @P; echo x >> dziennik.tsv; fi
+env -S 'cp a.txt @P/dziennik.tsv'
+for f in a @P/dziennik.tsv; do cp a.txt "$f"; done
+sort -o @P/dziennik.tsv a.txt
+uniq a.txt @P/dziennik.tsv
+ditto a.txt @P/dziennik.tsv
+gzip -f @P/dziennik.tsv
+split -l1 a.txt @P/
+git log --output=@P/dziennik.tsv -1
+F29
+HAK_CWD=$WTH hak hak-f33-czyta-warunek kod 0 Bash "$(jq -n --arg c "if [ -f $P/dziennik.tsv ]; then wc -l $P/dziennik.tsv | sort; fi" '{command: $c}')"
+HAK_CWD=$WTH hak hak-f33-git-czyta kod 0 Bash "$(jq -n --arg c "git -C $P status && git log -1 -- $P && find $P -name '*.md'" '{command: $c}')"
 # Fail-closed must not touch the executor's everyday work (nadzorca #58: the legal list l1–l20 and two more).
 N=0
 while IFS= read -r L; do
@@ -670,6 +699,7 @@ bash tests/rownowaznosc/stanowisko.sh --plik=$X
 git -C ../.. worktree list && git log --oneline -3
 grep -rn 'TODO' php/ > /tmp/todo.txt
 tail -5 ../../tmp/refaktor/Plik/dziennik.tsv | column -t
+for f in php/*.php; do cp "$f" "$f.bak"; done
 LISTA
 HAK_CWD=$WTH hak hak-legalne-commit-heredoc kod 0 Bash '{"command": "git commit -m \"$(cat <<\u0027EOF\u0027\nfix: porcja > x\nEOF\n)\"\nvendor/bin/phpunit > /tmp/p.log"}'
 # The price of fail-closed: a writer's argument built at run time is refused even outside the supervisor's directory.

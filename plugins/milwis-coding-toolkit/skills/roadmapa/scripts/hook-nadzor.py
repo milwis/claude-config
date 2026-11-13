@@ -9,7 +9,9 @@ from a worktree under {REPO}/.claude/worktrees, a symlink to the directory and `
 Blocked: Write/Edit into it; a redirect into it; a writer (cp, mv, rm, ln, tee, sed -i, git checkout, find -delete,
 xargs <writer>, an interpreter or script — inline code, a heredoc or a script file whose text names it) with an argument
 in it; `ln`, `rm`, `mv`, `cp`, `rsync` on one of its ancestors (outside the session's own cwd); `$(…)`/backticks naming it
-in a command that writes. Reads (cat, grep, jq, a checker's output to a file elsewhere) pass.
+in a command that writes; for a path in the directory the list is inverted (F33): any command with an argument there,
+unless it only reads (CZYTAJACE: cat, grep, jq, ls, git log, …). Reads and a checker's output to a file elsewhere pass.
+A command behind a reserved word (if/then/do/{/!/time) or a prefix with options (env -i, nice -n 5) counts as itself (F29).
 Fail-closed: a redirect target, an argument of a known writer or a cd/pushd target the hook cannot expand in full
 (`$(…)`, backticks, `$VAR`, `~+`/`~-`, `<(…)`, zsh `=(…)` and glob qualifiers, braces or globs past the limits) is
 refused. Interpreters are not: what a script writes the hook never sees — the known hole.
@@ -96,13 +98,14 @@ PISZACE = {"cp", "mv", "install", "ln", "rsync", "dd", "truncate", "touch", "rm"
            "tee", "sponge", "chmod", "chown", "shred", "curl", "wget", "tar", "unzip", "cpio", "ed", "ex", "vi", "vim"}
 INTERP = re.compile(r"^(python[0-9.]*|php[0-9.]*|node|ruby|perl|deno|bun|bash|sh|zsh|dash|ksh|awk|gawk|eval|source|\.)$")
 PRZODKOWE = {"ln", "rm", "mv", "cp", "rsync"}
-PREFIKSY = {"sudo", "env", "command", "nohup", "time", "exec", "nice", "caffeinate", "builtin"}
+PREFIKSY = {"sudo", "env", "command", "nohup", "time", "exec", "nice", "caffeinate", "builtin", "timeout", "stdbuf"}
 def skanuj(c):
     """Shell words by simple command, quoting removed, with a flag per word: True when the word holds something the hook
     does not model — `$(…)`, backticks, `$VAR` (assigned ones, $HOME and $PWD are already expanded), `${…}`, `~+`/`~-`,
     `<(…)`/`>(…)`/`=(…)`, a `(` inside a word (zsh glob qualifier, extglob). Single-quoted text is never expanded.
     Redirect operators are words of their own; a heredoc body is one word appended to its command; the text inside a
-    substitution is appended too (flagged), so a path written there still counts as named."""
+    substitution is appended too (flagged), so a path written there still counts as named. The flag is "zm" when the word
+    holds only `$NAME` references, kept in its text (a static `for` loop variable is modelled, see warianty)."""
     cmds, words, flags = [], [], []
     st = {"w": [], "d": False, "in": False}
     heredocs, czeka = [], None
@@ -146,8 +149,9 @@ def skanuj(c):
             return podstawienie(j + 2, "(", ")")
         if nx == "{":
             return podstawienie(j + 2, "{", "}")
-        if nx and (nx.isalnum() or nx in "_?$!@*#-"):
-            st["d"] = st["in"] = True
+        if nx and (nx.isalnum() or nx in "_?$!@*#-"):  # the text keeps `$X`: flag "zm" unless something else is there
+            st["d"] = True if st["d"] is True else "zm"
+            st["in"] = True
             st["w"].append("$" + nx)
             return j + 2
         return None
@@ -230,14 +234,73 @@ skan = skanuj(cmd)
 komendy = [k for k, _ in skan]
 FLAGI = [f for _, f in skan]
 
-def nazwa(k):  # the command's name and index, past `X=1`, env, command, builtin, sudo, … (F20 of #58)
+# Reserved words and precommand modifiers in front of a command (F29 of #58: `if true; then cp …`, `! cp …`, `{ cp …; }`).
+ZASTRZEZONE = {"if", "then", "do", "else", "elif", "while", "until", "{", "}", "!", "fi", "done", "esac", "time",
+               "coproc", "noglob", "nocorrect", "-"}
+# Prefix options that take a value as the next word (`env -u X`, `nice -n 5`, `sudo -u x`, `timeout -s KILL`).
+Z_WARTOSCIA = {"env": {"-u", "-C", "--unset", "--chdir"}, "nice": {"-n", "--adjustment"}, "exec": {"-a"},
+               "sudo": {"-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T"}, "caffeinate": {"-w", "-t"},
+               "timeout": {"-s", "-k", "--signal", "--kill-after"}, "stdbuf": {"-i", "-o", "-e"}}
+
+
+def nazwa(k):
+    """The command's name and index, past `X=1`, reserved words (if/then/do/!/{ …) and prefixes (env, command, builtin,
+    sudo, nice, time, nohup, exec, timeout, …) with their options (F20, F29 of #58). `for x in …`, `select`, `case`:
+    no command (""). `env -S '…'`/`--split-string`: the command is in a string, taken as an interpreter ("sh")."""
     i = 0
-    while i < len(k) and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", k[i]) or k[i] in PREFIKSY):
-        i += 1
-    return (os.path.basename(k[i]) if i < len(k) else ""), i
+    while i < len(k):
+        t = k[i]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t) or t in ZASTRZEZONE:
+            i += 1
+            continue
+        if t in ("for", "select", "case", "function"):
+            return "", len(k)
+        b = os.path.basename(t)
+        if b in PREFIKSY:
+            i += 1
+            while i < len(k) and k[i].startswith("-") and k[i] != "-":
+                o = k[i]
+                i += 1
+                if o == "--":
+                    break
+                if b == "env" and re.match(r"^(-[a-zA-Z]*S|--split-string)", o):
+                    return "sh", i - 1
+                if o in Z_WARTOSCIA.get(b, ()):
+                    i += 1
+            if b == "timeout" and i < len(k):  # the duration
+                i += 1
+            continue
+        return b, i
+    return "", i
 
 
 LIMIT = 50
+
+# `for f in php/*.php; do cp "$f" "$f.bak"; done`: a loop variable over static words is modelled — each word in turn
+# (F29 of #58 put the command behind `do` under the checks; without this the loop's everyday cp would be refused).
+PETLE = {}
+for k, fl in zip(komendy, FLAGI):
+    j = 0
+    while j < len(k) and k[j] in ZASTRZEZONE:
+        j += 1
+    if k[j:j + 1] == ["for"] and len(k) > j + 2 and k[j + 2] == "in" and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", k[j + 1]):
+        slowa = [t for t in k[j + 3:] if t not in ZASTRZEZONE]
+        if not any(fl[j + 3:]) and slowa:
+            PETLE.setdefault(k[j + 1], []).extend(slowa)
+        else:
+            PETLE[k[j + 1]] = None  # not static: $f stays unmodelled
+PETLE = {v: w for v, w in PETLE.items() if w}
+
+
+def warianty(t):
+    """The word with each static loop variable replaced by its words; (variants, complete) — complete when no `$` is
+    left (only for a word flagged "zm": its text holds every expansion in it)."""
+    out = [t]
+    for v, slowa in PETLE.items():
+        wz = re.compile(r"\$\{" + v + r"\}|\$" + v + r"(?![A-Za-z0-9_])")
+        if any(wz.search(x) for x in out):
+            out = [wz.sub(lambda _, s_=s_: s_, x) for x in out for s_ in slowa][:LIMIT + 1]
+    return out[:LIMIT], len(out) <= LIMIT and not any("$" in x for x in out)
 
 
 def grupa(y):
@@ -407,7 +470,7 @@ def sciezki(t):
 
 
 def trafia(t, przodki=False):
-    for x in sciezki(t):
+    for x in {x for v in warianty(t)[0] for x in sciezki(v)}:
         for b in bazy:
             for r in rozwin(x, b)[0]:
                 if w(r):
@@ -464,7 +527,12 @@ NIE_FC = {"curl", "wget", "tar", "unzip", "cpio", "ed", "ex", "vi", "vim"}
 
 
 def niemodelowany(t, f):
-    return f or any(not rozwin(x, b)[1] for x in sciezki(t) for b in bazy)
+    if f is True:
+        return True
+    if f:
+        ws, pelne = warianty(t)
+        return not pelne or any(not rozwin(x, b)[1] for v in ws for x in sciezki(v) for b in bazy)
+    return any(not rozwin(x, b)[1] for x in sciezki(t) for b in bazy)
 
 
 def fail_closed(k):  # a known writer whose arguments are paths
@@ -473,6 +541,44 @@ def fail_closed(k):  # a known writer whose arguments are paths
 
 
 cel_przekierowania = re.compile(r"^[0-9]*(>|>>|>\||<>|&>|&>>)$")
+przekierowanie = re.compile(r"^[0-9]*(>|>>|>\||<>|&>|&>>|>&|<|<<|<<-|<<<|<&)$")
+
+# F33 of #58: the list of writers cannot be closed (sort -o, uniq, ditto, gzip, split, …), so it is inverted for a path in
+# the directory: a command's argument there is refused unless the command only reads. Redirects and cd/pushd keep their
+# own checks above.
+CZYTAJACE = {"cat", "less", "head", "tail", "grep", "egrep", "fgrep", "rg", "ls", "stat", "wc", "diff", "cmp", "jq",
+             "file", "shasum", "sha256sum", "md5", "md5sum", "echo", "printf", "test", "[", "[[", "realpath", "readlink",
+             "basename", "dirname", "du", "find"}
+GIT_CZYTA = {"show", "log", "diff", "status", "ls-files", "rev-parse", "blame", "grep"}
+
+
+def czyta(k):
+    n, i = nazwa(k)
+    reszta = k[i + 1:]
+    if any(t.startswith("--output") for t in reszta):  # git log/diff --output=x
+        return False
+    if n == "less" and any(re.match(r"^(-[A-Za-z]*[oO]|--log-file|--LOG-FILE)", t) for t in reszta):
+        return False
+    if n == "git":
+        j = 0
+        while j < len(reszta) and reszta[j].startswith("-"):
+            j += 2 if reszta[j] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace") else 1
+        return j < len(reszta) and reszta[j] in GIT_CZYTA
+    if n == "find":
+        return not pisze(k)
+    return n in CZYTAJACE
+
+
+def argumenty(k, fl, i):
+    """The words after the command's name, without redirect operators and their targets (checked on their own)."""
+    out, j = [], i + 1
+    while j < len(k):
+        if przekierowanie.match(k[j]):
+            j += 2
+            continue
+        out.append((k[j], fl[j]))
+        j += 1
+    return out
 pisze_gdzies = cd_dyn = False
 for k, fl in zip(komendy, FLAGI):
     n, i = nazwa(k)
@@ -500,6 +606,8 @@ for k, fl in zip(komendy, FLAGI):
         wyjdz("BLOK\t" + " ".join(k)[:160])
     if n == "ln" and any(trafia(t) or any(przodek(rp(x, b)) for x in sciezki(t) for b in bazy) for t in k[i + 1:]):
         wyjdz("BLOK\t" + " ".join(k)[:160])
+    if n not in ("cd", "pushd", "popd") and not czyta(k) and any(trafia(t) for t, _ in argumenty(k, fl, i)):
+        wyjdz("BLOK\t" + " ".join(k)[:160] + " (polecenie spoza listy czytających z argumentem w katalogu nadzorcy)")
     # A script: `python3 x.py`, `bash x.sh`, `./x` — its text naming the directory counts as the command naming it.
     kand = []
     if INTERP.match(n):
