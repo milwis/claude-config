@@ -16,6 +16,10 @@
 # (`D=tests/rownowaznosc; sed -i … $D/x`), `find … -exec|-execdir|-ok <writer>` / `find … -delete` and `… | xargs
 # <writer>` on it, and `git -C <it> checkout|restore|…`. Running the rig or its checkers (`bash …/stanowisko.sh`,
 # `php …/sprawdz-…php`) passes. The hook is the first line only: the refactor gate compares the hashes in the KARTA on every portion.
+# After review r1 of #58: the supervisor's directory is checked by real path in hook-nadzor.py (cwd from the hook's JSON;
+# relative paths from a worktree, links, scripts — see its header); the literal globs below remain for the measure and,
+# without a git root at cwd, for the supervisor's directory. A writer in a parent counts only when its target holds the
+# rest of the path; find -exec / xargs only with a writer as the command.
 INPUT=$(cat)
 PORCJA=${1:-}
 shift
@@ -37,70 +41,73 @@ odmowa_nadzor() {
   exit 2
 }
 NARZ=$(jq -r '.tool_name // empty' <<<"$INPUT")
+# The supervisor's directory by real path (hook-nadzor.py, r1 F1): relative paths from a worktree, links, `cd` into a
+# parent, scripts. Without a resolvable root (no git at cwd) or if python fails, its globs go to the literal checks below.
+WYNIK=$(NADZOR_GLOBY=$(printf '%s\n' "${NADZOR[@]}") python3 -I "$(dirname "$0")/hook-nadzor.py" <<<"$INPUT" 2>/dev/null) || WYNIK=""
+WERDYKT=$(head -1 <<<"$WYNIK")
+case "$WERDYKT" in
+  BLOK*) odmowa_nadzor "${WERDYKT#BLOK?}" ;;
+  OK) NADZOR_LIT=() ;;
+  *) NADZOR_LIT=("${NADZOR[@]}") ;;
+esac
 case "$NARZ" in
 Write|Edit|MultiEdit|NotebookEdit)
   P=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$INPUT")
   trafia() { local G=$1 G2=${1#\*\*/}
     # shellcheck disable=SC2053
     [[ "$P" == $G || "$P" == */$G || "$P" == */$G2 || "$P" == $G2 ]]; }
-  for G in "${NADZOR[@]}"; do trafia "$G" && odmowa_nadzor "$P"; done
+  for G in "${NADZOR_LIT[@]}"; do trafia "$G" && odmowa_nadzor "$P"; done
   for G in "$@"; do trafia "$G" && odmowa "$P"; done ;;
 Bash)
   CMD0=$(jq -r '.tool_input.command // empty' <<<"$INPUT")
-  # Variables assigned in the command itself (`D=…; … $D/x`, `export D=…`) are expanded, so the path appears literally.
-  CMD=$(python3 -I -c '
-import re, sys
-c = sys.argv[1]
-for m in re.finditer(r"(?:^|[;&|\s])(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(\"[^\"]*\"|\x27[^\x27]*\x27|[^;&|\s]*)", c):
-    v = m.group(2)
-    if v[:1] in "\"\x27": v = v[1:-1]
-    c = re.sub(r"\$\{" + m.group(1) + r"\}|\$" + m.group(1) + r"(?![A-Za-z0-9_])", lambda _: v, c)
-print(c)' "$CMD0")
+  # Variables assigned in the command itself (`D=…; … $D/x`, `export D=…`) are expanded by hook-nadzor.py (on stdin, so a
+  # command over ARG_MAX is checked too — r1 F7); without its output the raw command is checked.
+  CMD=$(tail -n +2 <<<"$WYNIK")
+  [ -n "$WYNIK" ] || CMD=$CMD0
   # Writers whose target is a relative path, used after a `cd` into the protected directory (redirects to /dev/null,
   # fd duplication and absolute targets such as /tmp/log do not count).
   BEZ=$(sed -E 's/[0-9]*>&[0-9-]+//g; s#[0-9]*>>?[[:space:]]*/dev/null##g' <<<"$CMD")
-  PISZE=">>?[[:space:]]*[\"']?[^/[:space:]&\"']|(^|[^[:alnum:]_-])(tee|cp|mv|install|ln|rsync|dd|truncate|touch|rm|unlink|mkdir|patch|sponge)([[:space:]]|$)|(^|[^[:alnum:]_-])(sed|perl)[[:space:]]([^;|&]*[[:space:]])?(-[A-Za-z0-9]*i|--in-place)|git[^;|&]*[[:space:]](checkout|restore|rm|mv|apply|am)[[:space:]]"
+  PISZE=">>?[[:space:]]*[\"']?[^/[:space:]&\"']|(^|[^[:alnum:]_-])(tee|cp|mv|install|ln|rsync|dd|truncate|touch|rm|unlink|mkdir|patch|sponge)([[:space:]]|$)|(^|[^[:alnum:]_-])(sed|perl)[[:space:]]([^;|&]*[[:space:]])?(-[A-Za-z0-9]*i|--in-place)|git[^;|&]*[[:space:]](checkout|restore|rm|mv|apply|am)[[:space:]]|(^|[[:space:]])-delete([[:space:];&|)]|\$)"
+  # A writer at a command position (after xargs, find -exec).
+  WR="((tee|cp|mv|install|ln|rsync|dd|truncate|touch|rm|unlink|mkdir|patch|sponge)([[:space:]]|\$)|(sed|perl)[[:space:]]([^;|&]*[[:space:]])?(-[A-Za-z0-9]*i|--in-place))"
   # Inline interpreters: code in the command line or a heredoc can write any file it names.
   INTERP="(^|[^[:alnum:]_-])((python[0-9.]*|node|ruby|perl|deno|bun)[[:space:]]+(-[A-Za-z]*[cep]([[:space:]]|$)|-([[:space:]]|$)|<<)|php[[:space:]]+(-[A-Za-z]*r([[:space:]]|$)|<<)|(ba|z)?sh[[:space:]]+-c[[:space:]])"
-  # Directories the command works in: `cd X`, `pushd X`, `git -C X`.
-  KONTEKSTY=$(grep -oE "(^|[^[:alnum:]_-])(cd|pushd)[[:space:]]+[\"']?[^;|&[:space:]\"']+|git([[:space:]]+-[^C[:space:]][^[:space:]]*)*[[:space:]]+-C[[:space:]]+[\"']?[^;|&[:space:]\"']+" <<<"$CMD" \
+  # Directories the command works in: `cd X`, `pushd X`, `git [-c k=v] -C X`.
+  KONTEKSTY=$(grep -oE "(^|[^[:alnum:]_-])(cd|pushd)[[:space:]]+[\"']?[^;|&[:space:]\"']+|git([[:space:]]+(-c[[:space:]]+[^[:space:]]+|-[^Cc[:space:]][^[:space:]]*))*[[:space:]]+-C[[:space:]]+[\"']?[^;|&[:space:]\"']+" <<<"$CMD" \
     | sed -E "s/.*[[:space:]][\"']?//; s#/+\$##; s#^\./##")
-  PISZE_X="$PISZE|(^|[[:space:]])-delete([[:space:]]|\$)"
+  pisze_do() {  # $1 a literal path piece: does a writer in the command target a path with it (r1 F9)?
+    local E GR CEL
+    E=$(sed 's/[][\.*^$/+?(){}|]/\\&/g' <<<"$1"); GR="(\$|[/[:space:]\"';|&)<>])"
+    CEL="[^[:space:];|&<>]*$E$GR"
+    grep -qE ">>?[[:space:]]*[\"']?$CEL|(tee|sponge)([[:space:]]+-[a-z]+)*[[:space:]]+[\"']?$CEL|(^|[^[:alnum:]_-])(cp|mv|install|ln|rsync|dd|truncate|touch|rm|unlink|mkdir|patch)[[:space:]][^;|&]*$E$GR|(^|[^[:alnum:]_-])(sed|perl)[[:space:]]([^;|&]*[[:space:]])?(-[A-Za-z0-9]*i|--in-place)[^;|&]*$E$GR|git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+)*[[:space:]]+(checkout|restore|rm|mv|apply|am)[[:space:]][^;|&]*$E$GR|(^|[^[:alnum:]_-])find[[:space:]][^;|&]*$E$GR[^|&]*((^|[[:space:]])-delete([[:space:];&|)]|\$)|-(exec|execdir|ok|okdir)[[:space:]]+$WR)" <<<"$CMD" \
+      || { grep -qE "$E$GR" <<<"$CMD" && grep -qE "$INTERP" <<<"$CMD"; } \
+      || { grep -qE "$E$GR" <<<"$CMD" && grep -qE "\|[[:space:]]*(xargs|parallel)([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+$WR" <<<"$CMD"; }
+  }
   sprawdz() {  # $1 glob, $2 refusal function
-    local G=$1 F E CEL X P REST
+    local G=$1 F X P REST
     # The literal part of the glob, as it appears in a command line: tests/rownowaznosc/, KARTA.md.
     # A directory without its trailing slash, so `rm -rf tests/rownowaznosc` and `cd tests/rownowaznosc` count too.
     F=${G#\*\*/}; F=${F%%\**}; F=${F%/}
     [ -n "$F" ] || return 0
-    # A writer after entering a parent of the protected path, with the rest of the path in the command
-    # (`cd tests && sed -i … rownowaznosc/x`, `git -C tests checkout main -- rownowaznosc`), or inside it.
+    # Inside the protected path (`cd tests/rownowaznosc && sed -i … x`): any writer with a relative target.
+    # In a parent of it with the rest of the path in the command (`cd tests && sed -i … rownowaznosc/x`,
+    # `git -C tests checkout main -- rownowaznosc`): a writer whose target holds the rest.
     while IFS= read -r X; do
       [ -n "$X" ] || continue
-      if [[ "$X" == *"$F"* ]] && grep -qE "$PISZE_X" <<<"$BEZ"; then "$2" "$F (polecenie: $(cut -c1-120 <<<"$CMD0"))"; fi
+      if [[ "$X" == *"$F"* ]] && grep -qE "$PISZE" <<<"$BEZ"; then "$2" "$F (polecenie: $(cut -c1-120 <<<"$CMD0"))"; fi
       P=$F
       while [[ "$P" == */* ]]; do
         P=${P%/*}; REST=${F#"$P"/}
-        if { [ "$X" = "$P" ] || [[ "$X" == */"$P" ]]; } && grep -qF -- "$REST" <<<"$CMD" && grep -qE "$PISZE_X" <<<"$BEZ"; then
+        if { [ "$X" = "$P" ] || [[ "$X" == */"$P" ]]; } && pisze_do "$REST"; then
           "$2" "$F (polecenie: $(cut -c1-120 <<<"$CMD0"))"
         fi
       done
     done <<<"$KONTEKSTY"
     grep -qF -- "$F" <<<"$CMD" || return 0
-    # find … -exec/-execdir/-ok <writer> or -delete, and … | xargs <writer>, on the protected path.
-    if grep -qE "(^|[^[:alnum:]_-])find[[:space:]]" <<<"$CMD" && grep -qE "(^|[[:space:]])-delete([[:space:]]|\$)|(^|[[:space:]])-(exec|execdir|ok|okdir)[[:space:]]" <<<"$CMD" \
-         && grep -qE "$PISZE_X" <<<"$BEZ" \
-       || { grep -qE "\|[[:space:]]*(xargs|parallel)[[:space:]]" <<<"$CMD" && grep -qE "$PISZE" <<<"$BEZ"; }; then
-      "$2" "$F (polecenie: $(cut -c1-120 <<<"$CMD0"))"
-    fi
-    E=$(sed 's/[][\.*^$/]/\\&/g' <<<"$F")
-    CEL="[^[:space:];|&<>]*$E"
-    if grep -qE ">>?[[:space:]]*[\"']?$CEL|(tee|sponge)([[:space:]]+-[a-z]+)*[[:space:]]+[\"']?$CEL|(^|[^[:alnum:]_-])(cp|mv|install|ln|rsync|dd|truncate|touch|rm|unlink|mkdir|patch)[[:space:]][^;|&]*$E|(^|[^[:alnum:]_-])(sed|perl)[[:space:]]([^;|&]*[[:space:]])?(-[A-Za-z0-9]*i|--in-place)[^;|&]*$E|git([[:space:]]+-[Cc][[:space:]]+[^[:space:]]+)*[[:space:]]+(checkout|restore|rm|mv|apply|am)[[:space:]][^;|&]*$E" <<<"$CMD" \
-      || grep -qE "$INTERP" <<<"$CMD" \
-      || { grep -qE "(^|[^[:alnum:]_-])(cd|pushd)[[:space:]]+[\"']?[^;|&[:space:]]*$E" <<<"$CMD" && grep -qE "$PISZE" <<<"$BEZ"; }; then
-      "$2" "$F (polecenie: $(cut -c1-120 <<<"$CMD0"))"
-    fi
+    pisze_do "$F" && "$2" "$F (polecenie: $(cut -c1-120 <<<"$CMD0"))"
+    return 0
   }
-  for G in "${NADZOR[@]}"; do sprawdz "$G" odmowa_nadzor; done
+  for G in "${NADZOR_LIT[@]}"; do sprawdz "$G" odmowa_nadzor; done
   for G in "$@"; do sprawdz "$G" odmowa; done ;;
 esac
 exit 0

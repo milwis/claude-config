@@ -56,6 +56,9 @@ SHA=$(G rev-parse --verify -q "${SHA_ARG:-HEAD}^{commit}") || { echo "BRAK: --sh
 [ "$HEAD" = "$SHA" ] && ok "SHA porcji ${SHA:0:9}" || brak0 "worktree stoi na ${HEAD:0:9}, a SHA porcji to ${SHA:0:9}"
 if [ -z "$(G status --porcelain)" ]; then ok "drzewo czyste"
 else brak0 "drzewo ma niezacommitowane zmiany — stanowisko mierzyłoby co innego niż SHA porcji"; fi
+# skip-worktree / assume-unchanged hide an edited file from `git status` (r1 F2): any such flag fails the tree check.
+UKRYTE=$(G -c core.quotePath=false ls-files -v | grep -E '^([a-z]|S) ' | cut -c3- | head -5 | tr '\n' ' ')
+[ -z "$UKRYTE" ] || brak0 "pliki z flagą skip-worktree/assume-unchanged (git status ich nie pokazuje): ${UKRYTE}— zdejmij flagę (git update-index --no-skip-worktree --no-assume-unchanged)"
 
 KARTA_SCIEZKA="" KARTA_REF=""
 case "$KARTA_ARG" in
@@ -84,7 +87,9 @@ done
 # The supervisor's directory (F10): outside the portion's worktree and every other one but the main checkout, so no
 # executor's tree holds the log or the reviews.
 sciezka() { python3 -I -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
-NADZOR=$(kv nadzor); NADZOR=${NADZOR:-$REPO/.claude/tmp/refaktor/$KLASA}; NADZOR=$(sciezka "${NADZOR//\{KLASA\}/$KLASA}")
+NADZOR=$(kv nadzor); NADZOR=${NADZOR:-$REPO/.claude/tmp/refaktor/$KLASA}
+case "$NADZOR" in /*) ;; *) echo "BRAK: KARTA nadzor: $NADZOR nie jest ścieżką absolutną — względna zależałaby od katalogu wywołania (użyj {REPO}/…)"; exit 1 ;; esac
+NADZOR=$(sciezka "${NADZOR//\{KLASA\}/$KLASA}")
 GLOWNY=$(sciezka "$REPO") WT_R=$(sciezka "$WT")
 while IFS= read -r W; do
   [ -n "$W" ] || continue
@@ -272,7 +277,9 @@ if [ -n "$PRZEN" ] && [ "$PRZED" = 0 ]; then
       PRS=$(G rev-parse --verify -q "$PR^{commit}" 2>/dev/null)
       [ -n "$PRS" ] && { [ "$PRS" = "$OD" ] || [ "$PRS" = "$STARY" ]; } \
         || brak "podstawienia: przed=$PR nie jest początkiem porcji ${OD:0:9} ani stary: ${STARY:0:9}"
-      if [ "$PO" != drzewo-robocze ]; then
+      if [ "$PO" = drzewo-robocze ]; then
+        brak "podstawienia: po=drzewo-robocze — narzędzie porównało drzewo robocze, nie commit porcji; polecenie przeniesienia: musi podać {SHA}"
+      else
         [ "$(G rev-parse --verify -q "$PO^{commit}" 2>/dev/null)" = "$SHA" ] || brak "podstawienia: po=$PO ≠ SHA porcji ${SHA:0:9}"
       fi
       while IFS= read -r U; do [ -z "$U" ] || echo "UWAGA podstawienia: założenie: $U"; done < <(j '(.zalozenia // [])[]')
@@ -337,7 +344,7 @@ if [ -z "$ZAPADKI" ]; then
   ZAPADKI=$(G show "$KOLEJKA:docs/VERIFICATION_ENV.md" 2>/dev/null | awk '/^## Bramka/{f=1;next} /^## /{f=0} f' \
     | sed -n 's/^zapadki: *//p' | sed -E 's/[[:space:]]+$//') ZRODLO="docs/VERIFICATION_ENV.md na $KOLEJKA"
 fi
-[ -n "$ZAPADKI" ] || { ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*\nscripts/measure-*\nphpunit.xml*\ninfection.json*'; ZRODLO=domyślne; }
+[ -n "$ZAPADKI" ] || { ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*\nscripts/measure-*\nphpunit.xml*\ninfection.json*\nphpstan*.neon*\n*-baseline.*'; ZRODLO=domyślne; }
 echo "INFO  zapadki z $ZRODLO: $(grep -c . <<<"$ZAPADKI") globów"
 POZYCJE=$(G -c core.quotePath=false diff --no-renames -U0 "$OD" "$SHA" | ZAPADKI="$ZAPADKI" python3 -I -c '
 import os, re, subprocess, sys, fnmatch
@@ -374,7 +381,7 @@ def zdania(txt, py):
 # (@dataProvider / #[DataProvider] target, provide*/…Provider) that are gone or changed, minus lines of assertion
 # statements (listed above), give one A<n> per method. Measured on the Gutschrift pilot: 36 such items over 120
 # commits next to 227 assertion items (UPDATE_LOG 1.12.0).
-literal = re.compile(r"(?<![\w$])-?\d+(\.\d+)?(?![\w])|\x27(?:[^\x27\\]|\\.)*\x27|\"(?:[^\"\\]|\\.)*\"")
+literal = re.compile(r"(?<![\w$])-?\d+(\.\d+)?(?![\w])|\x27(?:[^\x27\\]|\\.)*\x27|\"(?:[^\"\\]|\\.)*\"|(?<![\w$>:])(?i:true|false|null|undefined)(?![\w(])")
 def metody(txt, js):
     out = []
     pat = re.compile(r"\b(it|test)(\.each\([^)]*\))?\s*\(\s*([\x27\"`][^\x27\"`]*)?") if js else re.compile(r"function\s+(\w+)\s*\(")
@@ -398,14 +405,21 @@ def metody(txt, js):
         out.append((m.start(), i + 1, nazwa))
     return out
 def wartosci(txt, js, zd):
+    # Per line, the text outside assertion statements (those are counted above): `$o = 3.0; $this->assertSame($o, …)`
+    # keeps `$o = 3.0;`, `try { kwota(-1.0); $this->fail(…); }` keeps the call (r1 F4).
     wyn, pos, zak = Counter(), 0, metody(txt, js)
-    # A statement starts after the previous ; { } — skip its leading whitespace, so the line before it stays out.
-    zd = [(a + len(txt[a:b]) - len(txt[a:b].lstrip()), b) for a, b, _ in zd]
+    zd = sorted((a + len(txt[a:b]) - len(txt[a:b].lstrip()), b) for a, b, _ in zd)
     for l in txt.splitlines(keepends=True):
-        s, e = pos + len(l) - len(l.lstrip()), pos + len(l.rstrip()); pos += len(l)
-        met = next((n for a, b, n in zak if a <= s < b), None)
-        if met is None or any(a < e and s < b for a, b in zd): continue
-        t = " ".join(l.split())
+        s, e = pos, pos + len(l); pos = e
+        met = next((n for a, b, n in zak if a <= s + len(l) - len(l.lstrip()) < b), None)
+        if met is None: continue
+        reszta, i = [], s
+        for a, b in zd:
+            if b <= i or a >= e: continue
+            if a > i: reszta.append(txt[i:a])
+            i = max(i, b)
+        if i < e: reszta.append(txt[i:e])
+        t = " ".join(" ".join(reszta).split())
         if t and not koment.match(t) and literal.search(t): wyn[(met, t)] += 1
     return wyn
 def zapadka(p):

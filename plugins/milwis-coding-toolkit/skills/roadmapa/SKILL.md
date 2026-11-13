@@ -150,7 +150,7 @@ v1.7.2); the owner's interactive sessions keep their own window.
 | `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--effort` (`KOLEJKA_EFFORT`, high), claude.ai connectors off, `--settings`, the lead's appended system prompt, session named after the issue, start prompt as the first message |
 | `scripts/bramka.sh`, `scripts/scal.sh` | the merge gate and the only merge path (`SCALONO` / `BRAMKA` / `KONFLIKT`) |
 | `scripts/bramka-refaktoru.sh` | the refactor gate (`bramka.sh --refaktor`): runs the equivalence rig on the portion's SHA and judges from its files |
-| `scripts/zamrozone.sh`, `scripts/hook-refaktor.sh` | frozen paths of active KARTA files (queue freeze); PreToolUse hook of a refactor session that blocks writes to the measure in a `kod` portion |
+| `scripts/zamrozone.sh`, `scripts/hook-refaktor.sh` (+ `hook-nadzor.py`) | frozen paths of active KARTA files (queue freeze); PreToolUse hook of a refactor session that blocks writes to the measure in a `kod` portion and to the supervisor's directory in both kinds |
 | `tests/test-refaktor.sh` | tests of the refactor gate, the queue freeze and the hook (fake rig, no project needed) |
 | `scripts/reguly.sh` | the project's rules files whose `paths:` match the branch diff, for the review brief |
 | `scripts/wybierz-issue.sh` | the picker: list source or backlog source |

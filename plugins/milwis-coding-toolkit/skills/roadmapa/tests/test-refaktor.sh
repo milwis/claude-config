@@ -66,8 +66,15 @@ final class PlikTest
     public function testOczekiwana(): void
     {
         $oczek = 2.0;
+        $flaga = true;
         $wynik = (new Plik())->kwota(2.0);
         $this->assertSame($oczek, $wynik);
+        $this->assertSame($flaga, $wynik > 0);
+    }
+
+    public function testJednaLinia(): void
+    {
+        $o = 3.0; $this->assertSame($o, (new Plik())->kwota(3.0));
     }
 
     /** @dataProvider kwoty */
@@ -110,6 +117,7 @@ mkdir -p "$R/scripts" "$R/tests/Wlasne"
 echo '<?php $limit = 40;' > "$R/scripts/measure-god-objects.php"
 printf '<phpunit>\n  <coverage minimum="60"/>\n</phpunit>\n' > "$R/phpunit.xml"
 echo '{"minMsi": 70}' > "$R/infection.json5"
+printf 'parameters:\n  ignoreErrors: []\n' > "$R/phpstan-baseline.neon"
 echo '<?php const PROG = 3;' > "$R/tests/Wlasne/Prog.php"
 echo 'raport/' > "$R/tests/rown/.gitignore"
 echo '{"pomijaj": []}' > "$R/tests/rown/maska/Plik.json"
@@ -212,6 +220,7 @@ karta | sed '/^zamrozone: app/d' > "$R/docs/refaktor/Plik/KARTA-bez-pliku.md"
 mkdir -p "$R/docs/inne" && karta > "$R/docs/inne/KARTA.md"
 NADZOR='{REPO}/.claude/tmp/refaktor/{KLASA}' karta > "$R/docs/refaktor/Plik/KARTA-nadzor-w-porcji.md"
 NADZOR="$T/wt2/nadzor" karta > "$R/docs/refaktor/Plik/KARTA-nadzor-w-innym-wt.md"
+NADZOR="nadzor-wzgledny" karta > "$R/docs/refaktor/Plik/KARTA-nadzor-wzgledny.md"
 g checkout -q -b zaufana && g add -A && g commit -qm warianty
 g checkout -q -b zaufana-zap && printf 'zapadki: tests/Wlasne/**\n' >> "$R/docs/VERIFICATION_ENV.md" \
   && karta | sed 's/^kolejka: zaufana$/kolejka: zaufana-zap/' > "$R/docs/refaktor/Plik/KARTA-zap.md" && g add -A && g commit -qm zapadki-projektu
@@ -336,6 +345,7 @@ pj podst-bez-mapy 1 'BRAK: podstawienia: wynik bez mapy' '{"mapa": null}'
 pj podst-po-inne 1 'BRAK: podstawienia: po=' "{\"po\": \"$STARY\"}"
 pj podst-przed-inne 1 'BRAK: podstawienia: przed=' '{"przed": "main_dev"}'
 pj podst-blad 1 'BRAK: podstawienia od .*werdykt blad.*mapa odrzucona' '{"werdykt": "blad", "kod": 1, "blad": "mapa odrzucona"}'
+pj podst-po-drzewo-robocze 1 'BRAK: podstawienia: po=drzewo-robocze' '{"po": "drzewo-robocze"}'
 pj podst-zalozenia 0 'UWAGA podstawienia: założenie: argument z wywołaniem' '{"zalozenia": ["argument z wywołaniem"]}'
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; touch "$T/podst.bez-json"; przypadek podst-bez-json 1 'BRAK: podstawienia: brak wyniku JSON'
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md
@@ -350,6 +360,10 @@ przypadek mapa-zmieniona 1 'BRAK: (narzedzia|podstawienia)_sha256'
 Z; PREP='echo "zmiana: x" >> docs/refaktor/Plik/KARTA.md';            przypadek karta-w-porcji 1 'BRAK: KARTA .* różni się'
 Z; PREP='echo "// x" >> app/Plik.php'; BRUDNE=1;                        NIE_URUCHOMIONE=1 przypadek brudne 1 'BRAK: .*niezacommitowane'
 Z; przypadek sha-inny 1 'BRAK: worktree stoi na' --sha="$STARY"
+Z; PREP='git update-index --skip-worktree app/Plik.php && echo "// x" >> app/Plik.php'; BRUDNE=1
+NIE_URUCHOMIONE=1 przypadek skip-worktree 1 'BRAK: .*skip-worktree.*app/Plik.php'
+g update-index --no-skip-worktree app/Plik.php 2>/dev/null; g checkout -q -- app/Plik.php 2>/dev/null
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-nadzor-wzgledny.md;            NIE_URUCHOMIONE=1 przypadek nadzor-wzgledny 1 'BRAK: KARTA nadzor: nadzor-wzgledny nie jest ścieżką absolutną'
 Z; KARTA="zaufana:docs/refaktor/Plik/BRAK.md";                           przypadek karta-brak 1 'BRAK: .*KARTA'
 
 # ---- the review applied the refactor checklist (nadzorca, warunek 1 i 2) -----------------------------------------
@@ -398,6 +412,10 @@ przypadek wartosc-dwie-linie-jedna-pozycja 1 'A1 .*wartości w testOczekiwana: 2
 Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.5;/' tests/Unit/PlikTest.php"; RAPORT="${RAPORT_DOBRY}A1: osłabienie — decyzja właściciela 2026-11-13, próg"
 przypadek wartosc-z-wierszem 0 'A1 .*wartości w testOczekiwana'
 Z; PREP="sed -i '' 's/return 7.0;/return 8.0;/' tests/Unit/PlikTest.php"; przypadek wartosc-poza-testem 0 'asercje usunięte/zmienione: 0'
+Z; PREP="sed -i '' 's/\$flaga = true;/\$flaga = false;/' tests/Unit/PlikTest.php"; przypadek wartosc-bool 1 'A1 .*wartości w testOczekiwana: 1 lini'
+Z; PREP="sed -i '' 's/\$o = 3.0;/\$o = 3.5;/' tests/Unit/PlikTest.php"; przypadek wartosc-przed-asercja-w-linii 1 'A1 .*wartości w testJednaLinia: 1 lini.*\$o = 3.0|||asercje usunięte/zmienione: 1,'
+Z; PREP="sed -i '' 's/kwota(-1.0)/kwota(-2.0)/' tests/Unit/PlikTest.php"; przypadek wartosc-try-fail 1 'A1 .*wartości w testBlad'
+Z; PREP="sed -i '' 's/ignoreErrors: \[\]/ignoreErrors: [x]/' phpstan-baseline.neon"; przypadek zapadka-phpstan-baseline 1 'BRAK: .*Z1|||Z1 .*phpstan-baseline.neon'
 Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.0; \/\/ zmiana/' tests/Unit/PlikTest.php"; przypadek wartosc-tylko-komentarz-w-linii 1 'A1 .*wartości w testOczekiwana'
 Z; PREP="sed -i '' 's/\$wynik = (new Plik())->kwota(2.0);/\$wynik = (new Plik())->kwota(2.0) + 0;/' tests/Unit/PlikTest.php"
 przypadek wartosc-linia-bez-zmiany-literalow 1 'A1 .*wartości w testOczekiwana'
@@ -504,7 +522,7 @@ hak() {  # $1 name, $2 portion kind, $3 expected exit, $4 tool, $5 JSON tool_inp
   [ -z "$FILTR" ] || [[ "$1" =~ $FILTR ]] || return 0
   local KOD
   # shellcheck disable=SC2086
-  jq -n --arg t "$4" --argjson i "$5" '{tool_name: $t, tool_input: $i}' | bash "$S/hook-refaktor.sh" "$2" ${HAK_ARG:-} 'tests/rown/**' '**/KARTA.md' >/dev/null 2>&1
+  jq -n --arg t "$4" --argjson i "$5" --arg c "${HAK_CWD:-$R}" '{tool_name: $t, tool_input: $i, cwd: $c}' | bash "$S/hook-refaktor.sh" "$2" ${HAK_ARG:-} 'tests/rown/**' '**/KARTA.md' >/dev/null 2>&1
   KOD=$?
   if [ "$KOD" = "$3" ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   $1"; else ZLE=$((ZLE + 1)); echo "ZLE  $1 (kod $KOD, oczekiwano $3)"; fi
 }
@@ -557,6 +575,41 @@ hak hak-nadzor-rm kod 2 Bash '{"command": "rm -f .claude/tmp/refaktor/Plik/dzien
 hak hak-nadzor-odczyt kod 0 Bash '{"command": "cat .claude/tmp/refaktor/Plik/dziennik.tsv"}'
 HAK_ARG="--nadzor=$T/nadzor/**" hak hak-nadzor-z-karty kod 2 Write "{\"file_path\": \"$T/nadzor/recenzje/r1.md\"}"
 HAK_ARG="--nadzor=$T/nadzor/**" hak hak-nadzor-z-karty-bash zmiana-stanowiska 2 Bash "{\"command\": \"cp /tmp/r.md $T/nadzor/recenzje/r1.md\"}"
+# r1 F1 (#58): the supervisor's directory by real path — relative from a worktree under {REPO}/.claude/worktrees (as in
+# KonkretnyTMS), a script that writes it, a link to it; reads and look-alike paths still pass.
+WTH=$R/.claude/worktrees/w
+g worktree add -q --detach "$WTH" >/dev/null 2>&1
+mkdir -p "$R/.claude/tmp/refaktor/Plik"
+printf 'open("../../tmp/refaktor/Plik/dziennik.tsv", "a").write("x")\n' > "$WTH/zapis.py"
+printf 'print(1)\n' > "$WTH/czytaj.py"
+ln -s "$R/.claude/tmp" "$WTH/lacze"
+HAK_CWD=$WTH hak hak-nadzor-wzgledny-wt kod 2 Bash '{"command": "printf x >> ../../tmp/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-cd-wzgledny kod 2 Bash '{"command": "cd ../../tmp && echo x > refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-skrypt kod 2 Bash '{"command": "python3 zapis.py"}'
+HAK_CWD=$WTH hak hak-nadzor-skrypt-czysty kod 0 Bash '{"command": "python3 czytaj.py"}'
+HAK_CWD=$WTH hak hak-nadzor-ln kod 2 Bash "{\"command\": \"ln -s $R/.claude/tmp x2\"}"
+HAK_CWD=$WTH hak hak-nadzor-lacze-write kod 2 Write "{\"file_path\": \"$WTH/lacze/refaktor/Plik/recenzje/r1.md\"}"
+HAK_CWD=$WTH hak hak-nadzor-lacze-bash kod 2 Bash '{"command": "echo x >> lacze/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-bash-c kod 2 Bash '{"command": "bash -c \"echo x >> ../../tmp/refaktor/Plik/dziennik.tsv\""}'
+HAK_CWD=$WTH hak hak-nadzor-podstawienie kod 2 Bash '{"command": "echo x >> $(echo ../../tmp/refaktor/Plik/dziennik.tsv)"}'
+HAK_CWD=$WTH hak hak-nadzor-rm-przodek kod 2 Bash "{\"command\": \"rm -rf $R/.claude/tmp\"}"
+HAK_CWD=$WTH hak hak-nadzor-odczyt-wt kod 0 Bash '{"command": "cat ../../tmp/refaktor/Plik/dziennik.tsv > /tmp/k.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-wlasny-tmp kod 0 Write "{\"file_path\": \"$WTH/.claude/tmp/refaktor/raport.md\"}"
+HAK_CWD=$WTH hak hak-nadzor-mkdir-podobny kod 0 Bash '{"command": "mkdir -p .claude/tmp/refaktor-x"}'
+g worktree remove --force "$WTH" >/dev/null 2>&1; rm -rf "$R/.claude/worktrees"
+# r1 F7: a command longer than ARG_MAX still goes through the checks (it used to empty the expanded command).
+for D in 'nadzor:echo x >> .claude/tmp/refaktor/Plik/dziennik.tsv' 'miara:sed -i "" s/a/b/ tests/rown/lib/x.php'; do
+  [ -z "$FILTR" ] || [[ "hak-argmax-${D%%:*}" =~ $FILTR ]] || continue
+  python3 -c 'import json, sys; print(json.dumps({"tool_name": "Bash", "cwd": sys.argv[1], "tool_input": {"command": sys.argv[2] + "; : " + "#" * 1500000}}))' "$R" "${D#*:}" > "$T/duzy.json"
+  bash "$S/hook-refaktor.sh" kod 'tests/rown/**' '**/KARTA.md' < "$T/duzy.json" >/dev/null 2>&1
+  KOD=$?; if [ "$KOD" = 2 ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   hak-argmax-${D%%:*}"; else ZLE=$((ZLE + 1)); echo "ZLE  hak-argmax-${D%%:*} (kod $KOD, oczekiwano 2)"; fi
+done
+# r1 F8, F9: `-delete;`, `git -c k=v -C`; a rig checker run from a parent with its output in a file, xargs reading.
+hak hak-find-delete-srednik kod 2 Bash '{"command": "find tests/rown -name x -delete; ls"}'
+hak hak-git-c-C kod 2 Bash '{"command": "git -c core.x=y -C tests checkout main -- rown/maska"}'
+hak hak-cd-rodzic-narzedzie kod 0 Bash '{"command": "cd tests && php rown/sprawdz-przeniesienia.php --stary=a > wynik.txt"}'
+hak hak-xargs-niezwiazany kod 0 Bash '{"command": "ls tests/rown/maska | xargs grep -l x > wynik.txt"}'
+hak hak-find-exec-odczyt-plik kod 0 Bash '{"command": "find tests/rown -name \"*.json\" -exec cat {} \\; > wynik.txt"}'
 # The hook lives only in the executor's --settings: nothing in the plugin registers it for every session (the
 # supervisor writes reviews, the gate writes the log, neither runs under it).
 if [ -z "$FILTR" ] || [[ hak-tylko-w-settings =~ $FILTR ]]; then

@@ -38,8 +38,8 @@ KARTA whose text on `kolejka:` differs from the trusted one. Section `## Bramka`
 | `<key>_sha256` | for each of `maska scenariusze uzasadnienia narzedzia [podstawienia]` |
 | `raport` | the rig's report directory, with `{KLASA}` and `{ETAP}` |
 | `zamrozone` | one glob per line: paths the queue does not merge while the refactor runs (L18) |
-| `zapadki` | optional globs of ratchet files; without it the project's `zapadki:` lines in `docs/VERIFICATION_ENV.md` (`## Bramka`, read from `kolejka:`), else the default `tests/Static/**`, `tests/Config/**`, `*Latch*`, `*Ratchet*`, `*Zapadk*`, `scripts/measure-*`, `phpunit.xml*`, `infection.json*` (#58) |
-| `nadzor` | optional: the supervisor's directory (default `{REPO}/.claude/tmp/refaktor/{KLASA}`): the gate's log `dziennik.tsv`, its run logs and `recenzje/`. Outside every worktree but the main checkout (#58, F10) |
+| `zapadki` | optional globs of ratchet files; without it the project's `zapadki:` lines in `docs/VERIFICATION_ENV.md` (`## Bramka`, read from `kolejka:`), else the default `tests/Static/**`, `tests/Config/**`, `*Latch*`, `*Ratchet*`, `*Zapadk*`, `scripts/measure-*`, `phpunit.xml*`, `infection.json*`, `phpstan*.neon*`, `*-baseline.*` (#58) |
+| `nadzor` | optional: the supervisor's directory (default `{REPO}/.claude/tmp/refaktor/{KLASA}`): the gate's log `dziennik.tsv`, its run logs and `recenzje/`. An absolute path (`{REPO}/…`), outside every worktree but the main checkout (#58, F10) |
 | `scalenie-z`, `static` | N5: the branch for the trial merge and the command run on it (`{WT}` = the merged copy, `{PORCJA}` = the portion's worktree, e.g. to copy `vendor/` and `.env` from it) |
 | `przeniesienia` | optional: the substitution check command, `{JSON}` = the result file (below) |
 | `budzet-porcji`, `budzet-prob`, `budzet-usd`, `budzet-rund` | L26: portions passed, failed attempts in a row (default 3), USD in total, review rounds per portion |
@@ -70,9 +70,14 @@ Never merge `main_dev` into the refactor branch.
    writer after `cd`/`pushd`/`git -C` into the directory or into a parent with the rest of the path in the command,
    a path built from a variable assigned in the same command, `find … -exec <writer>`/`-delete` and `| xargs
    <writer>` on it, inline interpreter code (`python -c`, `php -r`, `node -e`, heredocs) that names it. Running the
-   rig and its checkers passes. In both kinds it blocks the supervisor's directory (`.claude/tmp/refaktor/**`; when
-   the KARTA's `nadzor:` is elsewhere add `--nadzor=<that dir>/**` after the kind). The hook goes only into the
-   executor's `--settings`: the supervisor's session and the gate never run under it. The hook is the first line; the hashes in the gate are the proof. A `zmiana-stanowiska` portion changes only the measure,
+   rig and its checkers passes. In both kinds it blocks the supervisor's directory (`.claude/tmp/refaktor/**` of the
+   main checkout; when the KARTA's `nadzor:` is elsewhere add `--nadzor=<that dir>/**` after the kind) by real path
+   (`scripts/hook-nadzor.py`): relative paths from a worktree (`../../tmp/refaktor/…`), symlinks, `cd` into a
+   parent, writers and interpreters naming it, a script file whose text names it, `ln`/`rm`/`mv` on its ancestors.
+   The hook goes only into the executor's `--settings`: the supervisor's session and the gate never run under it.
+   For the measure the hook is the first line and the hashes in the gate are the proof; for the supervisor's
+   directory the hook is the only line, and a session determined to bypass it (code built at run time) can — the
+   OS-level fence is a sandbox of the executor's session with `permissions.deny` on `<nadzor>` (follow-up issue). A `zmiana-stanowiska` portion changes only the measure,
    and the supervisor then updates the hashes in the KARTA.
 2. **Executor: one phase.** Guidelines 7–20 below. Commit; the tree is clean before the gate.
 3. **Executor: its own rig run and the portion report.** One full run on the commit through the project's slot
@@ -97,13 +102,13 @@ Never merge `main_dev` into the refactor branch.
 
 | check | blocks when |
 |---|---|
-| tree and SHA | the worktree is not on the portion's SHA, or has uncommitted changes |
+| tree and SHA | the worktree is not on the portion's SHA, has uncommitted changes, or files flagged skip-worktree/assume-unchanged (hidden from `git status`) |
 | supervisor's directory (F10) | `nadzor` inside the portion's worktree or any other worktree but the main checkout; `--dziennik` other than `<nadzor>/dziennik.tsv` |
 | KARTA | missing keys, status not `aktywny`, absolute path or a ref containing the portion, the portion's copy or the copy on `kolejka:` differs from the trusted one, `stary` not a proper ancestor |
 | frozen measure (L2) | a hash of mask, scenarios, justifications, tools or substitution map differs from the KARTA |
 | budget (L26) | portions or USD over budget, failed attempts ≥ `budzet-prob`, rounds over `budzet-rund`, no `Koszt-USD` |
 | rig (L1) | any exit code ≠ 0 (2 RÓŻNICA, 3, 5/6/7, 9, 10, 11, 12, unknown); `werdykt` ≠ IDENTYCZNY; identical ≠ scenarios or 0; `tylko`, `kalibracja`, `mutant_b`, mode ≠ `domyslny`; positive control skipped or with misses; `kod_pokrycia` ≠ 0; `siec.kod` ≠ 0; `stanowisko_sha`/`nowy` ≠ SHA, `stary` ≠ KARTA, uncommitted rig changes; `maska_sha256`/`scenariusze_sha256` ≠ KARTA |
-| substitutions (#50) | only with the key `przeniesienia:`: no JSON result, `format` ≠ `rown-przeniesienia/2`, exit code ≠ `kod`, `werdykt` ≠ `czysto`, any `roznice`, `blad`, no `mapa`, `mapa.sha256` ≠ `podstawienia_sha256`, `przed` ≠ od/stary, `po` ≠ SHA |
+| substitutions (#50) | only with the key `przeniesienia:`: no JSON result, `format` ≠ `rown-przeniesienia/2`, exit code ≠ `kod`, `werdykt` ≠ `czysto`, any `roznice`, `blad`, no `mapa`, `mapa.sha256` ≠ `podstawienia_sha256`, `przed` ≠ od/stary, `po` ≠ SHA (also `drzewo-robocze`) |
 | review | outside `<nadzor>/recenzje/`, another SHA, open CRITICAL/REQUIRED, no checklist hash, a missing `R<n>` |
 | deviations (L17) | no `## Odstępstwa od 1:1` section; any line of it (a table row, a list item, prose — except `brak`) without `zgoda nadzorcy RRRR-MM-DD` |
 | tests, ratchets, comments (L16, L23) | a listed `A<n>`/`Z<n>`/`K<n>` without its line in the report; weakening, an added skip or a ratchet change without `decyzja właściciela` |
@@ -133,7 +138,9 @@ K1: <where the comment's content now lives>
 read as a whole statement, also across lines) that is gone or changed in od..SHA, or an added skip
 (`markTestSkipped`, `.skip(`, …); classify `przepięcie`, `zaostrzenie` or `osłabienie`; a weakening and an added skip
 need `decyzja właściciela`. Also an `A<n>`, one per method: lines with a literal inside a test method or a data
-provider that are gone or changed outside the assertion statements (`$oczek = 2.0` → `2.5`, a provider row; #58, F18). Files are compared without rename detection, so a moved test lists every assertion.
+provider that are gone or changed outside the assertion statements — a number, a string, `true`/`false`/`null`; on a
+line shared with an assertion only the part outside the statement counts (`$oczek = 2.0` → `2.5`, a provider row,
+`$o = 3.0; $this->assertSame($o, …)`; #58, F18). Files are compared without rename detection, so a moved test lists every assertion.
 `Z<n>` is any changed line, removed or added, in a ratchet file, one per file (always `decyzja właściciela`). `K<n>` is a removed comment block longer than 5 lines that did not
 reappear in the diff. Run the gate once to see the list, then write the lines.
 

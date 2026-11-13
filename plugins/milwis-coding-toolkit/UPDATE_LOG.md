@@ -80,8 +80,15 @@
   - Rozszerzenie o linie z literałem w metodach testowych i providerach daje 130 linii w 22 commitach, po zgrupowaniu według (porcja, plik, metoda) 36 pozycji.
   - Prawie wszystko to szum: skany źródła w testach, argumenty konstruktorów po przepięciu, `ReflectionMethod`. Sygnał to 2–4 pozycje (wiersze providera, wartość graniczna `'za krotki'`).
   - Warunek nadzorcy „szum ≤ to, co bramka już raportuje” jest spełniony (36 ≤ 227). Wdrożony wariant grupowany: jedno `A<n>` „wartości w <metoda>: k linii” na metodę. Dla Pythona bez zmian.
+- **Recenzja r1 (CHANGES REQUIRED, 5 REQUIRED, 4 OPTIONAL) — wszystkie poprawione:**
+  - F1: hook przepuszczał zapis do katalogu nadzorcy przez `../../tmp/refaktor/…` z worktree w `{REPO}/.claude/worktrees/`, przez skrypt i przez dowiązanie. Teraz `scripts/hook-nadzor.py` sprawdza ścieżki po realpath względem `cwd` z wejścia hooka i celów `cd`/`git -C`; łapie też skrypt, którego tekst wskazuje katalog, `ln`/`rm` na przodkach, `$(…)`. Dla katalogu nadzorcy hook jest jedyną linią; twarda granica (sandbox sesji wykonawcy) idzie do osobnego issue.
+  - F2: `po: drzewo-robocze` daje BRAK; pliki z flagą skip-worktree/assume-unchanged (niewidoczne w `git status`) dają BRAK przed stanowiskiem.
+  - F3: `true`/`false`/`null` są literałem dla F18. F4: na linii wspólnej z asercją liczy się część poza zdaniem asercji (`$o = 3.0; $this->assertSame(…)`, `try { kwota(-1.0); $this->fail(…); }`).
+  - F5: domyślne zapadki + `phpstan*.neon*`, `*-baseline.*`. F6: `nadzor:` musi być absolutny.
+  - F7: hook przekazuje polecenie do pythona przez stdin (wcześniej polecenie > ARG_MAX wywracało rozwinięcie i hook przepuszczał zapis). F8: `-delete;`, `git -c k=v -C`. F9: zapis w katalogu nadrzędnym liczy się tylko, gdy jego cel zawiera resztę ścieżki; `find -exec`/`xargs` tylko z poleceniem zapisującym; `mkdir .claude/tmp/refaktor-x` i własny `.claude/tmp/refaktor/` worktree przechodzą.
+  - `POMIAR` F18 po F3/F4, kodem bramki (`.claude/tmp/i58/f18_r1.sh`): 227 `A<n>` asercji, 37 pozycji „wartości w” w 22 commitach (przed poprawkami 36).
 - **marketplace.json:** wersja toolkitu 1.5.6 → 1.12.0, równo z `plugin.json`. Żaden kod w repo nie czyta tego pola (`git grep`); pasek i issues-pane podbijają je przy wydaniu.
-- `POMIAR` (`tests/test-refaktor.sh`): 180/180 (było 120). Każdy nowy przypadek był czerwony przed zmianą: 49 przed F10/F12a/F17/JSON, 6 przed F18.
+- `POMIAR` (`tests/test-refaktor.sh`): 207/207 (było 120; 180 przed recenzją r1). Każdy nowy przypadek był czerwony przed zmianą: 49 przed F10/F12a/F17/JSON, 6 przed F18, 25 przed poprawkami r1 (7 bramki, 18 hooka).
 - `NIEZMIERZONE`:
   - e2e na prawdziwym stanowisku — sposób wołania stanowiska się nie zmienił;
   - prawdziwy `sprawdz-przeniesienia.php` z mapą wołany przez bramkę (kontrakt sprawdzony na atrapie zgodnej z nagłówkiem na procedura/ast);
