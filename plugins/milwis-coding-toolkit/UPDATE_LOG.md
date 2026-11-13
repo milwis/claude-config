@@ -8,6 +8,16 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
+## Run: 2026-11-13 — skill `refaktor`: dowód na stanowisku ze wszystkimi otwartymi poprawkami (v1.15.1)
+
+`POMIAR` (v1.15.0): kroki 5 i 6 nie wymagały, żeby dowód 1:1 powstał na stanowisku z poprawkami w toku. claude-config #55 (gałąź `procedura/granice` w KonkretnyTMS, niescalona: błąd po NIEWAŻNY, bramka bazy warsztatu, dowód pcov) — orkiestrator mógł scalić refaktor z werdyktem stanowiska bez nich. Ślad stanowiska istnieje: `stanowisko.sh` zapisuje `stanowisko_sha` (HEAD drzewa wywołującego na starcie przebiegu) w `meta.json` (claude-config #58, main_dev).
+
+- Krok 0: bramka poprawek stanowiska w ledgerze `$K/.claude/tmp/refaktor/<k>/ledger.md` (`## Bramka stanowiska`): otwarte issues `procedura refaktoru` + niescalone gałęzie zmieniające `tests/rownowaznosc`; każda pozycja blokująca albo nie, z powodem.
+- Krok 1 i szablony A/B: sesje robocze scalają blokujące gałęzie poprawek (merge, nie rebase; ponownie po nowych commitach), raport podaje ich SHA. Krok 3 dopuszcza pliki spoza miary wniesione przez taką gałąź.
+- Krok 5: stanowisko = `tests/rownowaznosc` z czubka `main_dev` (+ otwarte blokujące gałęzie); gdy przesunęły się za `S`, orkiestrator buduje nowe `S`/`F` przez merge w worktree kontrolnym; `stanowisko_sha` z `meta.json` = `S`, `merge-base --is-ancestor main_dev` = 0, SHA do raportu; `tlo.names` mierzone na tym `S`.
+- Krok 6: warunek wstępny — każda blokująca poprawka na `main_dev` (`--is-ancestor`, issue CLOSED), gałąź refaktoru przyjmuje `main_dev` (merge), krok 5 powtórzony w całości; werdykt ze starszego stanowiska się nie liczy; wyjątek tylko za zgodą właściciela w ledgerze i raporcie. „Several files”: merge zamiast rebase.
+- `recenzja-refaktoru.md`: R22 — `stanowisko_sha` w raporcie i bramka poprawek domknięta albo ze zgodą właściciela. `code-reviewer.md` bez zmian (polityka 6).
+
 ## Run: 2026-11-13 — skill `refaktor`: kompletność dowodu 1:1 (v1.15.0)
 
 Cel właściciela 2026-11-13: po refaktorze kod działa tak samo dla każdego wejścia i każdego stanu bazy, także takiego, który jeszcze nie wystąpił. Zielony przebieg na migawce dev nie jest dowodem.

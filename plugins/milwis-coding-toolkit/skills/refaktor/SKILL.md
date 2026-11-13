@@ -74,9 +74,23 @@ Fable orchestrates and audits; it does not write the refactor (2026-11-12 decisi
 `C=<Class>` (file name without `.php`), `k=<c lowercased>`. Base branch `main_dev`, up to date, clean.
 Refuse and tell the owner when: another live `refaktor-*` session touches the same paths, or the file is under
 active work (open branch or session on it).
+**Rig-fix gate.** List the open fixes of the rig and write them to the session ledger
+`$K/.claude/tmp/refaktor/$k/ledger.md`, section `## Bramka stanowiska` — it is the merge gate of step 6. Sources:
+(a) open claude-config issues titled `procedura refaktoru`:
+`gh issue list --repo milwis/claude-config --state open --search "procedura refaktoru in:title"`;
+(b) unmerged KonkretnyTMS branches that change the measure: every local and `origin/` branch with commits outside
+`main_dev` (`git -C $K log --oneline main_dev..<b>` non-empty) and a non-empty
+`git -C $K diff --name-only main_dev...<b> -- tests/rownowaznosc`.
+One line per item: issue/branch, its tip SHA, **blocking** or **not blocking**, and the reason. It blocks when it
+changes the mechanism this class's proof uses (`stanowisko.sh`, `lib/`, verdict, coverage, control, database
+observation, a channel the class produces) or this class's files; a branch touching only another class's
+`karta/inwentarz/scenariusze/maska/mutanty` files does not. A non-blocking item stays listed with its reason.
 
 **1. Worktree.** `git -C $K worktree add $K/.claude/worktrees/refaktor-$k -b refaktor/$k main_dev`, copy `.env`.
 `OLD=<that SHA>`. Open queue issues naming the file get `status:odlozone` + a comment "refaktor w toku".
+**Working sessions build on the rig fixes in progress** that change the same area of the rig (blocking branches
+of the gate): both briefs list them; the session merges each into `refaktor/$k` (`git merge --no-edit <branch>`,
+never rebase), merges again after new commits on it, and its report gives each branch's merged SHA.
 
 **2. Scenarios session** — skip if `tests/rownowaznosc/karta/$C.json` exists and the calibration passes.
 Write the brief to `$K/.claude/tmp/refaktor/$k/brief-scenariusze.md` (template A), launch session
@@ -84,7 +98,8 @@ Write the brief to `$K/.claude/tmp/refaktor/$k/brief-scenariusze.md` (template A
 
 **3. Check the scenarios (you).** `S=<branch HEAD>`.
 - `git -C <wt> diff --stat $OLD..$S -- . ':!tests/rownowaznosc'` → empty (only the measure changed), except new
-  test files named in the karta's `luki` (`git diff --diff-filter=A --name-only`; nothing modified or deleted);
+  test files named in the karta's `luki` (`git diff --diff-filter=A --name-only`; nothing modified or deleted) and
+  files brought in by a merged rig-fix branch of the ledger (the same change as `main_dev...<branch>`);
 - calibration `--stary=$S --nowy=$S --kalibracja` → `Werdykt: IDENTYCZNY`, exit 0, coverage gate passed;
 - **databases:** read the file and its inventory yourself; every connection the class reads or writes (main DB,
   `WarsztatDatabaseService`, `FMSDatabase`, …) is observed by the rig (karta `bazy_wtorne`). One unobserved →
@@ -105,11 +120,18 @@ template B's goal line. Wait for its SendMessage.
 
 **5. Proof (you, never the session's word).** `F=<branch HEAD>`, tree clean. Run the rig from YOUR OWN worktree
 checked out at `$S` (`git -C $K worktree add --detach $K/.claude/worktrees/refaktor-$k-kontrola $S`), so the
-measure's tools are the ones the session never touched:
+measure's tools are the ones the session never touched.
+**The rig used = `tests/rownowaznosc` of the current `main_dev` tip** (plus the blocking rig-fix branches still
+open, at their current tips). When `main_dev` or such a branch moved past `$S`: in the control worktree
+`git checkout --detach $F && git merge --no-edit main_dev <open blocking branches>` → that HEAD is the new `F`;
+`git checkout --detach $S && git merge --no-edit main_dev <the same branches>` → the new `S`, the tree the rig runs
+from. A conflict → back to `ref-$k` (it merges and resolves on its branch). Every point below uses these `S`/`F`.
 1. rig `--stary=$S --nowy=$F --mutanty=<abs ref-$k worktree>/tests/rownowaznosc/mutanty/$C-po` → `IDENTYCZNY`
    on every channel (status, body, headers, database incl. `bazy_wtorne`, SQL, logs, files), exit 0, coverage
    gate passed, positive control **N/N** (`kontrola-dodatnia.json`: `mutantow` = N of `mutanty/$C`,
-   `bledow` = 0); no `--tylko`/`--kalibracja`/skipped control;
+   `bledow` = 0); no `--tylko`/`--kalibracja`/skipped control; `stanowisko_sha` from the run's `meta.json` =
+   `$S` and `git merge-base --is-ancestor main_dev <stanowisko_sha>` → exit 0 (the rig contains the `main_dev`
+   tip); the SHA goes to the report;
 2. `git diff --stat $S..$F -- tests/rownowaznosc ':!tests/rownowaznosc/mutanty/'$C-po` → empty — the `-po`
    directory is the only allowed change to the measure, and only added files
    (`git diff --diff-filter=MDR --name-only $S..$F -- tests/rownowaznosc` → empty);
@@ -119,7 +141,8 @@ measure's tools are the ones the session never touched:
 4. existing tests changed or deleted (`git diff --diff-filter=MD --stat $S..$F -- tests`) only by re-pointing to
    the moved code, by the module registration (Spec §4), or by removing tests of proven dead code; the list goes
    to the reviewer (point R7);
-5. the suite on `$F` → red names = `tlo.names` (`comm`), nothing new;
+5. the suite on `$F` → red names = `tlo.names` (`comm`), nothing new; `tlo.names` measured on this `$S` (re-measure
+   when `$S` changed since step 3);
 6. the Spec measured by you on `$F`: the module's standard latch and its PHPStan config at level max → 0
    violations, 0 errors (Spec §1, project commands); every module file within the limits;
 7. every old-code bug the session reported has its issue (`gh issue view <n>`), or the reason it has none;
@@ -128,14 +151,21 @@ measure's tools are the ones the session never touched:
 Any failure → the evidence goes to `ref-$k` (SendMessage: "popraw, potem pokaż znowu sprawdzenia z celu"),
 then repeat 5. After 3 failed rounds → stop and report to the owner.
 
-**6. Merge — only after 5 passed in full.** `git -C $K merge --no-ff refaktor/$k` on `main_dev` (the merge rule:
+**6. Merge — only after 5 passed in full.** Precondition: every **blocking** item of the ledger's rig-fix gate is
+on `main_dev` (`git -C $K merge-base --is-ancestor <branch> main_dev` → exit 0, `gh issue view <n>` → CLOSED).
+Then `refaktor/$k` takes the current `main_dev` (`git merge --no-edit main_dev` on the branch, never rebase) and
+step 5 is repeated IN FULL on the new SHAs, with the rig from the `main_dev` tip. A verdict obtained on an older
+rig does not count. The only exception is the owner's explicit consent, written in the ledger and in the report.
+Then `git -C $K merge --no-ff refaktor/$k` on `main_dev` (the merge rule:
 no exceptions for "harmless" differences). Push only on the owner's word. Then: `hc kill ref-$k`, remove both
-worktrees, drop `status:odlozone` from the deferred issues, report to the owner (SHAs, rig verdict, suite,
-review, old-code bugs reported by the session as separate issues, cost from the session status lines).
+worktrees, drop `status:odlozone` from the deferred issues, report to the owner (SHAs, `stanowisko_sha` of the
+final proof, the rig-fix gate — each item closed or the owner's consent, rig verdict, suite, review, old-code bugs
+reported by the session as separate issues, cost from the session status lines).
 
 **Several files (2–3).** One orchestrator may run steps 1–5 for up to 3 files whose paths do not overlap
 (separate worktrees and sessions). The rig and the suite queue on their slots, so more than 3 costs more than it
-gains. Merge one branch at a time; after each merge rebase the others on `main_dev` and repeat their step 5.
+gains. Merge one branch at a time; after each merge the others take `main_dev` (merge, not rebase) and repeat their
+step 5.
 
 ## Spec — professional code (default; KonkretnyTMS: the Gutschrift standard)
 
@@ -234,8 +264,9 @@ Brief body: the file and the class; the rig's four files for the class (`karta`,
 full — the input classes (§1) with synthetic data, the class mutant catalogue `mutanty/<C>/` and karta `mutanty`
 (§2), every connection in the inventory and karta `bazy_wtorne` (§3), `luki` with reasons (§4); coverage ≥ the
 karta's threshold, every uncovered range justified only from the allowed categories; change nothing outside
-`tests/rownowaznosc/` except new characterization tests named in `luki`; commit after every green step; no push,
-no merge; report ≤ 15 lines (SHA, scenarios, coverage, calibration, mutants N/N, the matrix file path, `luki`).
+`tests/rownowaznosc/` except new characterization tests named in `luki`; merge the blocking rig-fix branches the
+brief lists (Step 1); commit after every green step; no push, no other merge; report ≤ 15 lines (SHA, scenarios,
+coverage, calibration, mutants N/N, the matrix file path, `luki`, merged rig-fix branches with their SHAs).
 The matrix goes to `$K/.claude/tmp/refaktor/<k>/macierz.md`: `class → scenario ids`, one line per class.
 
 ## Template B — `brief-refaktor.md` and its goal
@@ -260,5 +291,6 @@ new code, so every patch of `mutanty/<C>/` is re-made on the new code as the sam
 allowed change under `tests/rownowaznosc`; `mutanty/<C>/` itself stays untouched); a mutant that the new code
 cannot express (its code is gone) is a question to the orchestrator, never a dropped file;
 existing tests only re-pointed (assertions unchanged); a bug in the
-OLD code → keep the old behaviour and create the issue (Spec §5); commit after every green step; no push, no
-merge; report ≤ 15 lines (SHA, rig verdict, suite, standard and PHPStan, issues created, open questions).
+OLD code → keep the old behaviour and create the issue (Spec §5); merge the blocking rig-fix branches the brief
+lists (Step 1); commit after every green step; no push, no other merge; report ≤ 15 lines (SHA, rig verdict, suite,
+standard and PHPStan, issues created, merged rig-fix branches with their SHAs, open questions).
