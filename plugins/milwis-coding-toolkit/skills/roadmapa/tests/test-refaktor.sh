@@ -631,6 +631,49 @@ HAK_CWD=$WTH hak hak-nadzor-env-git-clean kod 2 Bash '{"command": "env X=1 git -
 HAK_CWD=$WTH hak hak-nadzor-cd-q kod 2 Bash '{"command": "cd -q ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
 HAK_CWD=$WTH hak hak-nadzor-pushd-q kod 2 Bash '{"command": "pushd -q ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
 HAK_CWD=$WTH hak hak-nadzor-klamry-odczyt kod 0 Bash '{"command": "cat ../../{tmp,q}/refaktor/Plik/dziennik.tsv"}'
+# F24–F28 (nadzorca #58) and fail-closed: a writer's path argument the hook does not model in full is refused.
+ALT=$(seq -s, -f 'a%g' 1 60)
+HAK_CWD=$WTH hak hak-nadzor-zakres-klamer kod 2 Bash '{"command": "sed -i \"\" s/d/OK/ ../../t{l..n}p/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-negacja-globu kod 2 Bash '{"command": "echo x >> ../../[^q]mp/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-limit-klamer kod 2 Bash "{\"command\": \"echo x >> ../../{$ALT,tmp}/refaktor/Plik/dziennik.tsv\"}"
+HAK_CWD=$WTH hak hak-nadzor-limit-grup kod 2 Bash '{"command": "echo x >> ../../{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{t,q}mp/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-glob-lacze kod 2 Bash '{"command": "echo x >> l?cze/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-glob-lacze-abs kod 2 Bash "{\"command\": \"echo x >> $WTH/l?cze/refaktor/Plik/dziennik.tsv\"}"
+HAK_CWD=$WTH hak hak-nadzor-tylda-plus kod 2 Bash '{"command": "echo x >> ~+/../../tmp/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-fail-closed-podstawienie kod 2 Bash '{"command": "echo x >> $(echo ../..)/tmp/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-fail-closed-zmienna kod 2 Bash '{"command": "cp r.md $NIEZNANA/recenzje/r.md"}'
+HAK_CWD=$WTH hak hak-nadzor-fail-closed-kwalifikator kod 2 Bash '{"command": "rm -f ../../tmp/*(e:true:)"}'
+HAK_CWD=$WTH hak hak-nadzor-zmienna-odczyt kod 0 Bash '{"command": "cat $NIEZNANA/x > /tmp/k.txt; echo \"$HOME\" > /tmp/h.txt"}'
+HAK_CWD=$WTH hak hak-nadzor-pojedyncze-cudzyslowy kod 0 Bash '{"command": "php -r \u0027$a = 1; echo $a;\u0027 && git commit -m \"$(cat msg.txt)\""}'
+# Fail-closed must not touch the executor's everyday work (nadzorca #58: the legal list l1–l20 and two more).
+N=0
+while IFS= read -r L; do
+  [ -n "$L" ] || continue
+  N=$((N + 1))
+  HAK_CWD=$WTH hak "hak-legalne-$N" kod 0 Bash "$(jq -n --arg c "$L" '{command: $c}')"
+done <<'LISTA'
+git add tests/*.php php/*.php && git commit -m 'clean up'
+git ls-files '*.php' | xargs sed -i '' 's/stare/nowe/'
+find tests -name '*.tmp' -delete
+vendor/bin/phpunit tests/Unit > /tmp/phpunit.log 2>&1
+pushd php && touch Nowy.php
+git clean -fdx
+cat ../../tmp/refaktor/Plik/*.log
+rm -f **/*.orig
+sed -i '' 's/a/b/' php/{A,B}.php
+mkdir -p tests/{a,b}
+rm -f /tmp/*.log
+env APP_ENV=test XDEBUG_MODE=off vendor/bin/phpunit --filter=PlikTest
+cp ../w2-*/php/X.php php/X.php
+for f in $(git diff --name-only); do php -l $f; done
+bash tests/rownowaznosc/stanowisko.sh --plik=$X
+git -C ../.. worktree list && git log --oneline -3
+grep -rn 'TODO' php/ > /tmp/todo.txt
+tail -5 ../../tmp/refaktor/Plik/dziennik.tsv | column -t
+LISTA
+HAK_CWD=$WTH hak hak-legalne-commit-heredoc kod 0 Bash '{"command": "git commit -m \"$(cat <<\u0027EOF\u0027\nfix: porcja > x\nEOF\n)\"\nvendor/bin/phpunit > /tmp/p.log"}'
+# The price of fail-closed: a writer's argument built at run time is refused even outside the supervisor's directory.
+HAK_CWD=$WTH hak hak-fail-closed-cp-dynamiczny kod 2 Bash '{"command": "cp php/X.php /tmp/kopia-$(date +%s).php"}'
 g worktree remove --force "$WTH" >/dev/null 2>&1; rm -rf "$R/.claude/worktrees"
 # r1 F7: a command longer than ARG_MAX still goes through the checks (it used to empty the expanded command).
 for D in 'nadzor:echo x >> .claude/tmp/refaktor/Plik/dziennik.tsv' 'miara:sed -i "" s/a/b/ tests/rown/lib/x.php'; do

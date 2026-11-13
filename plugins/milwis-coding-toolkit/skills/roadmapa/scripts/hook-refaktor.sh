@@ -19,7 +19,9 @@
 # After review r1 of #58: the supervisor's directory is checked by real path in hook-nadzor.py (cwd from the hook's JSON;
 # relative paths from a worktree, links, scripts — see its header); the literal globs below remain for the measure and,
 # without a git root at cwd, for the supervisor's directory. A writer in a parent counts only when its target holds the
-# rest of the path; find -exec / xargs only with a writer as the command.
+# rest of the path; find -exec / xargs only with a writer as the command. Since the supervisor's review of 780f4f7 the
+# supervisor's directory check is fail-closed (hook-nadzor.py). The hook is a guard against accidents, not a security
+# boundary: the hard boundary is the executor's sandbox (claude-config #66), required before the first autonomous refactor.
 INPUT=$(cat)
 PORCJA=${1:-}
 shift

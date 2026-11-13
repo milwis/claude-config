@@ -75,10 +75,15 @@ Never merge `main_dev` into the refactor branch.
    (`scripts/hook-nadzor.py`, case-folded): relative paths from a worktree (`../../tmp/refaktor/…`), symlinks, globs,
    `cd`/`pushd` (with options) into a parent, writers and interpreters naming it, `… | xargs <writer>`, a script file
    whose text names it, `ln`/`rm`/`mv` on its ancestors, `git clean` run in an ancestor.
+   It is fail-closed: a redirect target, an argument of a known writer (`cp`, `mv`, `rm`, `ln`, `tee`, `sed -i`,
+   `touch`, `dd`, `rsync`, `git clean|checkout|restore`, `find -delete`, `xargs <writer>`, …) or a `cd`/`pushd` target
+   it cannot expand in full (`$(…)`, backticks, `$VAR`, `~+`, `<(…)`, zsh qualifiers, braces or globs past its limits)
+   is refused, even outside the directory. Interpreters are not fail-closed: what a script writes the hook never sees.
    The hook goes only into the executor's `--settings`: the supervisor's session and the gate never run under it.
-   For the measure the hook is the first line and the hashes in the gate are the proof; for the supervisor's
-   directory the hook is the only line, and a session determined to bypass it (code built at run time) can — the
-   OS-level fence is a sandbox of the executor's session with `permissions.deny` on `<nadzor>` (follow-up issue). A `zmiana-stanowiska` portion changes only the measure,
+   **The hook is a guard against accidents, not a security boundary.** For the measure the hashes in the gate are the
+   proof; for the supervisor's directory the hook is the only line, and a session that means to bypass it (a script,
+   code built at run time) can. The hard boundary — a sandbox of the executor's session with `permissions.deny` on
+   `<nadzor>` — is claude-config #66 and is required before the first autonomous refactor. A `zmiana-stanowiska` portion changes only the measure,
    and the supervisor then updates the hashes in the KARTA.
 2. **Executor: one phase.** Guidelines 7–20 below. Commit; the tree is clean before the gate.
 3. **Executor: its own rig run and the portion report.** One full run on the commit through the project's slot
