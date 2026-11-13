@@ -62,6 +62,31 @@ final class PlikTest
     {
         try { (new Plik())->kwota(-1.0); $this->fail('bez wyjątku'); } catch (\Throwable $e) {}
     }
+
+    public function testOczekiwana(): void
+    {
+        $oczek = 2.0;
+        $wynik = (new Plik())->kwota(2.0);
+        $this->assertSame($oczek, $wynik);
+    }
+
+    /** @dataProvider kwoty */
+    public function testZProvidera(float $we, float $wy): void
+    {
+        $this->assertSame($wy, (new Plik())->kwota($we));
+    }
+
+    public static function kwoty(): array
+    {
+        return [
+            'pół grosza' => [1.005, 1.01],
+        ];
+    }
+
+    private function pomocnik(): float
+    {
+        return 7.0;
+    }
 }
 PHP
 mkdir -p "$R/tests/Scripts"
@@ -364,6 +389,18 @@ przypadek zapadka-z-decyzja 0 'Z1 .*ZapadkaTest'
 Z; PREP="sed -i '' 's/== 2/== 3/' tests/Scripts/test_plik.py";        przypadek asercja-python 1 'BRAK: .*A1|||A1 .*assert kwota\(1\) == 2'
 Z; PREP="sed -i '' 's/x = 1/x = 2/' tests/Scripts/test_plik.py";      przypadek asercja-python-bez-szumu 0 'OK: porcja'
 Z; PREP="sed -i '' 's/ \$this->fail([^;]*;//' tests/Unit/PlikTest.php"; przypadek asercja-fail 1 'BRAK: .*A1|||A1 .*fail\('
+# F18: an expected value outside the assertion statement — a literal in a test method or a data provider; one A<n>
+# per method, not per line.
+Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.5;/' tests/Unit/PlikTest.php"; przypadek wartosc-w-tescie 1 'BRAK: .*A1|||A1 .*wartości w testOczekiwana: 1 lini'
+Z; PREP="sed -i '' 's/\[1.005, 1.01\]/[1.005, 1.02]/' tests/Unit/PlikTest.php"; przypadek wartosc-w-providerze 1 'BRAK: .*A1|||A1 .*wartości w kwoty: 1 lini'
+Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.5;/; s/\$wynik = (new Plik())->kwota(2.0);/\$wynik = (new Plik())->kwota(2.5);/' tests/Unit/PlikTest.php"
+przypadek wartosc-dwie-linie-jedna-pozycja 1 'A1 .*wartości w testOczekiwana: 2 lini|||asercje usunięte/zmienione: 1,'
+Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.5;/' tests/Unit/PlikTest.php"; RAPORT="${RAPORT_DOBRY}A1: osłabienie — decyzja właściciela 2026-11-13, próg"
+przypadek wartosc-z-wierszem 0 'A1 .*wartości w testOczekiwana'
+Z; PREP="sed -i '' 's/return 7.0;/return 8.0;/' tests/Unit/PlikTest.php"; przypadek wartosc-poza-testem 0 'asercje usunięte/zmienione: 0'
+Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.0; \/\/ zmiana/' tests/Unit/PlikTest.php"; przypadek wartosc-tylko-komentarz-w-linii 1 'A1 .*wartości w testOczekiwana'
+Z; PREP="sed -i '' 's/\$wynik = (new Plik())->kwota(2.0);/\$wynik = (new Plik())->kwota(2.0) + 0;/' tests/Unit/PlikTest.php"
+przypadek wartosc-linia-bez-zmiany-literalow 1 'A1 .*wartości w testOczekiwana'
 Z; RAPORT=$'# Porcja\nKoszt-USD: 5\nRundy: 1\n\n## Odstępstwa od 1:1\n\n| 4xx zamiast 500 |\n'
 przypadek odstepstwo-tabela-bez-naglowka 1 'BRAK: 1 z 1 odstępstw'
 Z; RAPORT=$'# Porcja\nKoszt-USD: 5\nRundy: 1\n\n## Odstępstwa od 1:1\n\n| a — bez zgody |\n| b — zgoda nadzorcy 2026-11-12 |\n'

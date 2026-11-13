@@ -367,8 +367,47 @@ def zdania(txt, py):
             elif c == koniec and d <= 0: break
             i += 1
         if (s, i) in seen: continue
-        seen.add((s, i)); out.append(" ".join(txt[s:i + 1].split()))
+        seen.add((s, i)); out.append((s, i + 1, " ".join(txt[s:i + 1].split())))
     return out
+# F18 (#58): an expected value can sit outside the assertion statement — `$oczek = 2.0` in the test method, a row of a
+# data provider. Lines with a literal inside a test method (test*, @test, #[Test]; JS it/test) or a data provider
+# (@dataProvider / #[DataProvider] target, provide*/…Provider) that are gone or changed, minus lines of assertion
+# statements (listed above), give one A<n> per method. Measured on the Gutschrift pilot: 36 such items over 120
+# commits next to 227 assertion items (UPDATE_LOG 1.12.0).
+literal = re.compile(r"(?<![\w$])-?\d+(\.\d+)?(?![\w])|\x27(?:[^\x27\\]|\\.)*\x27|\"(?:[^\"\\]|\\.)*\"")
+def metody(txt, js):
+    out = []
+    pat = re.compile(r"\b(it|test)(\.each\([^)]*\))?\s*\(\s*([\x27\"`][^\x27\"`]*)?") if js else re.compile(r"function\s+(\w+)\s*\(")
+    prov = {a or b for a, b in re.findall(r"@dataProvider\s+(\w+)|DataProvider\(\s*[\x27\"](\w+)", txt)}
+    for m in pat.finditer(txt):
+        if js: nazwa = (m.group(3) or m.group(1)).strip("\x27\"`")[:60]
+        else:
+            nazwa = m.group(1)
+            przed = txt[max(0, m.start() - 400):m.start()].split("function")[-1]
+            if not (nazwa.startswith("test") or "@test" in przed or "#[Test]" in przed or nazwa in prov
+                    or re.match(r"provide|.*Provider$", nazwa)): continue
+        b = txt.find("{", m.end())
+        if b < 0: continue
+        d, i = 0, b
+        while i < len(txt):
+            if txt[i] == "{": d += 1
+            elif txt[i] == "}":
+                d -= 1
+                if d == 0: break
+            i += 1
+        out.append((m.start(), i + 1, nazwa))
+    return out
+def wartosci(txt, js, zd):
+    wyn, pos, zak = Counter(), 0, metody(txt, js)
+    # A statement starts after the previous ; { } — skip its leading whitespace, so the line before it stays out.
+    zd = [(a + len(txt[a:b]) - len(txt[a:b].lstrip()), b) for a, b, _ in zd]
+    for l in txt.splitlines(keepends=True):
+        s, e = pos + len(l) - len(l.lstrip()), pos + len(l.rstrip()); pos += len(l)
+        met = next((n for a, b, n in zak if a <= s < b), None)
+        if met is None or any(a < e and s < b for a, b in zd): continue
+        t = " ".join(l.split())
+        if t and not koment.match(t) and literal.search(t): wyn[(met, t)] += 1
+    return wyn
 def zapadka(p):
     return any(fnmatch.fnmatch(p, z) or fnmatch.fnmatch(os.path.basename(p), z) for z in zap)
 pliki = subprocess.run(["git", "-c", "core.quotePath=false", "-C", wt, "diff", "--no-renames", "--name-only", od, sha],
@@ -380,8 +419,16 @@ for p in pliki:
     nowy = show(sha, p) or ""
     if test_re.search(p):
         py = p.endswith(".py")
-        for t in (Counter(zdania(stary, py)) - Counter(zdania(nowy, py))).elements():
+        zs, zn = zdania(stary, py), zdania(nowy, py)
+        for t in (Counter(t for _, _, t in zs) - Counter(t for _, _, t in zn)).elements():
             a += 1; print(f"A{a}\t{p}\t{t[:160]}")
+        if not py:
+            js = re.search(r"\.(js|ts|mjs|cjs|jsx|tsx)$", p) is not None
+            grupy = {}
+            for (met, t) in (wartosci(stary, js, zs) - wartosci(nowy, js, zn)).elements():
+                grupy.setdefault(met, []).append(t)
+            for met, ls in grupy.items():
+                a += 1; print(f"A{a}\t{p}\twartości w {met}: {len(ls)} linii z literałem zmienionych albo usuniętych; {ls[0][:120]}")
         for t in (Counter(l.strip() for l in nowy.splitlines() if pomin.search(l))
                   - Counter(l.strip() for l in stary.splitlines() if pomin.search(l))).elements():
             a += 1; print(f"A{a}\t{p}\tdodane pominięcie: {t[:140]}")

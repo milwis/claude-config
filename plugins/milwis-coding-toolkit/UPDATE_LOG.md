@@ -22,7 +22,7 @@
   - `A<n>`, czyli zdania asercji usunięte lub zmienione i dodane pominięcia; `Z<n>`, czyli każdą zmianę w pliku zapadki; `K<n>`, czyli usunięte bloki komentarza > 5 linii;
   - `tests/Static` na próbnym scaleniu z `scalenie-z`.
 
-  Sprawdzanie podstawień z #50 jest dostępne za kluczem `przeniesienia:`, a jego kontrakt JSON jest otwarty.
+  Sprawdzanie podstawień z #50 jest dostępne za kluczem `przeniesienia:`; kontrakt JSON domknięty w #58 (niżej).
 - **Zamrożenie w kolejce (L18):** `zamrozone.sh` czyta aktywne KARTY z commita `$MAIN` (`refaktor-karta:` w VERIFICATION_ENV) i zamraża również samą KARTĘ. `bramka.sh` odmawia scalenia, a `wybierz-issue.sh` pomija issue, które nazywa plik albo klasę.
 - **`hook-refaktor.sh` (nowy, L2):** hook PreToolUse sesji wykonawcy z rodzajem porcji w `--settings`. Blokuje zapisy do miary: edycje, przekierowania, `tee`/`sponge`, `cp`/`mv`/`rm`, `sed`/`perl` w miejscu, `git checkout|restore`, zapis po `cd` do katalogu miary oraz kod interpretera w linii.
 - **`code-reviewer.md`:** krok 5 „A refactor portion” (lista z briefu, punkt po punkcie, skrót listy). Łatka i26: krok 3 „A module's own document”, Tier → 4. Rozmiar: 38 787 B.
@@ -49,6 +49,43 @@
   - hook w `--settings` żywej sesji Claude Code;
   - stanowisko KonkretnyTMS z `--karta-md`, opisane w łatce w raporcie #27;
   - koszt podwójnego przebiegu stanowiska na porcję (około 2 × 29 min).
+
+### Pozostałości #58 (ta sama wersja, przed wydaniem)
+
+Źródło: claude-config #58 (znaleziska recenzji #27 bez poprawki i sprawy poza zakresem), brief nadzorcy 2026-11-13.
+
+- **F10 — dziennik i recenzja od wywołującego.**
+  - Nowy klucz KARTY `nadzor:` (domyślnie `{REPO}/.claude/tmp/refaktor/{KLASA}`) wskazuje katalog nadzorcy. Bramka sprawdza go po realpath: nie może leżeć w worktree porcji ani w żadnym innym worktree z `git worktree list` poza głównym checkoutem.
+  - Dziennik to zawsze `<nadzor>/dziennik.tsv`. `--dziennik` wskazujący gdzie indziej daje odmowę bez przebiegu stanowiska.
+  - Recenzję bramka czyta tylko z `<nadzor>/recenzje/`. Dowiązanie albo `..` prowadzące poza ten katalog daje BRAK.
+  - `hook-refaktor.sh` zamyka ten katalog w obu rodzajach porcji (`--nadzor=<glob>`, domyślnie `.claude/tmp/refaktor/**`). Hook jest tylko w `--settings` sesji wykonawcy. Nadzorca i bramka nie biegną pod nim, co sprawdza test.
+  - Podpis sesji recenzenta odrzucony: transkrypt da się podrobić tak samo łatwo jak plik, a jego układ to wewnętrzna sprawa Claude Code.
+  - Projekt zaakceptował nadzorca.
+- **Kontrakt JSON #50 (`rown-przeniesienia/2`).** Bramka ocenia pola, nie tylko kod wyjścia.
+  - Blokuje, gdy: `format` jest nieznany, kod wyjścia ≠ `kod`, `werdykt` ≠ `czysto`, `roznice` nie są puste, jest `blad`, brak `mapa`, `mapa.sha256` ≠ `podstawienia_sha256` z KARTY, `przed` to nie od ani stary, `po` to nie SHA porcji.
+  - `zalozenia` i `ostrzezenia` dają UWAGA.
+  - W poleceniu `{JSON}` oznacza plik wyniku.
+  - Skrót mapy trafia do 7. kolumny dziennika i do linii OK. Dziennik 6-kolumnowy sprzed #58 liczy się jak dotąd.
+- **F12a — domyślne zapadki.** Kolejność: `zapadki:` z KARTY, potem `zapadki:` z `docs/VERIFICATION_ENV.md` (`## Bramka`, z gałęzi kolejki), potem domyślne. Domyślne poszerzone o `scripts/measure-*`, `phpunit.xml*` i `infection.json*` (KonkretnyTMS ma `infection.json5`). Bramka wypisuje źródło listy.
+- **F17 — hook.** Łapie teraz:
+  - zapis po `cd`/`pushd`/`git -C` do katalogu nadrzędnego z resztą ścieżki w poleceniu (`cd tests && sed -i … rownowaznosc/x`);
+  - zmienne przypisane w tym samym poleceniu (`D=…; sed -i $D/…`, `export`, `${D}`);
+  - `find … -exec|-execdir|-ok <zapis>` i `-delete`;
+  - `| xargs <zapis>`;
+  - `git -C <miara> checkout|restore …`.
+
+  Odczyty tymi samymi drogami przechodzą. Każda postać ma test.
+- **F18 — wartości oczekiwane poza zdaniem asercji.**
+  - `POMIAR` na historii pilota Gutschrift (5efe6e22f..997ff92ee^2, 120 commitów bez merge, każdy traktowany jak porcja; `.claude/tmp/i58/f18_pomiar.py`): dziś bramka daje 227 `A<n>` w 46 commitach.
+  - Rozszerzenie o linie z literałem w metodach testowych i providerach daje 130 linii w 22 commitach, po zgrupowaniu według (porcja, plik, metoda) 36 pozycji.
+  - Prawie wszystko to szum: skany źródła w testach, argumenty konstruktorów po przepięciu, `ReflectionMethod`. Sygnał to 2–4 pozycje (wiersze providera, wartość graniczna `'za krotki'`).
+  - Warunek nadzorcy „szum ≤ to, co bramka już raportuje” jest spełniony (36 ≤ 227). Wdrożony wariant grupowany: jedno `A<n>` „wartości w <metoda>: k linii” na metodę. Dla Pythona bez zmian.
+- **marketplace.json:** wersja toolkitu 1.5.6 → 1.12.0, równo z `plugin.json`. Żaden kod w repo nie czyta tego pola (`git grep`); pasek i issues-pane podbijają je przy wydaniu.
+- `POMIAR` (`tests/test-refaktor.sh`): 180/180 (było 120). Każdy nowy przypadek był czerwony przed zmianą: 49 przed F10/F12a/F17/JSON, 6 przed F18.
+- `NIEZMIERZONE`:
+  - e2e na prawdziwym stanowisku — sposób wołania stanowiska się nie zmienił;
+  - prawdziwy `sprawdz-przeniesienia.php` z mapą wołany przez bramkę (kontrakt sprawdzony na atrapie zgodnej z nagłówkiem na procedura/ast);
+  - hook w żywej sesji.
 
 ## Run: 2026-11-12 — kolejka w Herdr zamiast tmux (v1.11.0)
 
