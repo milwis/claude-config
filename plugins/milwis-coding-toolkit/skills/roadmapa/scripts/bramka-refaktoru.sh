@@ -12,11 +12,15 @@
 #          reads the freeze from; an absolute path is refused. Its section `## Bramka` has one `klucz: wartość` per line
 #          (format and meaning: ../references/cykl-refaktoru.md §KARTA). {REPO} in a value is the main checkout of the
 #          repo (parent of the git common dir). Optional keys left out (static, zamrozone, budzet-*) print UWAGA.
-# Run by the supervisor, not by the executor: --dziennik, --recenzja and --karta come from the caller.
+# Run by the supervisor, not by the executor. What the caller could forge comes from the card instead (#58, F10): the
+#          supervisor's directory `nadzor:` (default {REPO}/.claude/tmp/refaktor/{KLASA}) must lie outside every
+#          worktree but the main checkout; the log is <nadzor>/dziennik.tsv and the review is read only from
+#          <nadzor>/recenzje/ (real path, symlinks resolved). The executor's hook closes that directory to its session.
 # --od     where the portion starts (the lists of L16/L23 cover od..SHA); default: the last SHA this gate passed in the
 #          log, else `stary:` of the card.
-# --dziennik  TSV log of the gate (date, SHA, od, OK|BRAK, rig exit code, Koszt-USD); default
-#          {REPO}/.claude/tmp/refaktor/<class>.tsv. Budget and the stop rule (L26) count from it.
+# --dziennik  kept for old callers: any path but <nadzor>/dziennik.tsv is refused. The log is TSV (date, SHA, od,
+#          OK|BRAK, rig exit code, Koszt-USD, sha256 of the substitution map or "-"; a 6-column line from before #58
+#          reads the same). Budget and the stop rule (L26) count from it.
 #
 # Order: tree and card → hashes, budget and stop rule → (only when those pass) the rig and the substitution check →
 # review → portion report → lists of removed assertions, ratchet changes and comment blocks → trial merge with tests/Static (N5).
@@ -77,6 +81,19 @@ if [ -n "$BRAKI" ]; then echo "BRAK: KARTA $KARTA_ARG bez kluczy:$BRAKI (sekcja 
 for k in budzet-porcji budzet-usd budzet-rund; do
   [ -n "$(kv "$k")" ] || echo "UWAGA: KARTA bez $k: — ten budżet nie jest liczony (L26)"
 done
+# The supervisor's directory (F10): outside the portion's worktree and every other one but the main checkout, so no
+# executor's tree holds the log or the reviews.
+sciezka() { python3 -I -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
+NADZOR=$(kv nadzor); NADZOR=${NADZOR:-$REPO/.claude/tmp/refaktor/$KLASA}; NADZOR=$(sciezka "${NADZOR//\{KLASA\}/$KLASA}")
+GLOWNY=$(sciezka "$REPO") WT_R=$(sciezka "$WT")
+while IFS= read -r W; do
+  [ -n "$W" ] || continue
+  W=$(sciezka "$W")
+  [ "$W" != "$GLOWNY" ] || [ "$W" = "$WT_R" ] || continue
+  case "$NADZOR/" in "$W"/*)
+    echo "BRAK: katalog nadzorcy $NADZOR (KARTA nadzor:) leży w worktree $W — dziennik i recenzje muszą być poza drzewem, które pisze wykonawca"; exit 1 ;;
+  esac
+done < <(G worktree list --porcelain | sed -n 's/^worktree //p'; echo "$WT")
 [ "$(kv status)" = aktywny ] || brak0 "KARTA ma status '$(kv status)', nie 'aktywny' — refaktor tego pliku nie biegnie"
 if [ -n "$KARTA_REF" ] && G merge-base --is-ancestor "$SHA" "$KARTA_REF" 2>/dev/null; then
   brak0 "ref KARTY $KARTA_REF zawiera SHA porcji — KARTĘ czyta się z gałęzi nadzorcy (\$MAIN), nie z gałęzi porcji"
@@ -125,8 +142,12 @@ for k in $KLUCZE; do
 done
 
 # ---- budget and the stop rule (L26) -------------------------------------------------------------------------------
-DZIENNIK=${DZIENNIK:-$REPO/.claude/tmp/refaktor/$KLASA.tsv}
-mkdir -p "$(dirname "$DZIENNIK")" && touch "$DZIENNIK"
+NADZOR=$(sciezka "$NADZOR")
+mkdir -p "$NADZOR/recenzje" && touch "$NADZOR/dziennik.tsv"
+if [ -n "$DZIENNIK" ] && [ "$(sciezka "$DZIENNIK")" != "$NADZOR/dziennik.tsv" ]; then
+  echo "BRAK: --dziennik=$DZIENNIK nie jest dziennikiem z KARTY ($NADZOR/dziennik.tsv) — budżet i regułę stopu liczy się z jednego miejsca"; exit 1
+fi
+DZIENNIK=$NADZOR/dziennik.tsv
 OSTATNI_OK=$(awk -F'\t' -v s="$SHA" '$4 == "OK" && $2 != s {x = $2} END {print x}' "$DZIENNIK")
 if [ -n "$OSTATNI_OK" ] && G merge-base --is-ancestor "$OSTATNI_OK" "$SHA" 2>/dev/null; then OD=$(G rev-parse "$OSTATNI_OK")
 else OD=$STARY; fi
@@ -215,26 +236,58 @@ else
 fi
 
 # ---- substitution check for phases 2b–4 (L5, KonkretnyTMS #50) — behind the card key `przeniesienia:` -------------
-# The card's command runs the move checker with the substitution map on od..SHA; exit ≠ 0 = differences outside the
-# map or an error → the portion is blocked. Placeholders: {WT} {STARY} {OD} {SHA} {PODSTAWIENIA} (the map's path).
-# The map's hash is checked above (podstawienia_sha256). The JSON fields are not yet agreed with #50: the gate shows
-# `.werdykt` when present and judges by the exit code only.
-PRZEN=$(kv przeniesienia)
+# The card's command runs the move checker with the substitution map on od..SHA. Placeholders: {WT} {STARY} {OD}
+# {SHA} {PODSTAWIENIA} (the map's path) {JSON} (the result file the gate reads; without it, stdout is the result).
+# The gate judges the result `rown-przeniesienia/2` (header of sprawdz-przeniesienia.php), not only the exit code:
+# a format it does not know, exit code ≠ the JSON's `kod`, `werdykt` ≠ czysto, any `roznice`, `blad`, no `mapa`, a map
+# hash ≠ `podstawienia_sha256:` of the card, `przed` other than od or stary:, `po` other than the SHA — each blocks.
+# `zalozenia` and `ostrzezenia` print UWAGA. The map's hash lands in column 7 of the log.
+PRZEN=$(kv przeniesienia) MAPA_SHA=-
 if [ -n "$PRZEN" ] && [ "$PRZED" = 0 ]; then
   if [ -z "$(kv podstawienia)" ]; then brak "KARTA przeniesienia: bez podstawienia: i podstawienia_sha256: — mapa jest częścią dowodu"
   else
+    LOGP="$NADZOR/$KLASA-${SHA:0:9}-$(date +%s)-$$-podstawienia" MAPA_K=$(kv podstawienia_sha256)
+    JS="$LOGP.json"
     C=${PRZEN//\{WT\}/$WT}; C=${C//\{STARY\}/$STARY}; C=${C//\{OD\}/$OD}; C=${C//\{SHA\}/$SHA}; C=${C//\{PODSTAWIENIA\}/$(kv podstawienia)}
-    LOGP="$(dirname "$DZIENNIK")/$KLASA-${SHA:0:9}-podstawienia"
-    (cd "$WT" && bash -c "$C") </dev/null >"$LOGP.json" 2>"$LOGP.err"; KP=$?
-    WP=$(jq -r '.werdykt // empty' "$LOGP.json" 2>/dev/null)
-    if [ "$KP" = 0 ]; then ok "podstawienia od ${OD:0:9}: kod 0${WP:+, werdykt $WP} ($LOGP.json)"
-    else brak "podstawienia od ${OD:0:9}: kod $KP${WP:+, werdykt $WP} — różnice poza mapą albo błąd ($LOGP.json, $(tail -2 "$LOGP.err" | tr '\n' ' ' | cut -c1-200))"; fi
+    C=${C//\{JSON\}/$JS}
+    if [[ "$PRZEN" == *"{JSON}"* ]]; then (cd "$WT" && bash -c "$C") </dev/null >"$LOGP.out" 2>"$LOGP.err"; KP=$?
+    else (cd "$WT" && bash -c "$C") </dev/null >"$JS" 2>"$LOGP.err"; KP=$?; fi
+    j() { jq -r "$1" "$JS" 2>/dev/null; }
+    N0=$NBRAK
+    if ! jq -e 'type == "object"' "$JS" >/dev/null 2>&1; then
+      brak "podstawienia: brak wyniku JSON ($JS) — kod $KP, $(tail -2 "$LOGP.err" 2>/dev/null | tr '\n' ' ' | cut -c1-200)"
+    elif [ "$(j .format)" != rown-przeniesienia/2 ]; then
+      brak "podstawienia: format $(j .format) — bramka zna tylko rown-przeniesienia/2 (nagłówek sprawdz-przeniesienia.php, #50)"
+    else
+      WP=$(j .werdykt) KJ=$(j .kod) NR=$(j '(.roznice // []) | length') BL=$(j '.blad // empty')
+      [ "$KJ" = "$KP" ] || brak "podstawienia: kod wyjścia $KP, a JSON kod $KJ — wynik niespójny ($JS)"
+      if [ "$KP" != 0 ] || [ "$WP" != czysto ] || [ "$NR" != 0 ] || [ -n "$BL" ]; then
+        brak "podstawienia od ${OD:0:9}: kod $KP, werdykt $WP, $NR różnic${BL:+, błąd: $BL}$(j '(.roznice // [])[0] | select(.) | " — [" + (.kategoria // "?") + "] " + (.tresc // "")' | cut -c1-200) ($JS)"
+      fi
+      MJ=$(j '.mapa.sha256 // empty')
+      if [ "$(j '.mapa | type')" != object ]; then brak "podstawienia: wynik bez mapy (.mapa null) — polecenie przeniesienia: musi podać --podstawienia={PODSTAWIENIA}"
+      elif [ "$MJ" != "$MAPA_K" ]; then brak "podstawienia: skrót mapy w wyniku ${MJ:0:12} ≠ KARTA ${MAPA_K:0:12}… — narzędzie sprawdzało inną mapę"
+      else MAPA_SHA=$MJ; fi
+      PR=$(j '.przed // empty') PO=$(j '.po // empty')
+      PRS=$(G rev-parse --verify -q "$PR^{commit}" 2>/dev/null)
+      [ -n "$PRS" ] && { [ "$PRS" = "$OD" ] || [ "$PRS" = "$STARY" ]; } \
+        || brak "podstawienia: przed=$PR nie jest początkiem porcji ${OD:0:9} ani stary: ${STARY:0:9}"
+      if [ "$PO" != drzewo-robocze ]; then
+        [ "$(G rev-parse --verify -q "$PO^{commit}" 2>/dev/null)" = "$SHA" ] || brak "podstawienia: po=$PO ≠ SHA porcji ${SHA:0:9}"
+      fi
+      while IFS= read -r U; do [ -z "$U" ] || echo "UWAGA podstawienia: założenie: $U"; done < <(j '(.zalozenia // [])[]')
+      while IFS= read -r U; do [ -z "$U" ] || echo "UWAGA podstawienia: ostrzeżenie: $U"; done < <(j '(.ostrzezenia // [])[]')
+      [ "$NBRAK" != "$N0" ] || ok "podstawienia od ${OD:0:9}: kod 0, werdykt czysto, mapa ${MAPA_SHA:0:12} = KARTA (wpisów $(j .mapa.wybranych)/$(j .mapa.wpisow), przeniesionych $(j .przeniesionych)) ($JS)"
+    fi
   fi
 fi
 
 # ---- review: on this SHA, nothing open, the refactor checklist applied point by point -----------------------------
 pole() { grep -m1 -E "^[#*> -]*$2:" "$1" 2>/dev/null | sed -E "s/^[#*> -]*$2:[* ]*//; s/[[:space:]]+$//"; }
 if [ "$BEZ_REC" = 1 ]; then brak "recenzja niesprawdzona (--bez-recenzji) — porcja nie przechodzi bez recenzji"
+elif [ -z "$REC" ]; then brak "brak --recenzja (plik z $NADZOR/recenzje/)"
+elif case "$(sciezka "$REC")" in "$NADZOR/recenzje/"*) false ;; *) true ;; esac; then
+  brak "recenzja $REC ($(sciezka "$REC")) spoza katalogu nadzorcy $NADZOR/recenzje/ — recenzję zapisuje tam nadzorca, sesja wykonawcy nie ma tam zapisu (F10)"
 elif [ ! -s "$REC" ]; then brak "recenzja $REC nie istnieje"
 else
   SR=$(pole "$REC" SHA | awk '{print $1}')
@@ -276,7 +329,16 @@ else
 fi
 
 # ---- removed or changed assertions, ratchet changes (L16), removed comment blocks > 5 lines (L23) ------------------
-ZAPADKI=$(kvs zapadki); [ -n "$ZAPADKI" ] || ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*'
+# Ratchet files: the card's `zapadki:`, else the project's (`zapadki:` in docs/VERIFICATION_ENV.md, section
+# `## Bramka`, on the queue's branch), else the default: static latches, measurement scripts and coverage/mutation
+# thresholds (F12a).
+ZAPADKI=$(kvs zapadki) ZRODLO=KARTA
+if [ -z "$ZAPADKI" ]; then
+  ZAPADKI=$(G show "$KOLEJKA:docs/VERIFICATION_ENV.md" 2>/dev/null | awk '/^## Bramka/{f=1;next} /^## /{f=0} f' \
+    | sed -n 's/^zapadki: *//p' | sed -E 's/[[:space:]]+$//') ZRODLO="docs/VERIFICATION_ENV.md na $KOLEJKA"
+fi
+[ -n "$ZAPADKI" ] || { ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*\nscripts/measure-*\nphpunit.xml*\ninfection.json*'; ZRODLO=domyślne; }
+echo "INFO  zapadki z $ZRODLO: $(grep -c . <<<"$ZAPADKI") globów"
 POZYCJE=$(G -c core.quotePath=false diff --no-renames -U0 "$OD" "$SHA" | ZAPADKI="$ZAPADKI" python3 -I -c '
 import os, re, subprocess, sys, fnmatch
 from collections import Counter
@@ -393,6 +455,6 @@ if [ -n "$STATIC" ] && [ "$PRZED" = 0 ]; then
 fi
 
 if [ "$BLAD" = 0 ]; then W=OK; else W=BRAK; fi
-printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$SHA" "$OD" "$W" "$KOD_ST" "${KOSZT:-0}" >> "$DZIENNIK"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M')" "$SHA" "$OD" "$W" "$KOD_ST" "${KOSZT:-0}" "$MAPA_SHA" >> "$DZIENNIK"
 echo "$W: porcja ${SHA:0:9} (dziennik $DZIENNIK)"
 exit $BLAD

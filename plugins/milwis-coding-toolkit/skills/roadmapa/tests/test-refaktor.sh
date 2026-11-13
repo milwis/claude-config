@@ -81,6 +81,11 @@ final class ZapadkaTest
 }
 PHP
 printf '#!/bin/bash\n[ ! -e "$1/ZEPSUTE" ]\n' > "$R/tests/Static/run.sh"
+mkdir -p "$R/scripts" "$R/tests/Wlasne"
+echo '<?php $limit = 40;' > "$R/scripts/measure-god-objects.php"
+printf '<phpunit>\n  <coverage minimum="60"/>\n</phpunit>\n' > "$R/phpunit.xml"
+echo '{"minMsi": 70}' > "$R/infection.json5"
+echo '<?php const PROG = 3;' > "$R/tests/Wlasne/Prog.php"
 echo 'raport/' > "$R/tests/rown/.gitignore"
 echo '{"pomijaj": []}' > "$R/tests/rown/maska/Plik.json"
 echo '[{"id": "s1"}, {"id": "s2"}, {"id": "s3"}]' > "$R/tests/rown/scenariusze/Plik.json"
@@ -116,7 +121,21 @@ printf '# env\n\n## Bramka\n\nrefaktor-karta: docs/refaktor/*/KARTA*.md\n' > "$R
 # $T/podst.kod (default 0).
 mkdir -p "$R/tests/rown/podstawienia"
 echo '{"podstawienia": []}' > "$R/tests/rown/podstawienia/Plik.json"
-printf '#!/bin/bash\necho "$*" > "%s/podst.args"\nK=$(cat "%s/podst.kod" 2>/dev/null || echo 0)\necho "{\\"werdykt\\": \\"$([ "$K" = 0 ] && echo czysto || echo roznice)\\"}"\nexit "$K"\n' "$T" "$T" > "$R/tests/rown/sprawdz.sh"
+# The JSON (`rown-przeniesienia/2`) goes to --json=<file>, as the real checker writes it; $T/podst.nadpis (JSON) is
+# merged over the clean result, $T/podst.kod overrides the exit code (default: the JSON's kod), $T/podst.bez-json skips the file.
+cat > "$R/tests/rown/sprawdz.sh" <<SH
+#!/bin/bash
+echo "\$*" > "$T/podst.args"
+for a; do case \$a in --przed=*) PR=\${a#*=} ;; --po=*) PO=\${a#*=} ;; --podstawienia=*) M=\${a#*=} ;; --json=*) J=\${a#*=} ;; esac; done
+N=\$(cat "$T/podst.nadpis" 2>/dev/null || echo '{}')
+W=\$(jq -n --arg pr "\$PR" --arg po "\$PO" --arg m "\$M" --arg h "\$(shasum -a 256 "\$M" | cut -d' ' -f1)" --argjson n "\$N" \\
+  '{format: "rown-przeniesienia/2", werdykt: "czysto", kod: 0, klasa: "Plik", przed: \$pr, po: \$po, przeniesionych: 1,
+    delegacji: 0, nowych_klas: 0, mapa: {plik: \$m, sha256: \$h, wpisow: 1, wybranych: 1, porcja: null}, roznice: [],
+    podstawienia: [], ostrzezenia: [], zalozenia: [], pliki_tylko_komentarze: [], bledy: [], blad: null} * \$n')
+[ -e "$T/podst.bez-json" ] || echo "\$W" > "\$J"
+K=\$(cat "$T/podst.kod" 2>/dev/null || jq -r '.kod' <<<"\$W")
+exit "\$K"
+SH
 g add -A && g commit -qm stary
 STARY=$(g rev-parse HEAD)
 h() { git -C "$R" show "$1:$2" | shasum -a 256 | cut -d' ' -f1; }
@@ -148,6 +167,7 @@ budzet-porcji: 3
 budzet-prob: 3
 budzet-usd: 100
 budzet-rund: 2
+nadzor: ${NADZOR:-$T/nadzor}
 ${DODATEK:-}
 EOF
 }
@@ -159,13 +179,18 @@ DODATEK=$'scalenie-z: main_dev\nstatic: bash {WT}/tests/Static/run.sh {WT}' kart
 DODATEK=$'scalenie-z: main_dev_zle\nstatic: bash {WT}/tests/Static/run.sh {WT}' karta > "$R/docs/refaktor/Plik/KARTA-n5-zle.md"
 DODATEK=$'scalenie-z: main_dev_konflikt\nstatic: bash {WT}/tests/Static/run.sh {WT}' karta > "$R/docs/refaktor/Plik/KARTA-n5-konflikt.md"
 DODATEK=$'podstawienia: tests/rown/podstawienia/Plik.json\npodstawienia_sha256: 0000' karta > "$R/docs/refaktor/Plik/KARTA-podst.md"
-DODATEK=$'podstawienia: tests/rown/podstawienia/Plik.json\npodstawienia_sha256: '"$(h "$STARY" tests/rown/podstawienia/Plik.json)"$'\nprzeniesienia: bash {WT}/tests/rown/sprawdz.sh --od={OD} --nowy={SHA} --podstawienia={PODSTAWIENIA}' karta > "$R/docs/refaktor/Plik/KARTA-przen.md"
+DODATEK=$'podstawienia: tests/rown/podstawienia/Plik.json\npodstawienia_sha256: '"$(h "$STARY" tests/rown/podstawienia/Plik.json)"$'\nprzeniesienia: bash {WT}/tests/rown/sprawdz.sh --przed={OD} --po={SHA} --podstawienia={PODSTAWIENIA} --json={JSON}' karta > "$R/docs/refaktor/Plik/KARTA-przen.md"
 DODATEK=$'przeniesienia: bash {WT}/tests/rown/sprawdz.sh' karta > "$R/docs/refaktor/Plik/KARTA-przen-bez-mapy.md"
 karta | sed 's/^kolejka: zaufana/kolejka: main/' > "$R/docs/refaktor/Plik/KARTA-poza-kolejka.md"
 karta | sed 's/^status: aktywny/status: zakonczony/' > "$R/docs/refaktor/Plik/KARTA-zakonczona.md"
 karta | sed '/^zamrozone: app/d' > "$R/docs/refaktor/Plik/KARTA-bez-pliku.md"
 mkdir -p "$R/docs/inne" && karta > "$R/docs/inne/KARTA.md"
-g checkout -q -b zaufana && g add -A && g commit -qm warianty && g checkout -q main
+NADZOR='{REPO}/.claude/tmp/refaktor/{KLASA}' karta > "$R/docs/refaktor/Plik/KARTA-nadzor-w-porcji.md"
+NADZOR="$T/wt2/nadzor" karta > "$R/docs/refaktor/Plik/KARTA-nadzor-w-innym-wt.md"
+g checkout -q -b zaufana && g add -A && g commit -qm warianty
+g checkout -q -b zaufana-zap && printf 'zapadki: tests/Wlasne/**\n' >> "$R/docs/VERIFICATION_ENV.md" \
+  && karta | sed 's/^kolejka: zaufana$/kolejka: zaufana-zap/' > "$R/docs/refaktor/Plik/KARTA-zap.md" && g add -A && g commit -qm zapadki-projektu
+g checkout -q main
 printf '#!/bin/bash\necho "$*" > "%s/slot.args"\nTREE=$1; shift\ncd "$TREE" && exec bash tests/rown/stanowisko.sh "$@"\n' "$T" > "$T/slot.sh"
 # main_dev for the trial merge (N5): a clean change, one that breaks tests/Static, one that conflicts.
 g checkout -q -b main_dev main && echo x > "$R/app/Nowy.php" && g add -A && g commit -qm nowy
@@ -195,18 +220,22 @@ przypadek() {
   local NAZWA=$1 OCZ=$2 WZ=$3; shift 3
   [ -z "$FILTR" ] || [[ "$NAZWA" =~ $FILTR ]] || return 0
   g checkout -q -B "c-$NAZWA" porcja
+  [ "${ZOSTAW_DZIENNIK:-0}" = 1 ] || rm -f "$T/nadzor/dziennik.tsv"
   if [ -n "${PREP:-}" ]; then
     (cd "$R" && eval "$PREP")
     [ "${BRUDNE:-0}" = 1 ] || { g add -A && g commit -qm "prep $NAZWA" >/dev/null; }
   fi
   local TIP; TIP=$(g rev-parse HEAD)
   printf '%s' "${RAPORT:-$RAPORT_DOBRY}" > "$T/raport-$NAZWA.md"
-  if [ -n "${REC+x}" ]; then printf '%s\n' "$REC" > "$T/rec-$NAZWA.md"; else recenzja "$TIP" > "$T/rec-$NAZWA.md"; fi
+  local RECP="${RECP:-$T/nadzor/recenzje/rec-$NAZWA.md}"
+  mkdir -p "$(dirname "$RECP")"
+  if [ -n "${REC+x}" ]; then printf '%s\n' "$REC" > "$RECP"; else recenzja "$TIP" > "$RECP"; fi
+  [ -z "${PO_REC:-}" ] || eval "$PO_REC"
   rm -f "$T/argi"
   local OUT KOD
   OUT=$(ARGI="$T/argi" FIKSTURA="${FIKSTURA:-}" bash "$S/bramka.sh" --refaktor --wt="$R" \
     --karta="${KARTA:-zaufana:docs/refaktor/Plik/KARTA.md}" --raport-porcji="$T/raport-$NAZWA.md" \
-    --recenzja="$T/rec-$NAZWA.md" --dziennik="$T/dziennik-$NAZWA.tsv" "$@" 2>&1); KOD=$?
+    --recenzja="$RECP" "$@" 2>&1); KOD=$?
   local OK=1
   if [ "$OCZ" = 0 ]; then [ "$KOD" = 0 ] || OK=0; else [ "$KOD" != 0 ] || OK=0; fi
   local W; while IFS= read -r W; do grep -qE -- "$W" <<<"$OUT" || OK=0; done <<<"${WZ//|||/$'\n'}"
@@ -216,7 +245,7 @@ przypadek() {
   g reset -q --hard && g clean -qfd -e tests/rown/raport
   g checkout -q porcja
 }
-Z() { unset PREP FIKSTURA RAPORT REC KARTA BRUDNE LISTA_LINIA NIE_URUCHOMIONE; }
+Z() { unset PREP FIKSTURA RAPORT REC KARTA BRUDNE LISTA_LINIA NIE_URUCHOMIONE RECP PO_REC ZOSTAW_DZIENNIK; rm -f "$T"/podst.*; }
 
 # ---- the rig's verdict decides; the executor's report does not -----------------------------------------------
 Z; przypadek identyczny 0 'OK +stanowisko: IDENTYCZNY, 3/3 scenariuszy'
@@ -263,10 +292,33 @@ Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-podst.md;                      przypad
 # ---- substitution check for 2b–4 (#50), behind the card key `przeniesienia:` -------------------------------------
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; rm -f "$T/podst.kod"
 przypadek podstawienia-czyste 0 'OK +podstawienia_sha256 = KARTA|||OK +podstawienia od .*: kod 0, werdykt czysto' \
-  && { { [ -n "$FILTR" ] && ! [[ podstawienia-czyste =~ $FILTR ]]; } || { grep -q -- "--od=$STARY --nowy=.* --podstawienia=tests/rown/podstawienia/Plik.json" "$T/podst.args" && DOBRZE=$((DOBRZE + 1)) && echo "ok   podstawienia-argumenty" \
+  && { { [ -n "$FILTR" ] && ! [[ podstawienia-czyste =~ $FILTR ]]; } || { grep -q -- "--przed=$STARY --po=.* --podstawienia=tests/rown/podstawienia/Plik.json --json=/" "$T/podst.args" && DOBRZE=$((DOBRZE + 1)) && echo "ok   podstawienia-argumenty" \
        || { ZLE=$((ZLE + 1)); echo "ZLE  podstawienia-argumenty: $(cat "$T/podst.args" 2>/dev/null)"; }; }; }
-Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; echo 1 > "$T/podst.kod"
-przypadek podstawienia-roznice 1 'BRAK: podstawienia od .*: kod 1, werdykt roznice'; rm -f "$T/podst.kod"
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; echo '{"werdykt": "roznice", "kod": 4, "roznice": [{"kategoria": "cialo", "tresc": "m() różni się"}]}' > "$T/podst.nadpis"
+przypadek podstawienia-roznice 1 'BRAK: podstawienia od .*: kod 4, werdykt roznice.*m\(\) różni się'
+# ---- the JSON contract of #50 (rown-przeniesienia/2): the gate judges the fields, not only the exit code ------------
+pj() {  # $1 name, $2 expected exit, $3 regex, $4 JSON merged over the clean result, [$5 the checker's exit code]
+  Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; printf '%s' "$4" > "$T/podst.nadpis"
+  [ -z "${5:-}" ] || echo "$5" > "$T/podst.kod"
+  przypadek "$1" "$2" "$3"
+}
+pj podst-format-nieznany 1 'BRAK: podstawienia: format rown-przeniesienia/3' '{"format": "rown-przeniesienia/3"}'
+pj podst-werdykt-przy-kodzie-0 1 'BRAK: podstawienia od .*werdykt roznice' '{"werdykt": "roznice"}'
+pj podst-roznice-przy-czysto 1 'BRAK: podstawienia od .*1 różnic' '{"roznice": [{"kategoria": "x", "tresc": "y"}]}'
+pj podst-kod-niespojny 1 'BRAK: podstawienia: kod wyjścia 0, a JSON kod 4' '{"kod": 4}' 0
+pj podst-mapa-inna 1 'BRAK: podstawienia: skrót mapy w wyniku abc ≠ KARTA' '{"mapa": {"sha256": "abc"}}'
+pj podst-bez-mapy 1 'BRAK: podstawienia: wynik bez mapy' '{"mapa": null}'
+pj podst-po-inne 1 'BRAK: podstawienia: po=' "{\"po\": \"$STARY\"}"
+pj podst-przed-inne 1 'BRAK: podstawienia: przed=' '{"przed": "main_dev"}'
+pj podst-blad 1 'BRAK: podstawienia od .*werdykt blad.*mapa odrzucona' '{"werdykt": "blad", "kod": 1, "blad": "mapa odrzucona"}'
+pj podst-zalozenia 0 'UWAGA podstawienia: założenie: argument z wywołaniem' '{"zalozenia": ["argument z wywołaniem"]}'
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md; touch "$T/podst.bez-json"; przypadek podst-bez-json 1 'BRAK: podstawienia: brak wyniku JSON'
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md
+przypadek podst-skrot-w-dzienniku 0 'OK +podstawienia od .*mapa [0-9a-f]{12}'
+if [ -z "$FILTR" ] || [[ podst-skrot-w-dzienniku =~ $FILTR ]]; then
+  if [ "$(cut -f7 "$T/nadzor/dziennik.tsv" 2>/dev/null)" = "$(h "$STARY" tests/rown/podstawienia/Plik.json)" ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   podst-dziennik-kolumna7"
+  else ZLE=$((ZLE + 1)); echo "ZLE  podst-dziennik-kolumna7: $(cat "$T/nadzor/dziennik.tsv" 2>/dev/null)"; fi
+fi
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen-bez-mapy.md;             przypadek przeniesienia-bez-mapy 1 'BRAK: KARTA przeniesienia: bez podstawienia'
 Z; PREP='echo "{\"podstawienia\": [\"x\"]}" > tests/rown/podstawienia/Plik.json'; KARTA=zaufana:docs/refaktor/Plik/KARTA-przen.md
 przypadek mapa-zmieniona 1 'BRAK: (narzedzia|podstawienia)_sha256'
@@ -332,15 +384,44 @@ przypadek komentarz-przeniesiony 0 'komentarze: 0 usuniętych'
 Z; RAPORT=$'## Odstępstwa od 1:1\nbrak\n';                               przypadek bez-kosztu 1 'BRAK: .*Koszt-USD'
 Z; RAPORT=$'Koszt-USD: 101\n## Odstępstwa od 1:1\nbrak\n';              przypadek budzet-usd 1 'BRAK: .*budżet USD'
 Z; RAPORT=$'Koszt-USD: 1\nRundy: 3\n## Odstępstwa od 1:1\nbrak\n';     przypadek budzet-rund 1 'BRAK: .*rund'
-Z; PREP="printf 'd\t%s\t%s\tOK\t0\t1\n' a $STARY b $STARY c $STARY > $T/dziennik-budzet-porcji.tsv"
+Z; PREP="mkdir -p $T/nadzor && printf 'd\t%s\t%s\tOK\t0\t1\n' a $STARY b $STARY c $STARY > $T/nadzor/dziennik.tsv"
 przypadek budzet-porcji 1 'BRAK: .*budżet porcji'
-Z; PREP="printf 'd\t%s\t%s\tBRAK\t2\t1\n' x $STARY y $STARY z $STARY > $T/dziennik-stop.tsv"
+Z; PREP="mkdir -p $T/nadzor && printf 'd\t%s\t%s\tBRAK\t2\t1\n' x $STARY y $STARY z $STARY > $T/nadzor/dziennik.tsv"
 NIE_URUCHOMIONE=1 przypadek stop 1 'BRAK: .*reguła stopu'
 Z; przypadek dziennik 0 'OK'
 if [ -z "$FILTR" ] || [[ dziennik =~ $FILTR ]]; then
-  if [ "$(cut -f4 "$T/dziennik-dziennik.tsv" 2>/dev/null)" = OK ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   dziennik-wpis"
-  else ZLE=$((ZLE + 1)); echo "ZLE  dziennik-wpis: $(cat "$T/dziennik-dziennik.tsv" 2>/dev/null)"; fi
+  if [ "$(cut -f4,7 "$T/nadzor/dziennik.tsv" 2>/dev/null)" = $'OK\t-' ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   dziennik-wpis"
+  else ZLE=$((ZLE + 1)); echo "ZLE  dziennik-wpis: $(cat "$T/nadzor/dziennik.tsv" 2>/dev/null)"; fi
 fi
+
+# ---- default ratchets (F12a): measurement scripts and thresholds; the project's own list from VERIFICATION_ENV ---
+Z; PREP="sed -i '' 's/40/41/' scripts/measure-god-objects.php";       przypadek zapadka-measure 1 'BRAK: .*Z1|||Z1 .*scripts/measure-god-objects.php'
+Z; PREP="sed -i '' 's/60/50/' phpunit.xml";                            przypadek zapadka-phpunit 1 'BRAK: .*Z1|||Z1 .*phpunit.xml'
+Z; PREP="sed -i '' 's/70/60/' infection.json5";                        przypadek zapadka-infection 1 'BRAK: .*Z1|||Z1 .*infection.json5'
+Z; PREP="sed -i '' 's/3;/4;/' tests/Wlasne/Prog.php";                  przypadek zapadka-poza-domyslnymi 0 'zapadki: 0'
+Z; KARTA=zaufana-zap:docs/refaktor/Plik/KARTA-zap.md; PREP="sed -i '' 's/3;/4;/' tests/Wlasne/Prog.php"
+przypadek zapadka-z-verification-env 1 'BRAK: .*Z1|||Z1 .*tests/Wlasne/Prog.php|||INFO +zapadki z docs/VERIFICATION_ENV.md na zaufana-zap'
+Z; KARTA=zaufana-zap:docs/refaktor/Plik/KARTA-zap.md; PREP="sed -i '' 's/LIMIT = 5/LIMIT = 6/' tests/Static/ZapadkaTest.php"
+przypadek zapadka-lista-projektu-zastepuje 0 'zapadki: 0'
+
+# ---- F10: the log and the review come from the supervisor's directory named by the card, not from the caller -----
+Z; NIE_URUCHOMIONE=1 przypadek dziennik-od-wywolujacego 1 'BRAK: --dziennik=.* nie jest dziennikiem z KARTY' --dziennik="$T/wlasny.tsv"
+Z; przypadek dziennik-zgodny-z-karta 0 'OK: porcja' --dziennik="$T/nadzor/dziennik.tsv"
+Z; RECP="$T/rec-wykonawcy.md";                                           przypadek rec-spoza-nadzoru 1 'BRAK: recenzja .* spoza katalogu nadzorcy'
+Z; RECP="$T/rec-link-cel.md"; PO_REC='ln -sf "$T/rec-link-cel.md" "$T/nadzor/recenzje/link.md"; RECP="$T/nadzor/recenzje/link.md"'
+przypadek rec-dowiazanie-na-zewnatrz 1 'BRAK: recenzja .* spoza katalogu nadzorcy'
+Z; RECP="$T/nadzor/recenzje/../../poza.md";                              przypadek rec-kropki 1 'BRAK: recenzja .* spoza katalogu nadzorcy'
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-nadzor-w-porcji.md;          NIE_URUCHOMIONE=1 przypadek nadzor-w-worktree-porcji 1 'BRAK: katalog nadzorcy .* leży w worktree'
+if [ -z "$FILTR" ] || [[ nadzor-w-innym-worktree =~ $FILTR ]]; then g worktree add -q --detach "$T/wt2" main; fi
+Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-nadzor-w-innym-wt.md;        NIE_URUCHOMIONE=1 przypadek nadzor-w-innym-worktree 1 "BRAK: katalog nadzorcy .* leży w worktree $T/wt2"
+[ -d "$T/wt2" ] && g worktree remove --force "$T/wt2"
+# The old 6-column log (before #58) still counts for budget and the stop rule; a mixed log too.
+Z; PREP="mkdir -p $T/nadzor && printf 'd\t%s\t%s\tOK\t0\t1\n' a $STARY b $STARY > $T/nadzor/dziennik.tsv && printf 'd\t%s\t%s\tOK\t0\t1\tabc\n' c $STARY >> $T/nadzor/dziennik.tsv"
+przypadek dziennik-mieszany-budzet 1 'BRAK: budżet porcji wyczerpany: 3 przeszło'
+Z; PREP="mkdir -p $T/nadzor && printf 'd\t%s\t%s\tBRAK\t2\t1\n' x $STARY y $STARY > $T/nadzor/dziennik.tsv && printf 'd\t%s\t%s\tBRAK\t2\t1\t-\n' z $STARY >> $T/nadzor/dziennik.tsv"
+NIE_URUCHOMIONE=1 przypadek dziennik-mieszany-stop 1 'BRAK: reguła stopu: 3 nieudanych'
+Z; PREP="mkdir -p $T/nadzor && printf 'd\t%s\t%s\tOK\t0\t30\n' a $STARY > $T/nadzor/dziennik.tsv"; RAPORT=$'Koszt-USD: 71\n## Odstępstwa od 1:1\nbrak\n'
+przypadek dziennik-stary-usd 1 'BRAK: budżet USD przekroczony: 101.00'
 
 # ---- the project's slot, and tests/Static on a trial merge with main_dev (N5) -----------------------------------
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-slot.md;                       przypadek slot 0 "stanowisko: bash $T/slot.sh $R --plik"
@@ -385,7 +466,8 @@ fi
 hak() {  # $1 name, $2 portion kind, $3 expected exit, $4 tool, $5 JSON tool_input
   [ -z "$FILTR" ] || [[ "$1" =~ $FILTR ]] || return 0
   local KOD
-  jq -n --arg t "$4" --argjson i "$5" '{tool_name: $t, tool_input: $i}' | bash "$S/hook-refaktor.sh" "$2" 'tests/rown/**' '**/KARTA.md' >/dev/null 2>&1
+  # shellcheck disable=SC2086
+  jq -n --arg t "$4" --argjson i "$5" '{tool_name: $t, tool_input: $i}' | bash "$S/hook-refaktor.sh" "$2" ${HAK_ARG:-} 'tests/rown/**' '**/KARTA.md' >/dev/null 2>&1
   KOD=$?
   if [ "$KOD" = "$3" ]; then DOBRZE=$((DOBRZE + 1)); echo "ok   $1"; else ZLE=$((ZLE + 1)); echo "ZLE  $1 (kod $KOD, oczekiwano $3)"; fi
 }
@@ -413,6 +495,37 @@ hak hak-stanowisko-uruchomienie kod 0 Bash '{"command": "bash tests/rown/stanowi
 hak hak-php-narzedzie kod 0 Bash '{"command": "php tests/rown/sprawdz-przeniesienia.php --stary=a"}'
 hak hak-zmiana-stanowiska zmiana-stanowiska 0 Write "{\"file_path\": \"$R/tests/rown/maska/Plik.json\"}"
 hak hak-zla-porcja '' 2 Write "{\"file_path\": \"$R/app/Plik.php\"}"
+# F17: writes that reach the rig through a parent directory, a variable, find/xargs or git -C
+hak hak-cd-rodzic-sed kod 2 Bash '{"command": "cd tests && sed -i \"\" s/a/b/ rown/lib/x.php"}'
+hak hak-cd-rodzic-przekierowanie kod 2 Bash "{\"command\": \"cd $R/tests && echo {} > rown/maska/Plik.json\"}"
+hak hak-cd-rodzic-inny-plik kod 0 Bash '{"command": "cd tests && sed -i \"\" s/a/b/ Unit/PlikTest.php"}'
+hak hak-cd-rodzic-odczyt kod 0 Bash '{"command": "cd tests && ls rown && cat rown/maska/Plik.json > /tmp/kopia.json"}'
+hak hak-zmienna kod 2 Bash '{"command": "D=tests/rown; sed -i \"\" s/a/b/ $D/lib/x.php"}'
+hak hak-zmienna-klamry kod 2 Bash '{"command": "export D=\"tests\"; echo {} > ${D}/rown/maska/Plik.json"}'
+hak hak-zmienna-odczyt kod 0 Bash '{"command": "D=tests/rown; cat $D/maska/Plik.json"}'
+hak hak-find-exec kod 2 Bash '{"command": "find tests/rown -name \"*.json\" -exec sed -i \"\" s/a/b/ {} \\;"}'
+hak hak-find-delete kod 2 Bash '{"command": "find tests/rown/maska -name \"*.json\" -delete"}'
+hak hak-find-odczyt kod 0 Bash '{"command": "find tests/rown -name \"*.json\" -exec cat {} \\;"}'
+hak hak-xargs kod 2 Bash '{"command": "ls tests/rown/maska/* | xargs sed -i \"\" s/a/b/"}'
+hak hak-git-C-checkout kod 2 Bash '{"command": "git -C tests/rown checkout main -- maska"}'
+hak hak-git-C-rodzic kod 2 Bash '{"command": "git -C tests checkout main -- rown/maska"}'
+hak hak-git-C-odczyt kod 0 Bash '{"command": "git -C tests/rown log --oneline -3 && git -C tests/rown diff --stat"}'
+hak hak-zs-find-exec zmiana-stanowiska 0 Bash '{"command": "find tests/rown -name \"*.json\" -exec sed -i \"\" s/a/b/ {} \\;"}'
+# F10: the supervisor's directory (log, reviews) is closed to the executor in both portion kinds
+hak hak-nadzor-write kod 2 Write "{\"file_path\": \"$R/.claude/tmp/refaktor/Plik/recenzje/r1.md\"}"
+hak hak-nadzor-write-zs zmiana-stanowiska 2 Write "{\"file_path\": \"$R/.claude/tmp/refaktor/Plik/recenzje/r1.md\"}"
+hak hak-nadzor-bash kod 2 Bash '{"command": "printf x >> .claude/tmp/refaktor/Plik/dziennik.tsv"}'
+hak hak-nadzor-bash-zs zmiana-stanowiska 2 Bash "{\"command\": \": > $R/.claude/tmp/refaktor/Plik/dziennik.tsv\"}"
+hak hak-nadzor-rm kod 2 Bash '{"command": "rm -f .claude/tmp/refaktor/Plik/dziennik.tsv"}'
+hak hak-nadzor-odczyt kod 0 Bash '{"command": "cat .claude/tmp/refaktor/Plik/dziennik.tsv"}'
+HAK_ARG="--nadzor=$T/nadzor/**" hak hak-nadzor-z-karty kod 2 Write "{\"file_path\": \"$T/nadzor/recenzje/r1.md\"}"
+HAK_ARG="--nadzor=$T/nadzor/**" hak hak-nadzor-z-karty-bash zmiana-stanowiska 2 Bash "{\"command\": \"cp /tmp/r.md $T/nadzor/recenzje/r1.md\"}"
+# The hook lives only in the executor's --settings: nothing in the plugin registers it for every session (the
+# supervisor writes reviews, the gate writes the log, neither runs under it).
+if [ -z "$FILTR" ] || [[ hak-tylko-w-settings =~ $FILTR ]]; then
+  if ! grep -rl 'hook-refaktor' "$TU/../../.." --include='*.json' >/dev/null 2>&1; then DOBRZE=$((DOBRZE + 1)); echo "ok   hak-tylko-w-settings"
+  else ZLE=$((ZLE + 1)); echo "ZLE  hak-tylko-w-settings: $(grep -rl 'hook-refaktor' "$TU/../../.." --include='*.json')"; fi
+fi
 
 echo "wynik: $DOBRZE ok, $ZLE źle"
 [ "$ZLE" = 0 ]
