@@ -47,8 +47,10 @@ if [ -n "$REFAKTOR" ]; then
   LISTA_SHA=$(shasum -a 256 "$REFAKTOR" | cut -c1-12)
   LISTA_N=$(grep -cE '^[0-9]+\. ' "$REFAKTOR")
 fi
-RUN="$REPO/.claude/tmp/eval-recenzenta/$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$RUN" || exit 2
+# The PID keeps two runs started in the same second apart: the run directory and the clone tokens derive from it
+# (two runs shared one directory and lost clones until v1.12.0).
+RUN="$REPO/.claude/tmp/eval-recenzenta/$(date +%Y%m%d-%H%M%S)-$$"
+mkdir -p "$(dirname "$RUN")" && mkdir "$RUN" || exit 2
 # The reviewer as a session agent: body of the file as its prompt, tools and model from its frontmatter.
 python3 -I - "$AGENT" "$MODEL" > "$RUN/agent.json" <<'PY' || { echo "nie da się odczytać $AGENT" >&2; exit 2; }
 import json, sys
@@ -170,7 +172,8 @@ wait
 column -t -s $'\t' "$RUN/wyniki.tsv"
 # Recall = TRAF / blad; OBOK (blocks, but not on the bug), PUSTY, BEZ-OTWARTE and BRAK-RAPORTU do not count.
 # Noise = blocking findings on clean diffs.
-PODS=$(awk -F'\t' 'NR > 1 {
+# awk reads "1.37" as 1 under a comma-decimal locale (pl_PL): the cost total summed integer parts until v1.12.0.
+PODS=$(LC_ALL=C awk -F'\t' 'NR > 1 {
     if ($2 == "blad") { b++; if ($3 == "TRAF") t++ }
     if ($2 == "czysty") { c++; if ($4 ~ /^[0-9]+$/) s += $4; if ($3 == "SZUM") cs++ }
     if ($5 ~ /^[0-9.]+$/) k += $5

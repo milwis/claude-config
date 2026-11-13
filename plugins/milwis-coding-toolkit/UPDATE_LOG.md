@@ -8,6 +8,48 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
+## Run: 2026-11-13 — bramka porcji refaktoru (v1.12.0)
+
+Źródło: claude-config #27, audyt procedury refaktoru po pilocie Gutschrift (#46, `docs/plans/2026-11-12-audyt-procedury-refaktoru.md`: §3 wytyczne, §4 lista recenzenta, L1/L2/L16–L18/L23/L26, N2, N5). Decyzja nadzorcy: wariant A, czyli lista w `roadmapa/references/recenzja-refaktoru.md` i limit `code-reviewer.md` podniesiony do 39 KB.
+
+- **`bramka.sh --refaktor` → `scripts/bramka-refaktoru.sh` (nowy).** Werdykt porcji pochodzi z gita i z plików stanowiska, nie z raportu wykonawcy. Bramka sprawdza:
+  - KARTĘ z zaufanego refu: czy jest identyczna na gałęzi kolejki (`kolejka:`) i czy kolejka naprawdę zamraża plik;
+  - skróty miary (maska, scenariusze, uzasadnienia, narzędzia, mapa podstawień);
+  - budżety i regułę stopu z dziennika;
+  - własny przebieg stanowiska przez slot, z argumentami, które buduje sama, do świeżego katalogu;
+  - recenzję na SHA, czyli brak otwartych CRITICAL/REQUIRED, `Lista-refaktoru:` i komplet `R<n>`;
+  - odstępstwa od 1:1, które wymagają `zgoda nadzorcy RRRR-MM-DD`;
+  - `A<n>`, czyli zdania asercji usunięte lub zmienione i dodane pominięcia; `Z<n>`, czyli każdą zmianę w pliku zapadki; `K<n>`, czyli usunięte bloki komentarza > 5 linii;
+  - `tests/Static` na próbnym scaleniu z `scalenie-z`.
+
+  Sprawdzanie podstawień z #50 jest dostępne za kluczem `przeniesienia:`, a jego kontrakt JSON jest otwarty.
+- **Zamrożenie w kolejce (L18):** `zamrozone.sh` czyta aktywne KARTY z commita `$MAIN` (`refaktor-karta:` w VERIFICATION_ENV) i zamraża również samą KARTĘ. `bramka.sh` odmawia scalenia, a `wybierz-issue.sh` pomija issue, które nazywa plik albo klasę.
+- **`hook-refaktor.sh` (nowy, L2):** hook PreToolUse sesji wykonawcy z rodzajem porcji w `--settings`. Blokuje zapisy do miary: edycje, przekierowania, `tee`/`sponge`, `cp`/`mv`/`rm`, `sed`/`perl` w miejscu, `git checkout|restore`, zapis po `cd` do katalogu miary oraz kod interpretera w linii.
+- **`code-reviewer.md`:** krok 5 „A refactor portion” (lista z briefu, punkt po punkcie, skrót listy). Łatka i26: krok 3 „A module's own document”, Tier → 4. Rozmiar: 38 787 B.
+- **`eval-recenzenta.sh`:**
+  - `--refaktor <lista>` z kolumną `lista`;
+  - poprawka: suma kosztu przy locale z przecinkiem sumowała części całkowite;
+  - poprawka: dwa przebiegi uruchomione w tej samej sekundzie dzieliły katalog i klony.
+- Dokumentacja: `roadmapa/references/cykl-refaktoru.md` (KARTA, kroki porcji, co sprawdza bramka, raport porcji, wytyczne 1–26).
+- Recenzja: dwie rundy (świeży recenzent). Runda 1 dała 8 REQUIRED, runda 2 dała 2 REQUIRED, regresję asercji Pythona/`fail(` i cichą tabelę bez nagłówka. Wszystkie zamknięte. Reszta jest w issue zbiorczym.
+- `POMIAR` (`tests/test-refaktor.sh`): 120/120 przypadków na repo-fiksturze z atrapą stanowiska. Obejmuje każdy BRAK z tabeli bramki, przypadki z obu rund recenzji i 27 przypadków hooka.
+- `POMIAR` (e2e, KonkretnyTMS, worktree od procedura/siec 0fdcbc222, wzorzec bazy 23a4, slot stanowiska). KARTA próbna `GutschriftDocumentController` leży na gałęzi zaufanej, ze stroną A na commicie bazowym. Porcja 333375fbc zmienia jeden komentarz:
+  - przebieg wykonawcy: IDENTYCZNY 174/174, kontrola dodatnia 22/22 RÓŻNICA, 1736 s;
+  - recenzja: runda 1 dała 1 REQUIRED (brak fazy w nagłówku raportu), runda 2 to APPROVE z listą 17/17;
+  - bramka: OK, czyli wszystkie wiersze OK, stanowisko 1697 s i `tests/Static` na próbnym scaleniu z main_dev zielone.
+
+  Porcja fb1b5fb0f z mutantem `5-odmowa-409-na-422`: bramka dała BRAK (`stanowisko kod 2 (RÓŻNICA)`, 149/174 identycznych, 246 s), a zakres liczyła od ostatniej porcji OK z dziennika. Hook na prawdziwych ścieżkach dał 6/6.
+- `POMIAR` (`eval-recenzenta`, opus/high, 14 przypadków, w tym nowe f1–f5 porcji refaktoru):
+  - przed (v1.11.0, 2e1ef1e56): trafione 11/11, czyste z szumem 2/3 (blokujących 2), 17,17 USD;
+  - po (v1.12.0 + lista, eec4eb07e): trafione 11/11, lista refaktoru 5/5, czyste z szumem 2/3 (blokujących 3), 20,88 USD.
+
+  Historia pokazywała 8,00 i 14,00 USD przez błąd locale. Wzrost blokujących to jeden przypadek, c1909, z dodatkowym REQUIRED o kopii helpera w teście. Powtórka czystych przypadków (c1848, c1909 × 3, sekwencyjnie): przed 6/6 z szumem, 6 blokujących, 7,70 USD; po 6/6 z szumem, 6 blokujących, 7,70 USD. W c1909 po było 1 blokujące w każdej z 3 powtórek, więc wzrost w pojedynczym przebiegu to szum, nie regresja (polityka 6 spełniona). Szum na c1848/c1909 jest stały w obu wersjach agenta i wychodzi poza #27.
+- `NIEZMIERZONE`:
+  - prawdziwy refaktor wieloporcjowy;
+  - hook w `--settings` żywej sesji Claude Code;
+  - stanowisko KonkretnyTMS z `--karta-md`, opisane w łatce w raporcie #27;
+  - koszt podwójnego przebiegu stanowiska na porcję (około 2 × 29 min).
+
 ## Run: 2026-11-12 — kolejka w Herdr zamiast tmux (v1.11.0)
 
 Źródło: prośba właściciela („przepisz kolejka.sh tak, aby działało na herdr”). Herdr pokazuje tylko terminale uruchomione przez `hc`, więc lider w odłączonym tmuxie był dla właściciela niewidoczny.
