@@ -13,7 +13,7 @@ in a command that writes. Reads (cat, grep, jq, a checker's output to a file els
 The hook is a fence for an honest executor's slips and lazy shortcuts, not a sandbox: the OS-level fence is the session's
 permissions (cykl-refaktoru.md, krok 1).
 """
-import glob, json, os, re, shlex, subprocess, sys
+import fnmatch, glob, itertools, json, os, re, shlex, subprocess, sys
 
 dane = json.loads(sys.stdin.read() or "{}")
 narz = dane.get("tool_name") or ""
@@ -114,21 +114,62 @@ for t in tokeny:
 if biez:
     komendy.append(biez)
 
-def rozwin(x, b):
-    """Real paths of x against b; a glob in it (`../../tmp/refak*/Plik/x`) expanded up to its last wildcard part, the
-    rest appended, so a file that does not exist yet still resolves (r2 F12)."""
-    out = [rp(x, b)]
-    czesci = os.path.expanduser(x).split("/")
-    gw = [i for i, c in enumerate(czesci) if re.search(r"[*?[]", c)]
-    if gw:
-        for m in glob.glob(os.path.join(b, "/".join(czesci[:gw[-1] + 1])))[:50]:
-            out.append(os.path.realpath(os.path.join(m, *czesci[gw[-1] + 1:])))
+def nazwa(k):  # the command's name and index, past `X=1`, env, command, builtin, sudo, … (F20 of #58)
+    i = 0
+    while i < len(k) and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", k[i]) or k[i] in PREFIKSY):
+        i += 1
+    return (os.path.basename(k[i]) if i < len(k) else ""), i
+
+
+def klamry(x, n=0):
+    """Brace expansion as bash/zsh do it: `../../{tmp,q}/x` → both alternatives (F19 of #58), at most 50."""
+    m = re.search(r"\{([^{}]*,[^{}]*)\}", x)
+    if not m or n > 8:
+        return [x]
+    out = []
+    for alt in m.group(1).split(","):
+        out += klamry(x[:m.start()] + alt + x[m.end():], n + 1)
+    return out[:50]
+
+
+def wzorzec(y, b):
+    """A glob (`../../tmp/refak*/Plik/x`, `**`) matched against the roots part by part, case-folded, without reading the
+    disk (r2 F12; F23 of #58: `rm -f ~/*/*/*/*.tmp` must not walk the home directory). The part before the first
+    wildcard is a real path. Gives the concrete path inside a root (or the root's ancestor) the pattern can name."""
+    czesci = os.path.join(b, os.path.expanduser(y)).split("/")
+    g = next((i for i, c in enumerate(czesci) if re.search(r"[*?[]", c)), None)
+    if g is None:
+        return []
+    if ".." in czesci[g:]:
+        return [os.path.realpath(m) for m in itertools.islice(glob.iglob("/".join(czesci)), 50)]
+    wz = [c.casefold() for c in os.path.realpath("/".join(czesci[:g]) or "/").split("/") + czesci[g:] if c not in ("", ".")]
+    out = []
+    for k in korzenie:
+        kc = [c for c in k.split("/") if c]
+        n = min(len(wz), len(kc))
+        for i in range(n):
+            if wz[i] == "**":
+                out.append(k)
+                break
+            if not fnmatch.fnmatchcase(kc[i].casefold(), wz[i]):
+                break
+        else:
+            out.append("/" + "/".join(kc + wz[n:]) if len(wz) >= len(kc) else "/" + "/".join(kc[:n]))
     return out
 
 
-def cel_cd(k):  # `cd -P x`, `cd -- x`: the first operand after the options (r2 F11)
+def rozwin(x, b):
+    """Real paths of x against b: braces expanded, globs matched against the roots."""
+    out = []
+    for y in klamry(x):
+        out.append(rp(y, b))
+        out += wzorzec(y, b)
+    return out
+
+
+def cel_cd(k):  # `cd -P x`, `cd -- x`, zsh `cd -q|-s x`: the first operand after the options (r2 F11, F20 of #58)
     reszta = k[1:]
-    while reszta and re.match(r"^(-[LPe@]+|--)$", reszta[0]):
+    while reszta and re.match(r"^(-[LPeqsn@]+|--)$", reszta[0]):
         if reszta.pop(0) == "--":
             break
     return reszta[:1]
@@ -136,12 +177,13 @@ def cel_cd(k):  # `cd -P x`, `cd -- x`: the first operand after the options (r2 
 
 # Base directories: cwd and every cd/pushd/git -C target, each resolved against the bases known before it.
 bazy, cele_git = [CWD], {}
-for n_, k in enumerate(komendy):
+for n_, k0 in enumerate(komendy):
     cele = []
+    k = k0[nazwa(k0)[1]:]
     if k and os.path.basename(k[0]) in ("cd", "pushd"):
         cele += cel_cd(k)
     for i, t in enumerate(k[:-1]):
-        if t == "-C" and k[0] == "git":
+        if t == "-C" and os.path.basename(k[0]) == "git":
             cele.append(k[i + 1])
             cele_git.setdefault(n_, []).append(k[i + 1])
     for c in cele:
@@ -184,13 +226,6 @@ def skrypt_trafia(p):
                 if ("/" in x or x.startswith("~")) and any(w(rp(x, d)) for d in (b, os.path.dirname(f), *bazy)):
                     return True
     return False
-
-
-def nazwa(k):
-    i = 0
-    while i < len(k) and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", k[i]) or k[i] in PREFIKSY):
-        i += 1
-    return (os.path.basename(k[i]) if i < len(k) else ""), i
 
 
 def pisze(k):
@@ -244,7 +279,7 @@ for k in komendy:
 # in the line (a heredoc body falls apart into tokens of its own): the path anywhere in the command is enough.
 # `git clean` run in an ancestor of the directory (`git -C ../../.. clean -fdX`: it is ignored, so -X deletes it; r2 F16).
 for n_, k in enumerate(komendy):
-    if k and k[0] == "git" and "clean" in k:
+    if nazwa(k)[0] == "git" and "clean" in k:
         for c in cele_git.get(n_, []) or ["."]:
             if any(w(r) or przodek(r) for b in bazy for r in rozwin(c, b)):
                 wyjdz("BLOK\t" + " ".join(k)[:160])

@@ -368,6 +368,10 @@ g update-index --no-skip-worktree app/Plik.php 2>/dev/null; g checkout -q -- app
 Z; PREP='git update-index --assume-unchanged app/Plik.php && echo "// x" >> app/Plik.php'; BRUDNE=1
 NIE_URUCHOMIONE=1 przypadek assume-unchanged 1 'BRAK: .*assume-unchanged.*app/Plik.php'
 g update-index --no-assume-unchanged app/Plik.php 2>/dev/null; g checkout -q -- app/Plik.php 2>/dev/null
+# F22 (nadzorca #58): core.fsmonitor whose hook never reports a change hides an edit from `git status`.
+Z; PREP='printf "#!/bin/bash\nprintf \"tok-1\\\\0\"\n" > .git/fsm-hook && chmod +x .git/fsm-hook && git config core.fsmonitor "$PWD/.git/fsm-hook" && git status --porcelain >/dev/null && git status --porcelain >/dev/null && sleep 1 && echo "// x" >> app/Plik.php'; BRUDNE=1
+NIE_URUCHOMIONE=1 przypadek fsmonitor 1 'BRAK: drzewo ma niezacommitowane zmiany'
+g config --unset core.fsmonitor 2>/dev/null; rm -f "$R/.git/fsm-hook"; g checkout -q -- app/Plik.php 2>/dev/null
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-nadzor-wzgledny.md;            NIE_URUCHOMIONE=1 przypadek nadzor-wzgledny 1 'BRAK: KARTA nadzor: nadzor-wzgledny nie jest ścieżką absolutną'
 Z; KARTA="zaufana:docs/refaktor/Plik/BRAK.md";                           przypadek karta-brak 1 'BRAK: .*KARTA'
 
@@ -617,6 +621,16 @@ HAK_CWD=$WTH hak hak-nadzor-git-clean kod 2 Bash '{"command": "git -C ../../.. c
 HAK_CWD=$WTH hak hak-nadzor-git-clean-wt kod 0 Bash '{"command": "git clean -fdX"}'
 HAK_CWD=$WTH hak hak-nadzor-pushd kod 2 Bash '{"command": "pushd ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
 HAK_CWD=$WTH hak hak-nadzor-ln-przodek-cwd kod 2 Bash '{"command": "ln -s ../.. x"}'
+# F19, F20 (nadzorca #58): brace expansion, a command behind builtin/command/env, zsh options of cd/pushd.
+HAK_CWD=$WTH hak hak-nadzor-klamry kod 2 Bash '{"command": "sed -i \"\" s/d/OK/ ../../{tmp,q}/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-klamry-tee kod 2 Bash '{"command": "echo x | tee -a ../../{q,tmp}/refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-klamry-cp kod 2 Bash '{"command": "cp r.md ../../tmp/{refaktor,x}/Plik/recenzje/"}'
+HAK_CWD=$WTH hak hak-nadzor-command-cd kod 2 Bash '{"command": "command cd ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-builtin-cd kod 2 Bash '{"command": "builtin cd ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-env-git-clean kod 2 Bash '{"command": "env X=1 git -C ../../.. clean -fdX"}'
+HAK_CWD=$WTH hak hak-nadzor-cd-q kod 2 Bash '{"command": "cd -q ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-pushd-q kod 2 Bash '{"command": "pushd -q ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-klamry-odczyt kod 0 Bash '{"command": "cat ../../{tmp,q}/refaktor/Plik/dziennik.tsv"}'
 g worktree remove --force "$WTH" >/dev/null 2>&1; rm -rf "$R/.claude/worktrees"
 # r1 F7: a command longer than ARG_MAX still goes through the checks (it used to empty the expanded command).
 for D in 'nadzor:echo x >> .claude/tmp/refaktor/Plik/dziennik.tsv' 'miara:sed -i "" s/a/b/ tests/rown/lib/x.php'; do

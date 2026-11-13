@@ -94,8 +94,14 @@
   - F13: domyślne zapadki + `eslint.config.*`, `.eslintrc*`, `*coverage-threshold*`, `*skip_budget*`, `*skip-budget*` (pliki zapadek KonkretnyTMS: `eslint.config.js`, `scripts/coverage-thresholds.js`, `scripts/ci/assert_skip_budget.php`).
   - Z OPTIONAL od razu: F14 `core.fsmonitor=false` przy `status`/`ls-files` + test assume-unchanged; F16 `git -C <przodek> clean` blokowany; F17 testy `pushd` i `ln -s ../..`; F18 dokumentacja zakresu F18. F15 (fałszywe blokady) → zbiorcze issue.
   - Repro recenzenta (`hak-r2.sh`, `hak-r2b.sh`) na nowym kodzie: wszystkie postacie REQUIRED dają 2; zwykła praca wykonawcy (stanowisko, phpunit, commit, odczyty dziennika) 0.
+- **Recenzja nadzorcy delty r2 (CHANGES REQUIRED) — poprawione:**
+  - F19: rozwijanie klamer (`../../{tmp,q}/refaktor/…`) omijało hook i realnie zapisywało dziennik. Teraz `{a,b}` jest rozwijane na alternatywy przed porównaniem.
+  - F20: polecenia rozpoznawane po nazwie za `builtin`/`command`/`env X=1` (cd, pushd, `git -C`, `git clean`); opcje zsh `cd -q|-s`, `pushd -q`.
+  - F22: test `fsmonitor` (hook fsmonitor, który nie zgłasza zmian); mutant bez `-c core.fsmonitor=false` daje czerwień.
+  - F23: glob nie jest już rozwijany po dysku. Wzorzec jest dopasowywany do ścieżki korzenia po składowych (fnmatch, casefold), więc `rm -f ~/*/*/*/*.tmp` trwa 0,08 s zamiast 3 s, a wzorzec łapie też plik, którego jeszcze nie ma.
+  - F21 (fałszywa blokada `xargs php -l` przy ścieżce nadzorcy w linii) → #66.
 - **marketplace.json:** wersja toolkitu 1.5.6 → 1.12.0, równo z `plugin.json`. Żaden kod w repo nie czyta tego pola (`git grep`); pasek i issues-pane podbijają je przy wydaniu.
-- `POMIAR` (`tests/test-refaktor.sh`): 222/222 (było 120; 180 przed r1, 207 przed r2). Nowe przypadki zaczynały czerwono: 49 przed F10/F12a/F17/JSON, 6 przed F18, 25 przed poprawkami r1 (7 bramki, 18 hooka) i 11 przed poprawkami r2. Pozostałe 4 nowe przypadki r2 (assume-unchanged, git clean w worktree, pushd, ln do przodka cwd) to testy regresji: przeszły od razu, bo kod już je obsługiwał.
+- `POMIAR` (`tests/test-refaktor.sh`): 232/232 (było 120; 180 przed r1, 207 przed r2, 222 przed recenzją nadzorcy; z tej recenzji 10 nowych: 7 czerwonych przed zmianą, fsmonitor czerwony na mutancie, 2 kontrolne). Nowe przypadki zaczynały czerwono: 49 przed F10/F12a/F17/JSON, 6 przed F18, 25 przed poprawkami r1 (7 bramki, 18 hooka) i 11 przed poprawkami r2. Pozostałe 4 nowe przypadki r2 (assume-unchanged, git clean w worktree, pushd, ln do przodka cwd) to testy regresji: przeszły od razu, bo kod już je obsługiwał.
 - `NIEZMIERZONE`:
   - e2e na prawdziwym stanowisku — sposób wołania stanowiska się nie zmienił;
   - prawdziwy `sprawdz-przeniesienia.php` z mapą wołany przez bramkę (kontrakt sprawdzony na atrapie zgodnej z nagłówkiem na procedura/ast);
