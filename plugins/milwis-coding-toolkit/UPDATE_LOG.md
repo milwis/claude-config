@@ -8,6 +8,14 @@
 > 5. Stopka pliku agenta: jeden komentarz `<!-- Updated: ... -->` + `Last updated:`; historia żyje w tym pliku, nie w agentach.
 > 6. **Zmiana `code-reviewer.md`, jego modelu albo effortu wchodzi z wynikiem `eval-recenzenta` przed i po (od v1.10.0)** — obie linie historii w wpisie tego pliku jako `POMIAR`. Spadek trafień albo wzrost blokujących znalezisk na czystych diffach = zmiana nie wchodzi.
 
+## Run: 2026-11-13 — skill `refaktor`: jeden orkiestrator (v1.14.0)
+
+Decyzja właściciela 2026-11-13: właściciel uruchamia jedną sesję (Opus albo Fable) poleceniem `/refaktor <plik> [spec]`. Ta sesja wywołuje sesję scenariuszy, a po niej sesję refaktoru z `/goal`. Sama sprawdza dowód 1:1 i scala dopiero po nim.
+
+- Nowy skill `refaktor/SKILL.md`. Tabela ról z modelem i effortem (sesje robocze `opus`/`high` przez `hc run`, recenzja przez `code-reviewer`). Kroki 0–6. Szablony briefu i linii `/goal` dla obu sesji. Do 3 plików równolegle.
+- Dowód sprawdza orkiestrator. Stanowisko puszcza z własnego worktree na SHA miary `S`, którego sesje nie dotykały. Musi być: IDENTYCZNY na wszystkich kanałach z kontrolą dodatnią, miara i istniejące testy nietknięte, suita = tło, recenzja z listą `recenzja-refaktoru.md` i 0 REQUIRED. Scalenie dopiero po pełnym dowodzie, push na słowo właściciela.
+- `roadmapa/references/cykl-refaktoru.md` usunięty, treść jest w skillu `refaktor`. `recenzja-refaktoru.md` zostaje w `roadmapa/references`, bo wskazuje ją `code-reviewer.md` (bez zmian, polityka 6).
+
 ## Run: 2026-11-13 — prosta procedura refaktoru (v1.13.0, reguła scalenia v1.13.1)
 
 Decyzja właściciela 2026-11-13: procedura refaktoru maksymalnie prosta. Jedna sesja robi refaktoring pliku sama, potem `/goal` poprawia kod, aż stanowisko da 1:1 stary kontra nowy. Jedynym dowodem jest test przed i po.

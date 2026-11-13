@@ -124,7 +124,7 @@ When the project has a control CLI (`cli:` line under `## CLI` in `docs/VERIFICA
   repo's default makes GitHub read `workflow_run` workflows from it, so such files go under `tylko-wlasciciel:` in
   `## Bramka`: the gate refuses a branch that touches them, and the issue is deferred.
 - **A file under refactor** — the queue does not know about it: its issues get `status:odlozone` until the refactor
-  merges (`references/cykl-refaktoru.md`, step 1).
+  merges (skill `refaktor`, step 1).
 - **STOP** — `kolejka.sh stop`, `~/.claude/relay-state/STOP-roadmapa`, or `docs/plans/STOP-roadmapa`
   committed on `$MAIN` (read with `git cat-file -e "$MAIN":…`, so it is visible from any branch or worktree).
 
@@ -141,8 +141,7 @@ v1.7.2); the owner's interactive sessions keep their own window.
 |---|---|
 | `references/cykl-lidera.md` | the lead's cycle: preconditions, recovery, pick, triage brief, implementation, review and verification contracts, outcome, merge, close, ledger |
 | `references/evidence.md` | measurements behind the session-per-issue cycle (read when changing it, not at run time) |
-| `references/cykl-refaktoru.md` | the refactor (not the queue): one session refactors the file, then `/goal` until the equivalence rig gives 1:1, the suite equals the baseline and the measure is untouched; the supervisor repeats the three checks |
-| `references/recenzja-refaktoru.md` | the reviewer's checklist for the finished refactor (behaviour kept) |
+| `references/recenzja-refaktoru.md` | the reviewer's checklist for a finished refactor (skill `refaktor`, step 5) |
 | `scripts/kolejka.sh` | owner's control: start / stop / status / lista / watcher |
 | `scripts/watcher.sh` | a new lead process (`/exit` + `respawn-pane`) after the lead's flag (`rotuj` / `pusto` / `stop`) AND the end of its turn |
 | `scripts/lider.sh` | one lead = one `claude` process: auto mode, `--effort` (`KOLEJKA_EFFORT`, high), claude.ai connectors off, `--settings`, the lead's appended system prompt, session named after the issue, start prompt as the first message |

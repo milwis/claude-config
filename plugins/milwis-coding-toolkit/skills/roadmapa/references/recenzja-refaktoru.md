@@ -1,6 +1,6 @@
 # Refactor — the reviewer's checklist
 
-Used in step 4 of `cykl-refaktoru.md`: one fresh `code-reviewer` reviews the whole refactor branch against the spec
+Used in step 5 of the `refaktor` skill: one fresh `code-reviewer` reviews the whole refactor branch against the spec
 and every point below. The extra axis is **behaviour kept**: the refactor reshapes code, it does not change what the
 code does. End each point with its evidence (the command and its result): `R<n>: ok — <evidence>`, `R<n>: F<k>` or
 `R<n>: n/d — <why>`. `stanowisko` is the equivalence rig; its verdict for the final SHA is in the supervisor's brief.
