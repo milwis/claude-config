@@ -45,6 +45,19 @@ the blind grading rubric were removed in v1.13.0. The only proof that counts is 
    spec. REQUIRED findings go back to the same session with the same `/goal`.
 5. **Merge** to the base branch, remove `status:odlozone` from the deferred issues.
 
+## The merge rule (owner, 2026-11-13)
+
+Every refactor lives on its own branch until it is proven that the old and the new code behave identically in every
+respect. The branch merges only when all of these hold for its final SHA, checked by the supervisor:
+
+- the rig, old SHA vs final SHA: `IDENTYCZNY` on every channel it compares (status, body, headers, database, SQL, logs, files), exit 0,
+  coverage gate passed, positive control (mutants) detected — no `--tylko`, `--kalibracja` or skipped control;
+- the full suite: red names = the baseline, nothing new red, nothing removed;
+- the measure untouched (step 3, condition 3) and the review with 0 open REQUIRED.
+
+No exceptions for "harmless" differences: a difference is either fixed in the new code or the branch does not merge.
+A real bug found in the old code stays as it was in the refactor and gets its own issue.
+
 ## Several files at once (2–3)
 
 - One file = one worktree, one branch, one session, one `/goal`. The files must not share code that the refactor

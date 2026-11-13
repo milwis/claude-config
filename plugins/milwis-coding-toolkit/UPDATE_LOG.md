@@ -16,6 +16,7 @@ Decyzja właściciela 2026-11-13: procedura refaktoru maksymalnie prosta. Jedna 
 - Usunięte: `bramka-refaktoru.sh` (`bramka.sh --refaktor`), `hook-refaktor.sh`, `hook-nadzor.py`, `zamrozone.sh` (zamrożenie w `bramka.sh` i `wybierz-issue.sh`), `tests/test-refaktor.sh`, KARTA. `wybierz-issue.sh` wrócił do wersji v1.11.0. Poprawki `bramka.sh` z v1.12.0 niezwiązane z refaktorem (`core.quotePath`, `--no-renames`, `expect*(`) zostają.
 - `recenzja-refaktoru.md` skrócona do 12 punktów zachowania (bez kontraktu bramki, faz i KARTY). `code-reviewer.md` bez zmian, więc eval niepotrzebny (polityka 6).
 - Rubryka ślepej oceny (#51) nie weszła; issues #51, #66, #69, #70, #71 zamknięte jako niewdrażane.
+- **Reguła scalenia (właściciel, 2026-11-13):** każdy refaktor na osobnej gałęzi; scalenie dopiero po dowodzie, że stary i nowy kod działają identycznie pod każdym względem (stanowisko IDENTYCZNY na wszystkich kanałach z kontrolą dodatnią, suita = tło, miara nietknięta, recenzja 0 REQUIRED). Różnica = poprawka albo brak scalenia.
 - `POMIAR` (`/goal` jako pierwszy prompt sesji `hc run`, sonnet, 2026-11-13): „Goal set” i „/goal active” w pasku statusu, sesja pracowała dalej sama.
 
 ## Run: 2026-11-13 — bramka porcji refaktoru (v1.12.0)
