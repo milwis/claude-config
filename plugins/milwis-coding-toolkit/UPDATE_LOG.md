@@ -87,8 +87,15 @@
   - F5: domyślne zapadki + `phpstan*.neon*`, `*-baseline.*`. F6: `nadzor:` musi być absolutny.
   - F7: hook przekazuje polecenie do pythona przez stdin (wcześniej polecenie > ARG_MAX wywracało rozwinięcie i hook przepuszczał zapis). F8: `-delete;`, `git -c k=v -C`. F9: zapis w katalogu nadrzędnym liczy się tylko, gdy jego cel zawiera resztę ścieżki; `find -exec`/`xargs` tylko z poleceniem zapisującym; `mkdir .claude/tmp/refaktor-x` i własny `.claude/tmp/refaktor/` worktree przechodzą.
   - `POMIAR` F18 po F3/F4, kodem bramki (`.claude/tmp/i58/f18_r1.sh`): 227 `A<n>` asercji, 37 pozycji „wartości w” w 22 commitach (przed poprawkami 36).
+- **Recenzja r2 (CHANGES REQUIRED, 4 REQUIRED) — poprawione, bez trzeciej rundy (limit briefu: 2):**
+  - F10 (regresja względem ad1f380): ścieżka katalogu nadzorcy podana przez potok do `xargs <zapis>` (`find ../../tmp/refaktor … | xargs sed -i`) — teraz `xargs`/`parallel` z poleceniem zapisującym liczy ścieżkę w dowolnym miejscu linii.
+  - F11: `cd -P|-L|--` i `pushd` z opcjami — cel to pierwszy operand po opcjach.
+  - F12: porównanie po `casefold()` (APFS nie rozróżnia wielkości liter: `../../TMP/Refaktor/…`); glob w ścieżce (`refak*`, `tm?`) rozwijany względem każdej bazy.
+  - F13: domyślne zapadki + `eslint.config.*`, `.eslintrc*`, `*coverage-threshold*`, `*skip_budget*`, `*skip-budget*` (pliki zapadek KonkretnyTMS: `eslint.config.js`, `scripts/coverage-thresholds.js`, `scripts/ci/assert_skip_budget.php`).
+  - Z OPTIONAL od razu: F14 `core.fsmonitor=false` przy `status`/`ls-files` + test assume-unchanged; F16 `git -C <przodek> clean` blokowany; F17 testy `pushd` i `ln -s ../..`; F18 dokumentacja zakresu F18. F15 (fałszywe blokady) → zbiorcze issue.
+  - Repro recenzenta (`hak-r2.sh`, `hak-r2b.sh`) na nowym kodzie: wszystkie postacie REQUIRED dają 2; zwykła praca wykonawcy (stanowisko, phpunit, commit, odczyty dziennika) 0.
 - **marketplace.json:** wersja toolkitu 1.5.6 → 1.12.0, równo z `plugin.json`. Żaden kod w repo nie czyta tego pola (`git grep`); pasek i issues-pane podbijają je przy wydaniu.
-- `POMIAR` (`tests/test-refaktor.sh`): 207/207 (było 120; 180 przed recenzją r1). Każdy nowy przypadek był czerwony przed zmianą: 49 przed F10/F12a/F17/JSON, 6 przed F18, 25 przed poprawkami r1 (7 bramki, 18 hooka).
+- `POMIAR` (`tests/test-refaktor.sh`): 222/222 (było 120; 180 przed r1, 207 przed r2). Nowe przypadki zaczynały czerwono: 49 przed F10/F12a/F17/JSON, 6 przed F18, 25 przed poprawkami r1 (7 bramki, 18 hooka) i 11 przed poprawkami r2. Pozostałe 4 nowe przypadki r2 (assume-unchanged, git clean w worktree, pushd, ln do przodka cwd) to testy regresji: przeszły od razu, bo kod już je obsługiwał.
 - `NIEZMIERZONE`:
   - e2e na prawdziwym stanowisku — sposób wołania stanowiska się nie zmienił;
   - prawdziwy `sprawdz-przeniesienia.php` z mapą wołany przez bramkę (kontrakt sprawdzony na atrapie zgodnej z nagłówkiem na procedura/ast);

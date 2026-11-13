@@ -118,6 +118,8 @@ echo '<?php $limit = 40;' > "$R/scripts/measure-god-objects.php"
 printf '<phpunit>\n  <coverage minimum="60"/>\n</phpunit>\n' > "$R/phpunit.xml"
 echo '{"minMsi": 70}' > "$R/infection.json5"
 printf 'parameters:\n  ignoreErrors: []\n' > "$R/phpstan-baseline.neon"
+printf "export default [{ rules: { 'no-var': 'error' } }];\n" > "$R/eslint.config.js"
+mkdir -p "$R/scripts" && printf 'module.exports = { lines: 80 };\n' > "$R/scripts/coverage-thresholds.js"
 echo '<?php const PROG = 3;' > "$R/tests/Wlasne/Prog.php"
 echo 'raport/' > "$R/tests/rown/.gitignore"
 echo '{"pomijaj": []}' > "$R/tests/rown/maska/Plik.json"
@@ -363,6 +365,9 @@ Z; przypadek sha-inny 1 'BRAK: worktree stoi na' --sha="$STARY"
 Z; PREP='git update-index --skip-worktree app/Plik.php && echo "// x" >> app/Plik.php'; BRUDNE=1
 NIE_URUCHOMIONE=1 przypadek skip-worktree 1 'BRAK: .*skip-worktree.*app/Plik.php'
 g update-index --no-skip-worktree app/Plik.php 2>/dev/null; g checkout -q -- app/Plik.php 2>/dev/null
+Z; PREP='git update-index --assume-unchanged app/Plik.php && echo "// x" >> app/Plik.php'; BRUDNE=1
+NIE_URUCHOMIONE=1 przypadek assume-unchanged 1 'BRAK: .*assume-unchanged.*app/Plik.php'
+g update-index --no-assume-unchanged app/Plik.php 2>/dev/null; g checkout -q -- app/Plik.php 2>/dev/null
 Z; KARTA=zaufana:docs/refaktor/Plik/KARTA-nadzor-wzgledny.md;            NIE_URUCHOMIONE=1 przypadek nadzor-wzgledny 1 'BRAK: KARTA nadzor: nadzor-wzgledny nie jest ścieżką absolutną'
 Z; KARTA="zaufana:docs/refaktor/Plik/BRAK.md";                           przypadek karta-brak 1 'BRAK: .*KARTA'
 
@@ -416,6 +421,8 @@ Z; PREP="sed -i '' 's/\$flaga = true;/\$flaga = false;/' tests/Unit/PlikTest.php
 Z; PREP="sed -i '' 's/\$o = 3.0;/\$o = 3.5;/' tests/Unit/PlikTest.php"; przypadek wartosc-przed-asercja-w-linii 1 'A1 .*wartości w testJednaLinia: 1 lini.*\$o = 3.0|||asercje usunięte/zmienione: 1,'
 Z; PREP="sed -i '' 's/kwota(-1.0)/kwota(-2.0)/' tests/Unit/PlikTest.php"; przypadek wartosc-try-fail 1 'A1 .*wartości w testBlad'
 Z; PREP="sed -i '' 's/ignoreErrors: \[\]/ignoreErrors: [x]/' phpstan-baseline.neon"; przypadek zapadka-phpstan-baseline 1 'BRAK: .*Z1|||Z1 .*phpstan-baseline.neon'
+Z; PREP="sed -i '' \"s/'error'/'warn'/\" eslint.config.js"; przypadek zapadka-eslint-config 1 'Z1 .*eslint.config.js'
+Z; PREP="sed -i '' 's/lines: 80/lines: 60/' scripts/coverage-thresholds.js"; przypadek zapadka-coverage-thresholds 1 'Z1 .*scripts/coverage-thresholds.js'
 Z; PREP="sed -i '' 's/\$oczek = 2.0;/\$oczek = 2.0; \/\/ zmiana/' tests/Unit/PlikTest.php"; przypadek wartosc-tylko-komentarz-w-linii 1 'A1 .*wartości w testOczekiwana'
 Z; PREP="sed -i '' 's/\$wynik = (new Plik())->kwota(2.0);/\$wynik = (new Plik())->kwota(2.0) + 0;/' tests/Unit/PlikTest.php"
 przypadek wartosc-linia-bez-zmiany-literalow 1 'A1 .*wartości w testOczekiwana'
@@ -596,6 +603,20 @@ HAK_CWD=$WTH hak hak-nadzor-rm-przodek kod 2 Bash "{\"command\": \"rm -rf $R/.cl
 HAK_CWD=$WTH hak hak-nadzor-odczyt-wt kod 0 Bash '{"command": "cat ../../tmp/refaktor/Plik/dziennik.tsv > /tmp/k.tsv"}'
 HAK_CWD=$WTH hak hak-nadzor-wlasny-tmp kod 0 Write "{\"file_path\": \"$WTH/.claude/tmp/refaktor/raport.md\"}"
 HAK_CWD=$WTH hak hak-nadzor-mkdir-podobny kod 0 Bash '{"command": "mkdir -p .claude/tmp/refaktor-x"}'
+# r2 F10–F12, F16, F17: a path from a pipe into xargs <writer>, cd with options, letter case on a case-insensitive
+# volume, a glob before the root, git clean from an ancestor, pushd, ln to an ancestor of cwd.
+HAK_CWD=$WTH hak hak-nadzor-xargs-wzgl kod 2 Bash '{"command": "find ../../tmp/refaktor -name dziennik.tsv | xargs sed -i \"\" s/BRAK/OK/"}'
+HAK_CWD=$WTH hak hak-nadzor-xargs-abs kod 2 Bash "{\"command\": \"echo $R/.claude/tmp/refaktor/Plik/recenzje | xargs -I{} cp r.md {}/r.md\"}"
+HAK_CWD=$WTH hak hak-nadzor-cd-P kod 2 Bash '{"command": "cd -P ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-cd-kreski kod 2 Bash '{"command": "cd -- ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-wielkosc-liter kod 2 Bash '{"command": "echo x >> ../../TMP/Refaktor/Plik/dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-wielkosc-write kod 2 Write "{\"file_path\": \"$R/.claude/TMP/refaktor/Plik/recenzje/r.md\"}"
+HAK_CWD=$WTH hak hak-nadzor-glob kod 2 Bash '{"command": "cp r.md ../../tmp/refak*/Plik/recenzje/"}'
+HAK_CWD=$WTH hak hak-nadzor-glob-plik kod 2 Bash '{"command": "echo x >> ../../tm?/refaktor/Plik/nowy.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-git-clean kod 2 Bash '{"command": "git -C ../../.. clean -fdX"}'
+HAK_CWD=$WTH hak hak-nadzor-git-clean-wt kod 0 Bash '{"command": "git clean -fdX"}'
+HAK_CWD=$WTH hak hak-nadzor-pushd kod 2 Bash '{"command": "pushd ../../tmp/refaktor/Plik && echo x >> dziennik.tsv"}'
+HAK_CWD=$WTH hak hak-nadzor-ln-przodek-cwd kod 2 Bash '{"command": "ln -s ../.. x"}'
 g worktree remove --force "$WTH" >/dev/null 2>&1; rm -rf "$R/.claude/worktrees"
 # r1 F7: a command longer than ARG_MAX still goes through the checks (it used to empty the expanded command).
 for D in 'nadzor:echo x >> .claude/tmp/refaktor/Plik/dziennik.tsv' 'miara:sed -i "" s/a/b/ tests/rown/lib/x.php'; do

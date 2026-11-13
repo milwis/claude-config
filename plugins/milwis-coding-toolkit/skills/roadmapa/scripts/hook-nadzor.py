@@ -13,7 +13,7 @@ in a command that writes. Reads (cat, grep, jq, a checker's output to a file els
 The hook is a fence for an honest executor's slips and lazy shortcuts, not a sandbox: the OS-level fence is the session's
 permissions (cykl-refaktoru.md, krok 1).
 """
-import json, os, re, shlex, subprocess, sys
+import glob, json, os, re, shlex, subprocess, sys
 
 dane = json.loads(sys.stdin.read() or "{}")
 narz = dane.get("tool_name") or ""
@@ -62,12 +62,19 @@ def rp(p, baza):
     return os.path.realpath(os.path.join(baza, os.path.expanduser(p)))
 
 
+# Compared case-folded: APFS and NTFS ignore letter case, so `../../TMP/Refaktor/…` is the directory (r2 F12); on a
+# case-sensitive volume this only adds a refusal for a look-alike name.
+KORZ = [k.casefold() for k in korzenie]
+
+
 def w(x):  # x is the directory or inside it
-    return any(x == k or x.startswith(k + "/") for k in korzenie)
+    x = x.casefold()
+    return any(x == k or x.startswith(k + "/") for k in KORZ)
 
 
 def przodek(x):  # x is a proper ancestor of the directory
-    return x != "/" and any(k.startswith(x.rstrip("/") + "/") for k in korzenie)
+    x = x.casefold()
+    return x != "/" and any(k.startswith(x.rstrip("/") + "/") for k in KORZ)
 
 
 CWD = os.path.realpath(cwd)
@@ -107,17 +114,38 @@ for t in tokeny:
 if biez:
     komendy.append(biez)
 
+def rozwin(x, b):
+    """Real paths of x against b; a glob in it (`../../tmp/refak*/Plik/x`) expanded up to its last wildcard part, the
+    rest appended, so a file that does not exist yet still resolves (r2 F12)."""
+    out = [rp(x, b)]
+    czesci = os.path.expanduser(x).split("/")
+    gw = [i for i, c in enumerate(czesci) if re.search(r"[*?[]", c)]
+    if gw:
+        for m in glob.glob(os.path.join(b, "/".join(czesci[:gw[-1] + 1])))[:50]:
+            out.append(os.path.realpath(os.path.join(m, *czesci[gw[-1] + 1:])))
+    return out
+
+
+def cel_cd(k):  # `cd -P x`, `cd -- x`: the first operand after the options (r2 F11)
+    reszta = k[1:]
+    while reszta and re.match(r"^(-[LPe@]+|--)$", reszta[0]):
+        if reszta.pop(0) == "--":
+            break
+    return reszta[:1]
+
+
 # Base directories: cwd and every cd/pushd/git -C target, each resolved against the bases known before it.
-bazy = [CWD]
-for k in komendy:
+bazy, cele_git = [CWD], {}
+for n_, k in enumerate(komendy):
     cele = []
-    if k and os.path.basename(k[0]) in ("cd", "pushd") and len(k) > 1:
-        cele.append(k[1])
+    if k and os.path.basename(k[0]) in ("cd", "pushd"):
+        cele += cel_cd(k)
     for i, t in enumerate(k[:-1]):
         if t == "-C" and k[0] == "git":
             cele.append(k[i + 1])
+            cele_git.setdefault(n_, []).append(k[i + 1])
     for c in cele:
-        bazy += [rp(c, b) for b in bazy]
+        bazy += [r for b in bazy for r in rozwin(c, b)]
 bazy = list(dict.fromkeys(bazy))
 
 kawalki = re.compile(r"[^\s=:'\"(),;`{}<>|&]+")
@@ -133,11 +161,11 @@ def sciezki(t):
 def trafia(t, przodki=False):
     for x in sciezki(t):
         for b in bazy:
-            r = rp(x, b)
-            if w(r):
-                return True
-            if przodki and przodek(r) and not (CWD == r or CWD.startswith(r.rstrip("/") + "/")):
-                return True
+            for r in rozwin(x, b):
+                if w(r):
+                    return True
+                if przodki and przodek(r) and not w(CWD) and not (CWD == r or CWD.startswith(r.rstrip("/") + "/")):
+                    return True
     return False
 
 
@@ -150,7 +178,7 @@ def skrypt_trafia(p):
                 txt = open(f, encoding="utf-8", errors="replace").read()
             except OSError:
                 continue
-            if any(k in txt for k in korzenie):
+            if any(k in txt.casefold() for k in KORZ):
                 return True
             for x in kawalki.findall(txt):
                 if ("/" in x or x.startswith("~")) and any(w(rp(x, d)) for d in (b, os.path.dirname(f), *bazy)):
@@ -214,7 +242,15 @@ for k in komendy:
         wyjdz("BLOK\t" + " ".join(k)[:160] + " (skrypt zapisuje katalog nadzorcy)")
 # $(…) and backticks (the path is in a substitution whose result a writer or a redirect uses), and an interpreter anywhere
 # in the line (a heredoc body falls apart into tokens of its own): the path anywhere in the command is enough.
+# `git clean` run in an ancestor of the directory (`git -C ../../.. clean -fdX`: it is ignored, so -X deletes it; r2 F16).
+for n_, k in enumerate(komendy):
+    if k and k[0] == "git" and "clean" in k:
+        for c in cele_git.get(n_, []) or ["."]:
+            if any(w(r) or przodek(r) for b in bazy for r in rozwin(c, b)):
+                wyjdz("BLOK\t" + " ".join(k)[:160])
 interp = any(INTERP.match(nazwa(k)[0]) for k in komendy if k[nazwa(k)[1]:])
-if (("$(" in cmd or "`" in cmd) and pisze_gdzies or interp) and any(trafia(t) for k in komendy for t in k):
+# xargs/parallel running a writer: the path reaches it through the pipe, not as its argument (r2 F10).
+xa = any(nazwa(k)[0] in ("xargs", "parallel") and pisze(k) for k in komendy if k[nazwa(k)[1]:])
+if (("$(" in cmd or "`" in cmd) and pisze_gdzies or interp or xa) and any(trafia(t) for k in komendy for t in k):
     wyjdz("BLOK\t" + cmd[:160])
 wyjdz("OK")

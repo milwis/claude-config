@@ -38,7 +38,7 @@ KARTA whose text on `kolejka:` differs from the trusted one. Section `## Bramka`
 | `<key>_sha256` | for each of `maska scenariusze uzasadnienia narzedzia [podstawienia]` |
 | `raport` | the rig's report directory, with `{KLASA}` and `{ETAP}` |
 | `zamrozone` | one glob per line: paths the queue does not merge while the refactor runs (L18) |
-| `zapadki` | optional globs of ratchet files; without it the project's `zapadki:` lines in `docs/VERIFICATION_ENV.md` (`## Bramka`, read from `kolejka:`), else the default `tests/Static/**`, `tests/Config/**`, `*Latch*`, `*Ratchet*`, `*Zapadk*`, `scripts/measure-*`, `phpunit.xml*`, `infection.json*`, `phpstan*.neon*`, `*-baseline.*` (#58) |
+| `zapadki` | optional globs of ratchet files; without it the project's `zapadki:` lines in `docs/VERIFICATION_ENV.md` (`## Bramka`, read from `kolejka:`), else the default `tests/Static/**`, `tests/Config/**`, `*Latch*`, `*Ratchet*`, `*Zapadk*`, `scripts/measure-*`, `phpunit.xml*`, `infection.json*`, `phpstan*.neon*`, `*-baseline.*`, `eslint.config.*`, `.eslintrc*`, `*coverage-threshold*`, `*skip_budget*`, `*skip-budget*` (#58) |
 | `nadzor` | optional: the supervisor's directory (default `{REPO}/.claude/tmp/refaktor/{KLASA}`): the gate's log `dziennik.tsv`, its run logs and `recenzje/`. An absolute path (`{REPO}/…`), outside every worktree but the main checkout (#58, F10) |
 | `scalenie-z`, `static` | N5: the branch for the trial merge and the command run on it (`{WT}` = the merged copy, `{PORCJA}` = the portion's worktree, e.g. to copy `vendor/` and `.env` from it) |
 | `przeniesienia` | optional: the substitution check command, `{JSON}` = the result file (below) |
@@ -72,8 +72,9 @@ Never merge `main_dev` into the refactor branch.
    <writer>` on it, inline interpreter code (`python -c`, `php -r`, `node -e`, heredocs) that names it. Running the
    rig and its checkers passes. In both kinds it blocks the supervisor's directory (`.claude/tmp/refaktor/**` of the
    main checkout; when the KARTA's `nadzor:` is elsewhere add `--nadzor=<that dir>/**` after the kind) by real path
-   (`scripts/hook-nadzor.py`): relative paths from a worktree (`../../tmp/refaktor/…`), symlinks, `cd` into a
-   parent, writers and interpreters naming it, a script file whose text names it, `ln`/`rm`/`mv` on its ancestors.
+   (`scripts/hook-nadzor.py`, case-folded): relative paths from a worktree (`../../tmp/refaktor/…`), symlinks, globs,
+   `cd`/`pushd` (with options) into a parent, writers and interpreters naming it, `… | xargs <writer>`, a script file
+   whose text names it, `ln`/`rm`/`mv` on its ancestors, `git clean` run in an ancestor.
    The hook goes only into the executor's `--settings`: the supervisor's session and the gate never run under it.
    For the measure the hook is the first line and the hashes in the gate are the proof; for the supervisor's
    directory the hook is the only line, and a session determined to bypass it (code built at run time) can — the
@@ -140,7 +141,7 @@ read as a whole statement, also across lines) that is gone or changed in od..SHA
 need `decyzja właściciela`. Also an `A<n>`, one per method: lines with a literal inside a test method or a data
 provider that are gone or changed outside the assertion statements — a number, a string, `true`/`false`/`null`; on a
 line shared with an assertion only the part outside the statement counts (`$oczek = 2.0` → `2.5`, a provider row,
-`$o = 3.0; $this->assertSame($o, …)`; #58, F18). Files are compared without rename detection, so a moved test lists every assertion.
+`$o = 3.0; $this->assertSame($o, …)`; #58, F18). Not covered: Python tests, values in helper methods and class constants of the test. Files are compared without rename detection, so a moved test lists every assertion.
 `Z<n>` is any changed line, removed or added, in a ratchet file, one per file (always `decyzja właściciela`). `K<n>` is a removed comment block longer than 5 lines that did not
 reappear in the diff. Run the gate once to see the list, then write the lines.
 

@@ -54,10 +54,10 @@ REPO=$(dirname "$(G rev-parse --path-format=absolute --git-common-dir)")
 HEAD=$(G rev-parse HEAD)
 SHA=$(G rev-parse --verify -q "${SHA_ARG:-HEAD}^{commit}") || { echo "BRAK: --sha=$SHA_ARG nie jest commitem"; exit 1; }
 [ "$HEAD" = "$SHA" ] && ok "SHA porcji ${SHA:0:9}" || brak0 "worktree stoi na ${HEAD:0:9}, a SHA porcji to ${SHA:0:9}"
-if [ -z "$(G status --porcelain)" ]; then ok "drzewo czyste"
+if [ -z "$(G -c core.fsmonitor=false status --porcelain)" ]; then ok "drzewo czyste"
 else brak0 "drzewo ma niezacommitowane zmiany — stanowisko mierzyłoby co innego niż SHA porcji"; fi
 # skip-worktree / assume-unchanged hide an edited file from `git status` (r1 F2): any such flag fails the tree check.
-UKRYTE=$(G -c core.quotePath=false ls-files -v | grep -E '^([a-z]|S) ' | cut -c3- | head -5 | tr '\n' ' ')
+UKRYTE=$(G -c core.quotePath=false -c core.fsmonitor=false ls-files -v | grep -E '^([a-z]|S) ' | cut -c3- | head -5 | tr '\n' ' ')
 [ -z "$UKRYTE" ] || brak0 "pliki z flagą skip-worktree/assume-unchanged (git status ich nie pokazuje): ${UKRYTE}— zdejmij flagę (git update-index --no-skip-worktree --no-assume-unchanged)"
 
 KARTA_SCIEZKA="" KARTA_REF=""
@@ -344,7 +344,7 @@ if [ -z "$ZAPADKI" ]; then
   ZAPADKI=$(G show "$KOLEJKA:docs/VERIFICATION_ENV.md" 2>/dev/null | awk '/^## Bramka/{f=1;next} /^## /{f=0} f' \
     | sed -n 's/^zapadki: *//p' | sed -E 's/[[:space:]]+$//') ZRODLO="docs/VERIFICATION_ENV.md na $KOLEJKA"
 fi
-[ -n "$ZAPADKI" ] || { ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*\nscripts/measure-*\nphpunit.xml*\ninfection.json*\nphpstan*.neon*\n*-baseline.*'; ZRODLO=domyślne; }
+[ -n "$ZAPADKI" ] || { ZAPADKI=$'tests/Static/**\ntests/Config/**\n*Latch*\n*Ratchet*\n*Zapadk*\nscripts/measure-*\nphpunit.xml*\ninfection.json*\nphpstan*.neon*\n*-baseline.*\neslint.config.*\n.eslintrc*\n*coverage-threshold*\n*skip_budget*\n*skip-budget*'; ZRODLO=domyślne; }
 echo "INFO  zapadki z $ZRODLO: $(grep -c . <<<"$ZAPADKI") globów"
 POZYCJE=$(G -c core.quotePath=false diff --no-renames -U0 "$OD" "$SHA" | ZAPADKI="$ZAPADKI" python3 -I -c '
 import os, re, subprocess, sys, fnmatch
